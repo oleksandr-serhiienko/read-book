@@ -9,7 +9,7 @@ export default function TabLayout() {
             headerShown: false,
             tabBarIcon: ({ color }) => <FontAwesome size={28} name="home" color={color} />,
         }}/>
-      <Tabs.Screen name="page" options={{
+      <Tabs.Screen name="(page)" options={{
             title: "Page",
             headerShown: false,
             tabBarIcon: ({ color }) => <FontAwesome size={28} name='book' color={color} />,
