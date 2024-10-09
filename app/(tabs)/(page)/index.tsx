@@ -40,27 +40,34 @@ export default function HomeScreen() {
         else
         {
           
-          formattedTranslations = translationsNew.Translations.map(t => 
-            `${t.word}${t.pos ? ` • ${t.pos}` : ''}`);
+          formattedTranslations = translationsNew.Translations
+          .map(t => t.word + ", ");
+          //.join(', ');
+
+         // formattedTranslations = translationsNew.Translations.map(t => 
+           // `${t.word}${t.pos ? ` • ${t.pos}` : ''}`);
+           // t.word).join(', ');
         }
       
   
       // Prepare content for the panel
-      const initialContent = formattedTranslations.slice(0, 5).join('\n');
+      //const initialContent = formattedTranslations.slice(0, 5).join('\n');
       const fullContent = formattedTranslations.join('\n');
   
-      setPanelContent(initialContent);
-      setPanelFullContent(fullContent);
+      setPanelContent(formattedTranslations);
+      //setPanelFullContent(fullContent);
       setIsPanelVisible(true);      
   
     } catch (error) {
       console.error('Error fetching translation:', error);
       setPanelContent(`Error fetching translation for "${selection}"`);
-      setPanelFullContent(`Error fetching translation for "${selection}"`);
+      //setPanelFullContent(`Error fetching translation for "${selection}"`);
       setIsPanelVisible(true);
       setCurrentTranslations(null);  // Reset translations on error
     }
   };
+
+  
 
   const handleAddToDictionary = () => {
     // Implement your logic to add the word to the dictionary
@@ -79,10 +86,9 @@ export default function HomeScreen() {
         />
         <SlidePanel 
           isVisible={isPanelVisible}
-          initialContent={panelContent}
-          fullContent={panelFullContent}
+          content={panelContent}
           onClose={() => setIsPanelVisible(false)}
-          onAddToDictionary={handleAddToDictionary}
+          //onExpand={handleExpand}
         />
       </ReaderProvider>
     </SafeAreaView>

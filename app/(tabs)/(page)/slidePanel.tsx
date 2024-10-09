@@ -1,25 +1,23 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Animated } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, LayoutChangeEvent } from 'react-native';
+import { Link } from 'expo-router';
 
 interface SlidePanelProps {
   isVisible: boolean;
-  initialContent: string;
-  fullContent: string;
+  content: string;
   onClose: () => void;
-  onAddToDictionary: () => void;
 }
 
-const SlidePanel: React.FC<SlidePanelProps> = ({ 
-  isVisible, 
-  initialContent, 
-  fullContent, 
-  onClose, 
-  onAddToDictionary 
+const SlidePanel: React.FC<SlidePanelProps> = ({
+  isVisible,
+  content,
+  onClose
 }) => {
-  const [expanded, setExpanded] = useState(false);
   const [animation] = useState(new Animated.Value(0));
+  const [panelHeight, setPanelHeight] = useState(60);
+  const [contentWidth, setContentWidth] = useState(0);
 
-  React.useEffect(() => {
+  useEffect(() => {
     Animated.timing(animation, {
       toValue: isVisible ? 1 : 0,
       duration: 300,
@@ -29,31 +27,55 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
 
   const translateY = animation.interpolate({
     inputRange: [0, 1],
-    outputRange: [300, 0],
+    outputRange: [panelHeight, 0],
   });
 
+  const onContentLayout = useCallback((event: LayoutChangeEvent) => {
+    const { width } = event.nativeEvent.layout;
+    setContentWidth(width);
+  }, []);
+
+  const onPanelLayout = useCallback((event: LayoutChangeEvent) => {
+    const { height } = event.nativeEvent.layout;
+    setPanelHeight(height);
+  }, []);
+
+  const truncateText = (text: string) => {
+    const maxWidth = contentWidth - 40; // Subtracting padding and close button width
+    const maxChars = Math.floor(maxWidth / 8); // Approximate characters that fit
+    return text.length > maxChars ? text.slice(0, maxChars - 3) + '...' : text;
+  };
+
   return (
-    <Animated.View 
+    <Animated.View
       style={[
-        styles.panel, 
+        styles.panel,
         { transform: [{ translateY }] },
         !isVisible && styles.hidden
       ]}
+      onLayout={onPanelLayout}
     >
-      <ScrollView>
-        <Text>{expanded ? fullContent : initialContent}</Text>
-      </ScrollView>
-      <View style={styles.buttonContainer}>
-        <TouchableOpacity onPress={() => setExpanded(!expanded)}>
-          <Text>{expanded ? 'Show Less' : 'Show More'}</Text>
+      <Link
+        href={{
+          pathname: "/(tabs)/wordInfo",
+          params: { content: content }
+        }}
+        asChild
+      >
+        <TouchableOpacity style={styles.contentContainer}>
+          <Text
+            style={styles.content}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+            onLayout={onContentLayout}
+          >
+            {content}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity onPress={onAddToDictionary}>
-          <Text>Add to Dictionary</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onClose}>
-          <Text>Close</Text>
-        </TouchableOpacity>
-      </View>
+      </Link>
+      <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+        <Text style={styles.closeButtonText}>×</Text>
+      </TouchableOpacity>
     </Animated.View>
   );
 };
@@ -65,25 +87,30 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: 'white',
-    padding: 20,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: -2,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderTopWidth: 1,
+    borderTopColor: '#e0e0e0',
   },
   hidden: {
     display: 'none',
   },
-  buttonContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 20,
+  contentContainer: {
+    flex: 1,
+  },
+  content: {
+    fontSize: 16,
+  },
+  closeButton: {
+    padding: 5,
+    marginLeft: 10,
+  },
+  closeButtonText: {
+    fontSize: 24,
+    color: '#888',
   },
 });
 

@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import WordInfo from './wordInfo';
 
 export default function PageLayout() {
   return (
@@ -6,6 +7,7 @@ export default function PageLayout() {
       screenOptions={{ headerShown: false}}>
       <Stack.Screen name="index"/>
       <Stack.Screen name="slidePanel"/>
+      <Stack.Screen name="wordInfo"/>
     </Stack>
   );
 }
