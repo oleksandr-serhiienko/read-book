@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, LayoutChangeEvent } from 'react-native';
 import { Link } from 'expo-router';
-import { ResponseTranslation } from '@/components/reverso/reverso';
+import { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
 
 interface SlidePanelProps {
   isVisible: boolean;
-  content: string | ResponseTranslation;
+  content: SentenceTranslation | ResponseTranslation | null;
   onClose: () => void;
 }
 
@@ -30,7 +30,10 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
     inputRange: [0, 1],
     outputRange: [panelHeight, 0],
   });
-  const displayContent = typeof content === 'string' ? content : content.TextView;
+  let displayContent = '';
+  if (content !== null){
+    displayContent = 'TextView' in content ? content.TextView : content.Translation;
+  }
   const onContentLayout = useCallback((event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
     setContentWidth(width);
@@ -42,17 +45,24 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
   }, []);
 
   const getLinkHref = () => {
-    if (typeof content === 'string') {
-      return {
-        pathname: "/sentenceInfo",
-        params: { content: content }
-      };
-    } else {
-      return {
-        pathname: "/wordInfo",
-        params: { content: JSON.stringify(content) } 
-      };
+    if (content !== null)
+    {
+      if ('Translation' in content) {
+        return {
+          pathname: "/sentenceInfo",
+          params: { content: JSON.stringify(content) }
+        };
+      } else {
+        return {
+          pathname: "/wordInfo",
+          params: { content: JSON.stringify(content) }
+        };
+      }
     }
+    return {
+      pathname: "/wordInfo",
+      params: { content: '' }
+    };   
   };
 
   return (

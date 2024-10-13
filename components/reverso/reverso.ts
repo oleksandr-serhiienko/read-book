@@ -13,6 +13,11 @@ export interface ResponseTranslation{
     TextView:string
 }
 
+export interface SentenceTranslation{
+  Original: string,
+  Translation: string
+}
+
 export default class Reverso {
   private TRANSLATION_URL = 'https://api.reverso.net/translate/v1/translation';
 
@@ -199,7 +204,7 @@ export default class Reverso {
     text: string,
     source: SupportedLanguage = SupportedLanguages.ENGLISH,
     target: SupportedLanguage = SupportedLanguages.RUSSIAN
-  ): Promise<string> {
+  ): Promise<SentenceTranslation> {
     //const url = `https://context.reverso.net/translation/${source}-${target}/${encodeURIComponent(text).replace(/%20/g, '+')}`;
   
     const response = await fetch(this.TRANSLATION_URL, {
@@ -228,6 +233,13 @@ export default class Reverso {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
   
-    return await response.text();
+    let result = await response.text();
+    const translationObj = JSON.parse(result);
+    const translatedText = String(translationObj["translation"]);
+    const translation : SentenceTranslation  = {
+      Original : text,
+      Translation : translatedText
+    }
+    return translation;
   }
 }

@@ -4,13 +4,13 @@ import { Reader, useReader } from '@epubjs-react-native/core';
 import { useFileSystem } from '@epubjs-react-native/expo-file-system';
 import { ReaderProvider } from '@epubjs-react-native/core';
 import { useState } from 'react';
-import Reverso, { ResponseTranslation } from '@/components/reverso/reverso';
+import Reverso, { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
 import SlidePanel from './slidePanel';
 
 
 export default function HomeScreen() {
   const [isPanelVisible, setIsPanelVisible] = useState(false);
-  const [panelContent, setPanelContent] = useState<string | ResponseTranslation>('');
+  const [panelContent, setPanelContent] = useState<SentenceTranslation | ResponseTranslation | null>(null);
   let reverso = new Reverso();   
 
   const handleSelected = async (selection: string) => {
@@ -20,9 +20,7 @@ export default function HomeScreen() {
       if (translationsNew.Translations.length === 0)
         {
           let translation = await reverso.getTranslationFromAPI(selection);
-          const translationObj = JSON.parse(translation);
-          const translatedText = String(translationObj["translation"]);
-          setPanelContent(translatedText);
+          setPanelContent(translation);
         }
         else
         {          
