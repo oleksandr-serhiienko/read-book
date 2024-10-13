@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, LayoutChangeEvent } from 'react-native';
 import { Link } from 'expo-router';
+import { ResponseTranslation } from '@/components/reverso/reverso';
 
 interface SlidePanelProps {
   isVisible: boolean;
-  content: string;
+  content: string | ResponseTranslation;
   onClose: () => void;
 }
 
@@ -29,7 +30,7 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
     inputRange: [0, 1],
     outputRange: [panelHeight, 0],
   });
-
+  const displayContent = typeof content === 'string' ? content : content.TextView;
   const onContentLayout = useCallback((event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
     setContentWidth(width);
@@ -40,10 +41,18 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
     setPanelHeight(height);
   }, []);
 
-  const truncateText = (text: string) => {
-    const maxWidth = contentWidth - 40; // Subtracting padding and close button width
-    const maxChars = Math.floor(maxWidth / 8); // Approximate characters that fit
-    return text.length > maxChars ? text.slice(0, maxChars - 3) + '...' : text;
+  const getLinkHref = () => {
+    if (typeof content === 'string') {
+      return {
+        pathname: "/sentenceInfo",
+        params: { content: content }
+      };
+    } else {
+      return {
+        pathname: "/wordInfo",
+        params: { content: JSON.stringify(content) } 
+      };
+    }
   };
 
   return (
@@ -55,13 +64,10 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
       ]}
       onLayout={onPanelLayout}
     >
-      <Link
-        href={{
-          pathname: "/(tabs)/wordInfo",
-          params: { content: content }
-        }}
-        asChild
-      >
+      <Link                  
+        href={getLinkHref()}         
+           asChild       
+           >
         <TouchableOpacity style={styles.contentContainer}>
           <Text
             style={styles.content}
@@ -69,7 +75,7 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
             ellipsizeMode="tail"
             onLayout={onContentLayout}
           >
-            {content}
+            {displayContent}
           </Text>
         </TouchableOpacity>
       </Link>

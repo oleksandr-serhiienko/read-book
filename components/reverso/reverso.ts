@@ -9,7 +9,8 @@ import TranslationContext from './languages/entities/translationContext';
 
 export interface ResponseTranslation{
     Translations:Translation[],
-    Contexts:TranslationContext[]
+    Contexts:TranslationContext[],
+    TextView:string
 }
 
 export default class Reverso {
@@ -42,7 +43,8 @@ export default class Reverso {
 
       const transResponse: ResponseTranslation = {
         Translations: translations,
-        Contexts: contexts
+        Contexts: contexts,
+        TextView: translations.map(t => t.word).join(", ")      
       }
     
       return transResponse;
