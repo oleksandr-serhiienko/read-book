@@ -15,7 +15,7 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
   onClose
 }) => {
   const [animation] = useState(new Animated.Value(0));
-  const [panelHeight, setPanelHeight] = useState(60);
+  const [panelHeight, setPanelHeight] = useState(70);
   const [contentWidth, setContentWidth] = useState(0);
 
   useEffect(() => {
@@ -30,10 +30,12 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
     inputRange: [0, 1],
     outputRange: [panelHeight, 0],
   });
+  
   let displayContent = '';
   if (content !== null){
     displayContent = 'TextView' in content ? content.TextView : content.Translation;
   }
+  
   const onContentLayout = useCallback((event: LayoutChangeEvent) => {
     const { width } = event.nativeEvent.layout;
     setContentWidth(width);
@@ -76,8 +78,8 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
     >
       <Link                  
         href={getLinkHref()}         
-           asChild       
-           >
+        asChild       
+      >
         <TouchableOpacity style={styles.contentContainer}>
           <Text
             style={styles.content}
@@ -102,14 +104,17 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'white',
-    paddingVertical: 10,
-    paddingHorizontal: 15,
+    backgroundColor: '#3498db',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    borderTopWidth: 1,
-    borderTopColor: '#e0e0e0',
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
   },
   hidden: {
     display: 'none',
@@ -118,15 +123,20 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   content: {
-    fontSize: 16,
+    fontSize: 18,
+    color: '#fff',
+    fontWeight: '600',
   },
   closeButton: {
-    padding: 5,
-    marginLeft: 10,
+    padding: 8,
+    marginLeft: 15,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 20,
   },
   closeButtonText: {
     fontSize: 24,
-    color: '#888',
+    color: '#fff',
+    lineHeight: 24,
   },
 });
 
