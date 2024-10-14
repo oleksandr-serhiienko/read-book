@@ -76,7 +76,7 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
       ]}
       onLayout={onPanelLayout}
     >
-      <Link                  
+      <Link          
         href={getLinkHref()}         
         asChild       
       >
