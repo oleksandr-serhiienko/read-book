@@ -67,6 +67,12 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
     };   
   };
 
+  const handleAddToDictionary = () => {
+    // Implement the logic to add the word or phrase to the dictionary
+    console.log('Adding to dictionary:', displayContent);
+    // You might want to call an API or update local storage here
+  };
+
   return (
     <Animated.View
       style={[
@@ -91,6 +97,9 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
           </Text>
         </TouchableOpacity>
       </Link>
+      <TouchableOpacity onPress={handleAddToDictionary} style={styles.addButton}>
+        <Text style={styles.addButtonText}>+</Text>
+      </TouchableOpacity>
       <TouchableOpacity onPress={onClose} style={styles.closeButton}>
         <Text style={styles.closeButtonText}>×</Text>
       </TouchableOpacity>
@@ -134,6 +143,17 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   closeButtonText: {
+    fontSize: 24,
+    color: '#fff',
+    lineHeight: 24,
+  },
+  addButton: {
+    padding: 8,
+    marginLeft: 10,
+    backgroundColor: '#4CAF50',
+    borderRadius: 20,
+  },
+  addButtonText: {
     fontSize: 24,
     color: '#fff',
     lineHeight: 24,

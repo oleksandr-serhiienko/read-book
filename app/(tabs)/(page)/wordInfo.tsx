@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { ResponseTranslation } from '@/components/reverso/reverso';
 
@@ -23,8 +23,17 @@ export default function WordInfo() {
     });
   };
 
+  const handleAddToDictionary = () => {
+    // Implement the logic to add the word to the dictionary
+    console.log('Adding to dictionary:', parsedContent.TextView);
+    // You might want to call an API or update local storage here
+  };
+
   return (
     <ScrollView style={styles.container}>
+      <TouchableOpacity style={styles.addButton} onPress={handleAddToDictionary}>
+        <Text style={styles.addButtonText}>Add to Dictionary</Text>
+      </TouchableOpacity>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Translations</Text>
         {formattedTranslations.map((translation, index) => (
@@ -45,6 +54,8 @@ export default function WordInfo() {
           </View>
         ))}
       </View>
+
+      
     </ScrollView>
   );
 }
@@ -93,6 +104,19 @@ const styles = StyleSheet.create({
     color: '#666',
   },
   boldText: {
+    fontWeight: 'bold',
+  },
+  addButton: {
+    backgroundColor: '#007AFF',
+    padding: 15,
+    borderRadius: 10,
+    alignItems: 'center',
+    //marginTop: 5,
+    marginBottom: 10
+  },
+  addButtonText: {
+    color: 'white',
+    fontSize: 16,
     fontWeight: 'bold',
   },
 });
