@@ -7,7 +7,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Reverso, { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
 import SlidePanel from './slidePanel';
 
-export default function HomeScreen() {
+export default function PageScreen() {
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [panelContent, setPanelContent] = useState<SentenceTranslation | ResponseTranslation | null>(null);
   const [initialLocation, setInitialLocation] = useState<string | undefined>(undefined);
