@@ -1,7 +1,9 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, LayoutChangeEvent } from 'react-native';
-import { Href, Link } from 'expo-router';
+import React, { useState, useEffect } from 'react';
+import { Text, StyleSheet, TouchableOpacity, Animated, View } from 'react-native';
+import { Link } from 'expo-router';
 import { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
+import { Card, Database } from '@/components/db/database';
+import SupportedLanguages from '@/components/reverso/languages/entities/languages';
 
 interface SlidePanelProps {
   isVisible: boolean;
@@ -15,6 +17,7 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
   onClose
 }) => {
   const [animation] = useState(new Animated.Value(0));
+  const [isAdded, setIsAdded] = useState(false);
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -24,9 +27,17 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
     }).start();
   }, [isVisible]);
   
+  useEffect(() => {
+    // Reset isAdded when content changes
+    setIsAdded(false);
+  }, [content]);
+  
   let displayContent = '';
+  let database = new Database();
+  const isResponseTranslation = content && !('Translation' in content);
+  
   if (content !== null){
-    displayContent = 'TextView' in content ? content.TextView : content.Translation;
+    displayContent = isResponseTranslation ? content.TextView : content.Translation;
   }
 
   const getLinkHref = () => {
@@ -36,9 +47,23 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
   };
 
   const handleAddToDictionary = () => {
-    // Implement the logic to add the word or phrase to the dictionary
-    console.log('Adding to dictionary:', displayContent);
-    // You might want to call an API or update local storage here
+    if (isResponseTranslation && !isAdded){
+       let currentTranslation = content;
+       let card: Card = {
+        level: 0,
+        sourceLanguage: SupportedLanguages.GERMAN,
+        targetLanguage: SupportedLanguages.ENGLISH,
+        source: "Moby",
+        translations: currentTranslation.Translations.map(t => t.word),
+        userId: 'test',
+        word: currentTranslation.Original,
+        context: currentTranslation.Contexts.map(c => ({sentence: c.original, translation: c.translation, isBad: false})),
+        lastRepeat: new Date()
+        };
+        database.insertCard(card);
+        console.log('Adding to dictionary:', currentTranslation.Original);
+        setIsAdded(true);
+    }
   };
 
   return (
@@ -46,28 +71,31 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
       style={[
         styles.panel,        
         !isVisible && styles.hidden
-      ]}
-    >
+      ]}>
       <Link          
         href={{
           pathname: getLinkHref(),
           params: { content: JSON.stringify(content) }
         }}
-        asChild       
-      >
+        asChild>
         <TouchableOpacity style={styles.contentContainer}>
           <Text
             style={styles.content}
             numberOfLines={1}
-            ellipsizeMode="tail"
-          >
+            ellipsizeMode="tail">
             {displayContent}
           </Text>
         </TouchableOpacity>
       </Link>
-      <TouchableOpacity onPress={handleAddToDictionary} style={styles.addButton}>
-        <Text style={styles.addButtonText}>+</Text>
-      </TouchableOpacity>
+      {isResponseTranslation && (
+        <TouchableOpacity 
+          onPress={handleAddToDictionary} 
+          style={[styles.addButton, isAdded && styles.addButtonDisabled]}
+          disabled={isAdded}
+        >
+          <Text style={styles.addButtonText}>{isAdded ? '✓' : '+'}</Text>
+        </TouchableOpacity>
+      )}
       <TouchableOpacity onPress={onClose} style={styles.closeButton}>
         <Text style={styles.closeButtonText}>×</Text>
       </TouchableOpacity>
@@ -125,6 +153,9 @@ const styles = StyleSheet.create({
     fontSize: 24,
     color: '#fff',
     lineHeight: 24,
+  },
+  addButtonDisabled: {
+    backgroundColor: '#A5D6A7', // Lighter green for disabled state
   },
 });
 

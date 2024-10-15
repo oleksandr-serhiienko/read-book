@@ -1,11 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { ResponseTranslation } from '@/components/reverso/reverso';
+import { Card, Database } from '@/components/db/database';
+import SupportedLanguages from '@/components/reverso/languages/entities/languages';
 
 export default function WordInfo() {
   const { content } = useLocalSearchParams();
   const parsedContent: ResponseTranslation = JSON.parse(content as string);
+  const [isAdded, setIsAdded] = useState(false);
 
   const formattedTranslations = parsedContent.Translations.slice(0, 5).map(t =>
     `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
@@ -24,15 +27,39 @@ export default function WordInfo() {
   };
 
   const handleAddToDictionary = () => {
-    // Implement the logic to add the word to the dictionary
-    console.log('Adding to dictionary:', parsedContent.TextView);
-    // You might want to call an API or update local storage here
+    if (!isAdded) {
+      const database = new Database();
+      const card: Card = {
+        level: 0,
+        sourceLanguage: SupportedLanguages.GERMAN, // Assuming German as source language
+        targetLanguage: SupportedLanguages.ENGLISH, // Assuming English as target language
+        source: "WordInfo",
+        translations: parsedContent.Translations.slice(0, 5).map(t => t.word),
+        userId: 'test',
+        word: parsedContent.Original,
+        context: context.map(c => ({
+          sentence: c.original,
+          translation: c.translation,
+          isBad: false
+        })),
+        lastRepeat: new Date()
+      };
+      database.insertCard(card);
+      console.log('Adding to dictionary:', parsedContent.Original);
+      setIsAdded(true);
+    }
   };
 
   return (
     <ScrollView style={styles.container}>
-      <TouchableOpacity style={styles.addButton} onPress={handleAddToDictionary}>
-        <Text style={styles.addButtonText}>Add to Dictionary</Text>
+      <TouchableOpacity 
+        style={[styles.addButton, isAdded && styles.addButtonDisabled]} 
+        onPress={handleAddToDictionary}
+        disabled={isAdded}
+      >
+        <Text style={styles.addButtonText}>
+          {isAdded ? 'Added to Dictionary' : 'Add to Dictionary'}
+        </Text>
       </TouchableOpacity>
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Translations</Text>
@@ -54,8 +81,6 @@ export default function WordInfo() {
           </View>
         ))}
       </View>
-
-      
     </ScrollView>
   );
 }
@@ -111,8 +136,10 @@ const styles = StyleSheet.create({
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',
-    //marginTop: 5,
     marginBottom: 10
+  },
+  addButtonDisabled: {
+    backgroundColor: '#B0C4DE', // Light Steel Blue for disabled state
   },
   addButtonText: {
     color: 'white',

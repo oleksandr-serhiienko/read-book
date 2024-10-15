@@ -57,11 +57,9 @@ export default function PageScreen() {
       setIsPanelVisible(true);
     } catch (error) {
       console.error('Error fetching translation:', error);
-      setIsPanelVisible(true);
+      setIsPanelVisible(false);
     }
   };
-
-
 
   return (
     <SafeAreaView style={styles.container}>
