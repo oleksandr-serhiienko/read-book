@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, LayoutChangeEvent } from 'react-native';
-import { Link } from 'expo-router';
+import { Href, Link } from 'expo-router';
 import { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
 
 interface SlidePanelProps {
@@ -47,24 +47,9 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
   }, []);
 
   const getLinkHref = () => {
-    if (content !== null)
-    {
-      if ('Translation' in content) {
-        return {
-          pathname: "/sentenceInfo",
-          params: { content: JSON.stringify(content) }
-        };
-      } else {
-        return {
-          pathname: "/wordInfo",
-          params: { content: JSON.stringify(content) }
-        };
-      }
-    }
-    return {
-      pathname: "/wordInfo",
-      params: { content: '' }
-    };   
+    return content && 'Translation' in content 
+    ? "/sentenceInfo" as const 
+    : "/wordInfo" as const;
   };
 
   const handleAddToDictionary = () => {
@@ -83,7 +68,10 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
       onLayout={onPanelLayout}
     >
       <Link          
-        href={getLinkHref()}         
+        href={{
+          pathname: getLinkHref(),
+          params: { content: JSON.stringify(content) }
+        }}
         asChild       
       >
         <TouchableOpacity style={styles.contentContainer}>
