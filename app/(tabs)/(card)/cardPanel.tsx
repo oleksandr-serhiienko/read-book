@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, PanResponder, Animated, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, PanResponder, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { Card, Database, HistoryEntry } from '../../../components/db/database';
 import wordGenerator, { getNextFibonacciLike } from '../../../components/db/nextWordToLearn';
+import { Link } from 'expo-router';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
@@ -11,7 +12,7 @@ const renderHighlightedText = (text: string) => {
   return parts.map((part, index) => {
     if (part.startsWith('<em>') && part.endsWith('</em>')) {
       return (
-        <Text key={index} style={styles.highlightedText}>
+        <Text key={index} style={styles.boldText}>
           {part.slice(4, -5)}
         </Text>
       );
@@ -32,7 +33,7 @@ export default function CardScreen() {
       await getAllCards();
     };
     initialize();
-  },[]);
+  }, []);
 
   const getAllCards = async () => {
     const cards = await database.getAllCards();
@@ -41,27 +42,25 @@ export default function CardScreen() {
 
   const onSwipeComplete = async (direction: 'left' | 'right') => {
     const item = allCards[currentCardIndex];
-    if(direction === 'right'){
+    if (direction === 'right') {
       item.level = getNextFibonacciLike(item.level);
       item.lastRepeat = new Date(Date.now());
       let history: HistoryEntry = {
         date: new Date(),
         success: true,
-        cardId: item.id ??0,
+        cardId: item.id ?? 0,
         contextId: null,
         type: "card"
       }
       await database.updateHistory(history)
       await database.updateCard(item)
-    }
-    else
-    {
+    } else {
       item.level = 0;
       item.lastRepeat = new Date(Date.now());
       let history: HistoryEntry = {
         date: new Date(),
         success: false,
-        cardId: item.id ??0,
+        cardId: item.id ?? 0,
         contextId: null,
         type: "card"
       }
@@ -151,6 +150,15 @@ export default function CardScreen() {
             </Text>
           </View>
         )}
+        <Link 
+          href={{
+            pathname: "/wordInfo",
+            params: { content: JSON.stringify(currentCard) }
+          }}
+          style={styles.moreInfoButton}
+        >
+          <Text style={styles.moreInfoButtonText}>More Info</Text>
+        </Link>
       </View>
     );
   };
@@ -197,11 +205,13 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 5,
+    color: '#333',
   },
   translation: {
     fontSize: 18,
     fontStyle: 'italic',
     marginBottom: 10,
+    color: '#555',
   },
   separator: {
     height: 1,
@@ -216,8 +226,41 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 10,
     textAlign: 'left',
+    color: '#555',
   },
-  highlightedText: {
+  boldText: {
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  addButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    backgroundColor: '#3498db',
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  addButtonDisabled: {
+    backgroundColor: '#bdc3c7',
+  },
+  addButtonText: {
+    fontSize: 20,
+    color: '#fff',
+    fontWeight: 'bold',
+  },
+  moreInfoButton: {
+    marginTop: 15,
+    backgroundColor: '#3498db',
+    paddingVertical: 8,
+    paddingHorizontal: 15,
+    borderRadius: 5,
+  },
+  moreInfoButtonText: {
+    color: '#fff',
+    fontSize: 14,
     fontWeight: 'bold',
   },
 });

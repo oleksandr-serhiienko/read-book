@@ -1,18 +1,14 @@
 import { Card, Database } from '../../../components/db/database';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import wordGenerator from '../../../components/db/nextWordToLearn';
 import { Link } from 'expo-router';
-
-interface CardDeckScreenProps {}
+import wordGenerator from '../../../components/db/nextWordToLearn';
 
 interface CardDecks {
   [key: string]: Card[];
 }
 
-export default function CardDeckScreen(props: CardDeckScreenProps) {
-  const navigation = useNavigation();
+export default function CardDeckScreen() {
   const [database] = useState(() => new Database());
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [decks, setDecks] = useState<CardDecks>({});
@@ -42,79 +38,90 @@ export default function CardDeckScreen(props: CardDeckScreenProps) {
     setDecks(grouped);
   };
 
-  const navigateToCardScreen = (source: string | null, cards: Card[]) => {
-    navigation.navigate('CardsScreen' as never);
-  };
+  const renderDeck = (title: string, cards: Card[]) => {
+    const totalCards = cards.length;
+    const learningCards = wordGenerator(cards).length;
 
-  return (
-    <ScrollView contentContainerStyle={styles.container}>
+    return (
       <Link 
+        key={title}
         href={{
           pathname: '/cardPanel',
-          params: { source: 'All Cards', cards: JSON.stringify(allCards) }
+          params: { source: title, cards: JSON.stringify(cards) }
         }}
         asChild
       >
         <TouchableOpacity style={styles.deck}>
-          <Text style={styles.deckHeader}>All Cards</Text>
-          <Text style={styles.cardCount}>{allCards.length}/{wordGenerator(allCards).length} cards</Text>
+          <View style={styles.deckHeader}>
+            <Text style={styles.deckTitle}>{title}</Text>
+            <Text style={styles.cardCount}>{learningCards}/{totalCards}</Text>
+          </View>
+          <View style={styles.progressBar}>
+            <View style={[styles.progressFill, { width: `${(learningCards / totalCards) * 100}%` }]} />
+          </View>
         </TouchableOpacity>
       </Link>
+    );
+  };
 
-      {Object.entries(decks).map(([source, cards]) => (
-        <Link 
-          key={source}
-          href={{
-            pathname: '/cardPanel',
-            params: { source, cards: JSON.stringify(cards) }
-          }}
-          asChild
-        >
-          <TouchableOpacity style={styles.deck}>
-            <Text style={styles.deckHeader}>{source}</Text>
-            <Text style={styles.cardCount}>{cards.length}/{wordGenerator(cards).length} cards</Text>
-          </TouchableOpacity>
-        </Link>
-      ))}
+  return (
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      <Text style={styles.headerTitle}>Card Decks</Text>
+      {renderDeck('All Cards', allCards)}
+      {Object.entries(decks).map(([source, cards]) => renderDeck(source, cards))}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+  },
+  contentContainer: {
     padding: 16,
   },
-  header: {
-    fontSize: 24,
+  headerTitle: {
+    fontSize: 28,
     fontWeight: 'bold',
-    marginBottom: 16,
+    color: '#333',
+    marginBottom: 20,
+    textAlign: 'center',
   },
   deck: {
-    marginBottom: 24,
-    width: '100%',
-    borderWidth: 1,
-    borderColor: '#ccc',
-    borderRadius: 8,
+    backgroundColor: 'white',
+    borderRadius: 10,
     padding: 16,
-    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   deckHeader: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     marginBottom: 8,
   },
+  deckTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
   cardCount: {
-    fontSize: 18,
+    fontSize: 14,
+    color: '#666',
   },
-  card: {
-    padding: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+  progressBar: {
+    height: 4,
+    backgroundColor: '#e0e0e0',
+    borderRadius: 2,
+    overflow: 'hidden',
   },
-  cardText: {
-    fontSize: 18,
+  progressFill: {
+    height: '100%',
+    backgroundColor: '#3498db',
   },
 });
