@@ -15,8 +15,6 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
   onClose
 }) => {
   const [animation] = useState(new Animated.Value(0));
-  const [panelHeight, setPanelHeight] = useState(70);
-  const [contentWidth, setContentWidth] = useState(0);
 
   useEffect(() => {
     Animated.timing(animation, {
@@ -25,26 +23,11 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
       useNativeDriver: true,
     }).start();
   }, [isVisible]);
-
-  const translateY = animation.interpolate({
-    inputRange: [0, 1],
-    outputRange: [panelHeight, 0],
-  });
   
   let displayContent = '';
   if (content !== null){
     displayContent = 'TextView' in content ? content.TextView : content.Translation;
   }
-  
-  const onContentLayout = useCallback((event: LayoutChangeEvent) => {
-    const { width } = event.nativeEvent.layout;
-    setContentWidth(width);
-  }, []);
-
-  const onPanelLayout = useCallback((event: LayoutChangeEvent) => {
-    const { height } = event.nativeEvent.layout;
-    setPanelHeight(height);
-  }, []);
 
   const getLinkHref = () => {
     return content && 'Translation' in content 
@@ -61,11 +44,9 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
   return (
     <Animated.View
       style={[
-        styles.panel,
-        { transform: [{ translateY }] },
+        styles.panel,        
         !isVisible && styles.hidden
       ]}
-      onLayout={onPanelLayout}
     >
       <Link          
         href={{
@@ -79,7 +60,6 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
             style={styles.content}
             numberOfLines={1}
             ellipsizeMode="tail"
-            onLayout={onContentLayout}
           >
             {displayContent}
           </Text>
