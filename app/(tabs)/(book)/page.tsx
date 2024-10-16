@@ -6,8 +6,10 @@ import { useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Reverso, { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
 import SlidePanel from './slidePanel';
+import { useLocalSearchParams } from 'expo-router';
 
 export default function PageScreen() {
+  const { content } = useLocalSearchParams();
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [panelContent, setPanelContent] = useState<SentenceTranslation | ResponseTranslation | null>(null);
   const [initialLocation, setInitialLocation] = useState<string | undefined>(undefined);
@@ -65,7 +67,7 @@ export default function PageScreen() {
     <SafeAreaView style={styles.container}>
       <ReaderProvider>
         <Reader
-          src="https://s3.amazonaws.com/moby-dick/OPS/package.opf"
+          src={JSON.parse(content as string)}
           fileSystem={useFileSystem}
           enableSelection={true}
           onSelected={handleSelected}

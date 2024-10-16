@@ -9,15 +9,15 @@ export default function TabLayout() {
             headerShown: false,
             tabBarIcon: ({ color }) => <FontAwesome size={28} name="home" color={color} />,
         }}/>
-      <Tabs.Screen name="(page)" options={{
-            title: "Page",
+      <Tabs.Screen name="(book)" options={{
+            title: "Book",
             headerShown: false,
             tabBarIcon: ({ color }) => <FontAwesome size={28} name='book' color={color} />,
             }} />
       <Tabs.Screen name="(card)" options={{
             title: "Cards",
             headerShown: false,
-            tabBarIcon: ({ color }) => <FontAwesome size={28} name='credit-card-alt' color={color} />,
+            tabBarIcon: ({ color }) => <FontAwesome size={28} name='folder' color={color} />,
             }} />
     </Tabs>
   );
