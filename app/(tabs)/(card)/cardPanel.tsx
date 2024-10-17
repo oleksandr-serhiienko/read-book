@@ -4,6 +4,7 @@ import { Card, Database, HistoryEntry } from '../../../components/db/database';
 import wordGenerator, { getNextFibonacciLike } from '../../../components/db/nextWordToLearn';
 import { Link } from 'expo-router';
 import { Transform } from '@/components/transform';
+import { useLanguage } from '@/app/languageSelector';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
@@ -27,6 +28,9 @@ export default function CardScreen() {
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const position = useRef(new Animated.ValueXY()).current;
+  const rightOpacity = useRef(new Animated.Value(0)).current;
+  const wrongOpacity = useRef(new Animated.Value(0)).current;
+  const { sourceLanguage, targetLanguage } = useLanguage();
 
   useEffect(() => {
     const initialize = async () => {
@@ -71,12 +75,27 @@ export default function CardScreen() {
     }
     setCurrentCardIndex(prevIndex => prevIndex + 1);
     position.setValue({ x: 0, y: 0 });
+    rightOpacity.setValue(0);
+    wrongOpacity.setValue(0);
   };
 
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onPanResponderMove: (_, gesture) => {
       position.setValue({ x: gesture.dx, y: 0 });
+      if (gesture.dx > 0) {
+        Animated.timing(rightOpacity, {
+          toValue: gesture.dx / SCREEN_WIDTH,
+          duration: 0,
+          useNativeDriver: false,
+        }).start();
+      } else {
+        Animated.timing(wrongOpacity, {
+          toValue: -gesture.dx / SCREEN_WIDTH,
+          duration: 0,
+          useNativeDriver: false,
+        }).start();
+      }
     },
     onPanResponderRelease: (_, gesture) => {
       if (gesture.dx > SWIPE_THRESHOLD) {
@@ -95,20 +114,26 @@ export default function CardScreen() {
       toValue: { x, y: 0 },
       duration: 250,
       useNativeDriver: false,
-    }).start(async () => {
-      try {
-        await onSwipeComplete(direction);
-      } catch (error) {
-        console.error('Error in forceSwipe:', error);
-      }
-    });
+    }).start(() => onSwipeComplete(direction));
   };
 
   const resetPosition = () => {
-    Animated.spring(position, {
-      toValue: { x: 0, y: 0 },
-      useNativeDriver: false,
-    }).start();
+    Animated.parallel([
+      Animated.spring(position, {
+        toValue: { x: 0, y: 0 },
+        useNativeDriver: false,
+      }),
+      Animated.timing(rightOpacity, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: false,
+      }),
+      Animated.timing(wrongOpacity, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: false,
+      }),
+    ]).start();
   };
 
   const getCardStyle = () => {
@@ -135,46 +160,47 @@ export default function CardScreen() {
     }
 
     return (
-      <View style={styles.cardContent}>
-        <Text style={styles.word}>{currentCard.word}</Text>
-        <Text style={styles.translation}>{currentCard.translations[0]}</Text>
-        
-        <View style={styles.separator} />
-        
-        {currentCard.context && currentCard.context.length > 0 && (
-          <View style={styles.contextContainer}>
-            <Text style={styles.contextText}>
-              {renderHighlightedText(currentCard.context[0].sentence)}
-            </Text>
-            <Text style={styles.contextText}>
-              {renderHighlightedText(currentCard.context[0].translation)}
-            </Text>
-          </View>
-        )}
-        <Link 
-          href={{
-            pathname: "/wordInfo",
-            params: { 
-              content: JSON.stringify(Transform.fromCardToWord(currentCard)),
-              added: 'true'
-            }
-          }}
-          style={styles.moreInfoButton}
-        >
-          <Text style={styles.moreInfoButtonText}>More Info</Text>
-        </Link>
-      </View>
+      <Animated.View style={[styles.cardContainer, getCardStyle()]} {...panResponder.panHandlers}>
+        <View style={styles.cardContent}>
+          <Text style={styles.word}>{currentCard.word}</Text>
+          <Text style={styles.translation}>{currentCard.translations[0]}</Text>
+          
+          {currentCard.context && currentCard.context.length > 0 && (
+            <View style={styles.contextContainer}>
+              <Text style={styles.contextText}>
+                {renderHighlightedText(currentCard.context[0].sentence)}
+              </Text>
+              <Text style={styles.contextText}>
+                {renderHighlightedText(currentCard.context[0].translation)}
+              </Text>
+            </View>
+          )}
+          <Link 
+            href={{
+              pathname: "/wordInfo",
+              params: { 
+                content: JSON.stringify(Transform.fromCardToWord(currentCard)),
+                added: 'true'
+              }
+            }}
+            style={styles.moreInfoButton}
+          >
+            <Text style={styles.moreInfoButtonText}>More Info</Text>
+          </Link>
+        </View>
+        <Animated.View style={[styles.overlay, styles.rightOverlay, { opacity: rightOpacity }]}>
+          <Text style={[styles.overlayText, styles.rightOverlayText]}>Right</Text>
+        </Animated.View>
+        <Animated.View style={[styles.overlay, styles.wrongOverlay, { opacity: wrongOpacity }]}>
+          <Text style={[styles.overlayText, styles.wrongOverlayText]}>Wrong</Text>
+        </Animated.View>
+      </Animated.View>
     );
   };
 
   return (
     <View style={styles.container}>
-      <Animated.View 
-        style={[styles.cardContainer, getCardStyle()]} 
-        {...panResponder.panHandlers}
-      >
-        {renderCard()}
-      </Animated.View>
+      {renderCard()}
     </View>
   );
 }
@@ -187,14 +213,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
   },
   cardContainer: {
-    width: SCREEN_WIDTH,
-    alignItems: 'center',
+    width: SCREEN_WIDTH * 0.9,
+    position: 'relative',
   },
   cardContent: {
-    width: '90%',
     backgroundColor: 'white',
-    padding: 20,
     borderRadius: 10,
+    padding: 20,
     alignItems: 'center',
     shadowColor: "#000",
     shadowOffset: {
@@ -217,43 +242,19 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     color: '#555',
   },
-  separator: {
-    height: 1,
-    width: '100%',
-    backgroundColor: '#e0e0e0',
-    marginVertical: 15,
-  },
   contextContainer: {
     width: '100%',
+    marginTop: 10,
   },
   contextText: {
     fontSize: 14,
-    marginBottom: 10,
+    marginBottom: 5,
     textAlign: 'left',
     color: '#555',
   },
   boldText: {
     fontWeight: 'bold',
     color: '#333',
-  },
-  addButton: {
-    position: 'absolute',
-    top: 10,
-    right: 10,
-    backgroundColor: '#3498db',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addButtonDisabled: {
-    backgroundColor: '#bdc3c7',
-  },
-  addButtonText: {
-    fontSize: 20,
-    color: '#fff',
-    fontWeight: 'bold',
   },
   moreInfoButton: {
     marginTop: 15,
@@ -266,5 +267,30 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
+  },
+  overlay: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  rightOverlay: {
+    backgroundColor: 'rgba(0, 255, 0, 0.2)',
+  },
+  wrongOverlay: {
+    backgroundColor: 'rgba(255, 0, 0, 0.2)',
+  },
+  overlayText: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    textTransform: 'uppercase',
+  },
+  rightOverlayText: {
+    color: 'green',
+  },
+  wrongOverlayText: {
+    color: 'red',
   },
 });
