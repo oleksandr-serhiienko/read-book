@@ -7,12 +7,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import Reverso, { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
 import SlidePanel from './slidePanel';
 import { useLocalSearchParams } from 'expo-router';
+import SupportedLanguages from '@/components/reverso/languages/entities/languages';
+import { useLanguage } from '@/app/languageSelector';
 
 export default function PageScreen() {
   const { content } = useLocalSearchParams();
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [panelContent, setPanelContent] = useState<SentenceTranslation | ResponseTranslation | null>(null);
   const [initialLocation, setInitialLocation] = useState<string | undefined>(undefined);
+  const { sourceLanguage, targetLanguage } = useLanguage();
   let reverso = new Reverso();
 
   React.useEffect(() => {
@@ -49,9 +52,9 @@ export default function PageScreen() {
   const handleSelected = async (selection: string) => {
     console.log('Selected text:', selection);
     try {
-      const translationsNew = await reverso.getContextFromWebPage(selection);
+      const translationsNew = await reverso.getContextFromWebPage(selection, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]);
       if (translationsNew.Translations.length === 0) {
-        let translation = await reverso.getTranslationFromAPI(selection);
+        let translation = await reverso.getTranslationFromAPI(selection, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]);
         setPanelContent(translation);
       } else {
         setPanelContent(translationsNew);
