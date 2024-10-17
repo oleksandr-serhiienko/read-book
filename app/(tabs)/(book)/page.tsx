@@ -11,7 +11,7 @@ import SupportedLanguages from '@/components/reverso/languages/entities/language
 import { useLanguage } from '@/app/languageSelector';
 
 export default function PageScreen() {
-  const { content } = useLocalSearchParams();
+  const { bookUrl, bookTitle } = useLocalSearchParams<{ bookUrl: string, bookTitle: string }>();
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [panelContent, setPanelContent] = useState<SentenceTranslation | ResponseTranslation | null>(null);
   const [initialLocation, setInitialLocation] = useState<string | undefined>(undefined);
@@ -57,6 +57,7 @@ export default function PageScreen() {
         let translation = await reverso.getTranslationFromAPI(selection, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]);
         setPanelContent(translation);
       } else {
+        translationsNew.Book = bookTitle;
         setPanelContent(translationsNew);
       }
       setIsPanelVisible(true);
@@ -70,7 +71,7 @@ export default function PageScreen() {
     <SafeAreaView style={styles.container}>
       <ReaderProvider>
         <Reader
-          src={JSON.parse(content as string)}
+          src={bookUrl}
           fileSystem={useFileSystem}
           enableSelection={true}
           onSelected={handleSelected}

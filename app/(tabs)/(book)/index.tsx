@@ -16,7 +16,6 @@ const itemWidth = (width - 40) / numColumns; // 40 is total horizontal padding
 
 const BookScreen: React.FC = () => {
   const [books, setBooks] = useState<Book[]>([]);
-  const navigation = useNavigation();
   const serverUrl = "http://192.168.1.41:3000";
 
   useEffect(() => {
@@ -37,7 +36,10 @@ const BookScreen: React.FC = () => {
     <Link          
         href={{
           pathname: "/page",
-          params: { content: JSON.stringify( `${serverUrl}/books/${item.fileName}` ) }
+          params: {
+            bookUrl: `${serverUrl}/books/${item.fileName}`,
+            bookTitle: item.title
+          }
         }}
         asChild>
     <TouchableOpacity style={styles.bookItem}>

@@ -4,6 +4,8 @@ import { Link } from 'expo-router';
 import { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
 import { Card, Database } from '@/components/db/database';
 import SupportedLanguages from '@/components/reverso/languages/entities/languages';
+import { Transform } from '@/components/transform';
+import { useLanguage } from '@/app/languageSelector';
 
 interface SlidePanelProps {
   isVisible: boolean;
@@ -35,6 +37,7 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
   let displayContent = '';
   let database = new Database();
   const isResponseTranslation = content && !('Translation' in content);
+  const { sourceLanguage, targetLanguage } = useLanguage();
   
   if (content !== null){
     displayContent = isResponseTranslation ? content.TextView : content.Translation;
@@ -48,20 +51,7 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
 
   const handleAddToDictionary = () => {
     if (isResponseTranslation && !isAdded){
-       let currentTranslation = content;
-       let card: Card = {
-        level: 0,
-        sourceLanguage: SupportedLanguages.GERMAN,
-        targetLanguage: SupportedLanguages.ENGLISH,
-        source: "Moby",
-        translations: currentTranslation.Translations.map(t => t.word),
-        userId: 'test',
-        word: currentTranslation.Original,
-        context: currentTranslation.Contexts.map(c => ({sentence: c.original, translation: c.translation, isBad: false})),
-        lastRepeat: new Date()
-        };
-        database.insertCard(card);
-        console.log('Adding to dictionary:', currentTranslation.Original);
+        database.insertCard(Transform.fromWordToCard(content, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]));
         setIsAdded(true);
     }
   };
@@ -75,7 +65,10 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
       <Link          
         href={{
           pathname: getLinkHref(),
-          params: { content: JSON.stringify(content) }
+          params: { 
+            content: JSON.stringify(content),
+            added: isAdded.toString()
+          }
         }}
         asChild>
         <TouchableOpacity style={styles.contentContainer}>

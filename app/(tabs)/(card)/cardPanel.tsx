@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, PanResponder, Animated, Dimensions, TouchableOp
 import { Card, Database, HistoryEntry } from '../../../components/db/database';
 import wordGenerator, { getNextFibonacciLike } from '../../../components/db/nextWordToLearn';
 import { Link } from 'expo-router';
+import { Transform } from '@/components/transform';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
@@ -153,7 +154,10 @@ export default function CardScreen() {
         <Link 
           href={{
             pathname: "/wordInfo",
-            params: { content: JSON.stringify(currentCard) }
+            params: { 
+              content: JSON.stringify(Transform.fromCardToWord(currentCard)),
+              added: 'true'
+            }
           }}
           style={styles.moreInfoButton}
         >

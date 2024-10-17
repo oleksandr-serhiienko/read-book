@@ -2,13 +2,16 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
 import { useLocalSearchParams } from 'expo-router';
 import { ResponseTranslation } from '@/components/reverso/reverso';
-import { Card, Database } from '@/components/db/database';
+import { Database } from '@/components/db/database';
 import SupportedLanguages from '@/components/reverso/languages/entities/languages';
+import { Transform } from '@/components/transform';
+import { useLanguage } from '@/app/languageSelector';
 
 export default function WordInfo() {
-  const { content } = useLocalSearchParams();
+  const { content, added } = useLocalSearchParams<{ content: string, added: string }>();
   const parsedContent: ResponseTranslation = JSON.parse(content as string);
-  const [isAdded, setIsAdded] = useState(false);
+  const [isAdded, setIsAdded] = useState(added === 'true');
+  const { sourceLanguage, targetLanguage } = useLanguage();
 
   const formattedTranslations = parsedContent.Translations.slice(0, 5).map(t =>
     `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
@@ -28,23 +31,8 @@ export default function WordInfo() {
 
   const handleAddToDictionary = () => {
     if (!isAdded) {
-      const database = new Database();
-      const card: Card = {
-        level: 0,
-        sourceLanguage: SupportedLanguages.GERMAN, // Assuming German as source language
-        targetLanguage: SupportedLanguages.ENGLISH, // Assuming English as target language
-        source: "WordInfo",
-        translations: parsedContent.Translations.slice(0, 5).map(t => t.word),
-        userId: 'test',
-        word: parsedContent.Original,
-        context: context.map(c => ({
-          sentence: c.original,
-          translation: c.translation,
-          isBad: false
-        })),
-        lastRepeat: new Date()
-      };
-      database.insertCard(card);
+      const database = new Database();     
+      database.insertCard(Transform.fromWordToCard(parsedContent, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]));
       console.log('Adding to dictionary:', parsedContent.Original);
       setIsAdded(true);
     }

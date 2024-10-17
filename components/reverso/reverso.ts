@@ -11,7 +11,8 @@ export interface ResponseTranslation{
     Original:string,
     Translations:Translation[],
     Contexts:TranslationContext[],
-    TextView:string
+    TextView:string,
+    Book:string
 }
 
 export interface SentenceTranslation{
@@ -51,7 +52,8 @@ export default class Reverso {
         Original: text,
         Translations: translations,
         Contexts: contexts,
-        TextView: translations.map(t => t.word).join(", ")      
+        TextView: translations.map(t => t.word).join(", "), 
+        Book: ""     
       }
     
       return transResponse;
