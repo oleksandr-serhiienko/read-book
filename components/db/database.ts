@@ -109,13 +109,14 @@ export class Database {
     for (let context of card.context) {
       console.log("Inserting context:", context);
       try {
-        const resultContext = await this.db.runAsync(
-          `INSERT INTO contexts (sentence, translation, cardId)
-           VALUES (?, ?, ?)`,
+        await this.db.runAsync(
+          `INSERT INTO contexts (sentence, translation, cardId, isBad)
+           VALUES (?, ?, ?, ?)`,
           [
             context.sentence,
             context.translation,
-            result.lastInsertRowId
+            result.lastInsertRowId,
+            context.isBad || false
           ]
         );
         console.log("Context inserted successfully");

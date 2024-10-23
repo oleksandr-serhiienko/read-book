@@ -23,7 +23,7 @@ const renderHighlightedText = (text: string) => {
   });
 };
 
-export default function CardScreen() {
+export default function CardPanel() {
   const [database] = useState(() => new Database());
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -162,6 +162,15 @@ export default function CardScreen() {
     return (
       <Animated.View style={[styles.cardContainer, getCardStyle()]} {...panResponder.panHandlers}>
         <View style={styles.cardContent}>
+          <View style={styles.indicatorsContainer}>
+            <Animated.View style={[styles.indicator, styles.rightIndicator, { opacity: rightOpacity }]}>
+              <Text style={styles.indicatorText}>Right</Text>
+            </Animated.View>
+            <Animated.View style={[styles.indicator, styles.wrongIndicator, { opacity: wrongOpacity }]}>
+              <Text style={styles.indicatorText}>Wrong</Text>
+            </Animated.View>
+          </View>
+  
           <Text style={styles.word}>{currentCard.word}</Text>
           <Text style={styles.translation}>{currentCard.translations[0]}</Text>
           
@@ -184,16 +193,13 @@ export default function CardScreen() {
               }
             }}
             style={styles.moreInfoButton}
+            asChild
           >
-            <Text style={styles.moreInfoButtonText}>More Info</Text>
+            <TouchableOpacity>
+              <Text style={styles.moreInfoButtonText}>More Info</Text>
+            </TouchableOpacity>
           </Link>
         </View>
-        <Animated.View style={[styles.overlay, styles.rightOverlay, { opacity: rightOpacity }]}>
-          <Text style={[styles.overlayText, styles.rightOverlayText]}>Right</Text>
-        </Animated.View>
-        <Animated.View style={[styles.overlay, styles.wrongOverlay, { opacity: wrongOpacity }]}>
-          <Text style={[styles.overlayText, styles.wrongOverlayText]}>Wrong</Text>
-        </Animated.View>
       </Animated.View>
     );
   };
@@ -229,12 +235,41 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+    overflow: 'hidden',
+  },
+  indicatorsContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    padding: 10,
+    zIndex: 2,
+  },
+  indicator: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    transform: [{ rotate: '15deg' }],
+  },
+  rightIndicator: {
+    backgroundColor: 'rgba(46, 204, 113, 0.9)',
+  },
+  wrongIndicator: {
+    backgroundColor: 'rgba(231, 76, 60, 0.9)',
+  },
+  indicatorText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   word: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 5,
     color: '#333',
+    marginTop: 20,
   },
   translation: {
     fontSize: 18,
@@ -267,30 +302,5 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: 'bold',
-  },
-  overlay: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 10,
-  },
-  rightOverlay: {
-    backgroundColor: 'rgba(0, 255, 0, 0.2)',
-  },
-  wrongOverlay: {
-    backgroundColor: 'rgba(255, 0, 0, 0.2)',
-  },
-  overlayText: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  rightOverlayText: {
-    color: 'green',
-  },
-  wrongOverlayText: {
-    color: 'red',
   },
 });
