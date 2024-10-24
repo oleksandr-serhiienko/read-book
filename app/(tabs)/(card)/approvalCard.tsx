@@ -10,19 +10,15 @@ import { CardEvents } from './cardEvents';
 // In your screen component:
 export default function ApprovalScreen() {
   const { source } = useLocalSearchParams<{ source: string}>();
-  const [currentCard, setCurrentCard] = useState<Card | null>(null);
   const [cards, setCards] = useState<Card[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
 
   useEffect(() => {
     // Load your card data here
-    console.log("loading screeeeeen");
     const loadCard = async () => {
-        // Get card from database or props
         const cards = await database.getCardToLearnBySource(source) ?? [];
         const cardsToLearn = wordGenerator(cards);
         setCards(cardsToLearn);
-        setCurrentCardIndex(0); // Reset the index when cards are reloaded
       };
       loadCard();
     }, [source]);
@@ -42,15 +38,12 @@ export default function ApprovalScreen() {
       }, []);
 
   const handleCardUpdate = async (updatedCard: Card) => {
-    // Update the current card in the cards array
-    console.log("The update is called")
     setCards(prevCards => {
       const newCards = [...prevCards];
       newCards[currentCardIndex] = updatedCard;
       return newCards;
     });
     
-    // Move to next card
     setCurrentCardIndex(prev => prev + 1);
   };
   if (cards.length === 0) {

@@ -73,12 +73,10 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate }) => {
       params: { 
         cardId: card.id,
         returnToApproval: 'true',
-        //onCardUpdate: JSON.stringify(onCardUpdate) // Pass the callback
       }
     });
   };
 
-  // Get the appropriate component based on card level
   const level = card.level % Object.keys(cardComponents).length;
   const CardComponent = cardComponents[level] || cardComponents[1];
 

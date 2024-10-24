@@ -4,7 +4,6 @@ import { Card, Database, HistoryEntry } from '../../../components/db/database';
 import wordGenerator, { getNextFibonacciLike } from '../../../components/db/nextWordToLearn';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Transform } from '@/components/transform';
-import { useLanguage } from '@/app/languageSelector';
 import { CardEvents } from './cardEvents';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -81,7 +80,6 @@ export default function CardPanel() {
     CardEvents.emit(card, history.success);
   
     if (returnToApproval === 'true') {
-      // Return to previous screen
       router.back();
     }
   };

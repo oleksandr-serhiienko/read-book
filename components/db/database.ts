@@ -147,6 +147,10 @@ export class Database {
   async getCardToLearnBySource(source: string): Promise<Card[]> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+
+    if (source === 'All Cards'){
+      return this.getAllCards();
+    }
   
     const query = `
       SELECT 
