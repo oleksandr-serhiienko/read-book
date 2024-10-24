@@ -76,7 +76,8 @@ export default function CardPanel() {
 
     await database.updateHistory(history);
     await database.updateCard(card);
-    
+    console.log("context before emitting");
+    console.log();
     CardEvents.emit(card, history.success);
   
     if (returnToApproval === 'true') {

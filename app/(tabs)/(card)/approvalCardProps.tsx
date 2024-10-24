@@ -8,48 +8,53 @@ interface ApprovalCardProps {
   onCardUpdate: (card: Card) => void;
 }
 
-// Different card type components
 const WordOnlyCard: FC<ApprovalCardProps> = ({ card }) => (
   <View style={styles.cardContent}>
+    <Text style={styles.translation}>Translation: ______</Text>
     <Text style={styles.word}>{card.word}</Text>
   </View>
 );
 
 const TranslationOnlyCard: FC<ApprovalCardProps> = ({ card }) => (
   <View style={styles.cardContent}>
+    <Text style={styles.word}>Word: ______</Text>
     <Text style={styles.translation}>{card.translations[0]}</Text>
   </View>
 );
 
-const ContextWithBlankCard: FC<ApprovalCardProps> = ({ card }) => (
-  <View style={styles.cardContent}>
-    {card.context && card.context[0] && (
-      <Text style={styles.contextText}>
-        {card.context[0].sentence.replace(card.word, '_____')}
-      </Text>
-    )}
-  </View>
-);
+const renderHighlightedText = (text: string) => {
+  const parts = text.split(/(<em>.*?<\/em>)/);
+  return parts.map((part, index) => {
+    if (part.startsWith('<em>') && part.endsWith('</em>')) {
+      return (
+        <Text key={index} style={styles.boldText}>
+          {part.slice(4, -5)}
+        </Text>
+      );
+    }
+    return <Text key={index}>{part}</Text>;
+  });
+};
 
-const TranslatedContextCard: FC<ApprovalCardProps> = ({ card }) => (
-  <View style={styles.cardContent}>
-    {card.context && card.context[0] && (
-      <Text style={styles.contextText}>
-        {card.context[0].translation}
-      </Text>
-    )}
-  </View>
-);
+const ContextWithBlankCard: FC<ApprovalCardProps> = ({ card }) => {
+  if (!card.context || !card.context[0]) return null;
 
-const ContextOnlyCard: FC<ApprovalCardProps> = ({ card }) => (
-  <View style={styles.cardContent}>
-    {card.context && card.context[0] && (
+  // Remove <em> tags from original sentence
+  const originalSentence = card.context[0].sentence.replace(/<\/?em>/g, '');
+  
+  return (
+    <View style={styles.cardContent}>
       <Text style={styles.contextText}>
-        {card.context[0].sentence}
+        {originalSentence.replace(card.word, '_____')}
       </Text>
-    )}
-  </View>
-);
+      <View style={styles.translationContainer}>
+        <Text style={styles.contextText}>
+          {renderHighlightedText(card.context[0].translation)}
+        </Text>
+      </View>
+    </View>
+  );
+};
 
 type CardComponentType = FC<ApprovalCardProps>;
 type CardComponentsType = Record<number, CardComponentType>;
@@ -57,14 +62,15 @@ type CardComponentsType = Record<number, CardComponentType>;
 export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate }) => {
   const router = useRouter();
 
-  // Map of level to card components
   const cardComponents: CardComponentsType = {
     0: WordOnlyCard,
-    1: WordOnlyCard,
-    2: TranslationOnlyCard,
+    1: TranslationOnlyCard,
     3: ContextWithBlankCard,
-    5: TranslatedContextCard,
-    8: ContextOnlyCard,
+  };
+
+  const getRandomComponent = () => {
+    // Randomly return either WordOnlyCard or TranslationOnlyCard
+    return Math.random() < 0.5 ? WordOnlyCard : TranslationOnlyCard;
   };
 
   const handleShowAnswer = () => {
@@ -77,8 +83,24 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate }) => {
     });
   };
 
-  const level = card.level % Object.keys(cardComponents).length;
-  const CardComponent = cardComponents[level] || cardComponents[1];
+  // Choose component based on level and context availability
+  const getCardComponent = () => {
+    // If card has no context or empty context array
+    if (!card.context || card.context.length === 0) {
+      return getRandomComponent();
+    }
+
+    // If card has context but the first context is empty
+    if (!card.context[0] || !card.context[0].sentence) {
+      return getRandomComponent();
+    }
+
+    // Otherwise, use the regular level-based selection
+    const level = card.level;
+    return cardComponents[level] || ContextWithBlankCard;
+  };
+
+  const CardComponent = getCardComponent();
 
   return (
     <View style={styles.container}>
@@ -134,6 +156,17 @@ const styles = StyleSheet.create({
     color: '#444',
     textAlign: 'center',
     lineHeight: 26,
+  },
+  boldText: {
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  translationContainer: {
+    marginTop: 15,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    width: '100%',
   },
   showAnswerButton: {
     marginTop: 20,

@@ -66,7 +66,7 @@ export class Database {
         sentence TEXT NOT NULL,
         translation TEXT NOT NULL,
         cardId INTEGER NOT NULL,
-        isBad BOOL NOT NULL,
+        isBad BOOL NOT NULL DEFAULT 0,
         FOREIGN KEY (cardId) REFERENCES cards(id)
       );
 
@@ -132,6 +132,10 @@ export class Database {
   async getCardById(id: number): Promise<Card | null> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+    console.log("teeeeeeeeeeeeeeeeeeeeeeest")
+    // await this.db.execAsync(`
+    //   ALTER TABLE contexts ADD COLUMN isBad BOOLEAN DEFAULT 0;
+    // `);
 
     const card = await this.db.getFirstAsync<any>('SELECT * FROM cards WHERE id = ?', id);
     if (!card) return null;
