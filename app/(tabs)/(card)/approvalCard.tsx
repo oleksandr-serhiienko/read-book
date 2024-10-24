@@ -28,23 +28,14 @@ export default function ApprovalScreen() {
     }, [source]);
 
     useEffect(() => {
-        const unsubscribe = CardEvents.subscribe(async (updatedCard) => {
-          const lastHistory = updatedCard.history?.findLast(() => true);
-          
+        const unsubscribe = CardEvents.subscribe(async (updatedCard, success) => {          
           setCards(prevCards => {
-            // Remove the current card
             const newCards = prevCards.filter(card => card.id !== updatedCard.id);
-            
-            // If the last attempt was unsuccessful, add the card to the end
-            if (lastHistory && !lastHistory.success) {
+            if (!success) {
               return [...newCards, updatedCard];
             }
-            
             return newCards;
           });
-    
-          // Always move to next card
-          setCurrentCardIndex(prev => prev + 1);
         });
     
         return () => unsubscribe();

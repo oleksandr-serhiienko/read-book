@@ -1,6 +1,6 @@
 import { Card } from "@/components/db/database";
 
-type CardUpdateListener = (card: Card) => void;
+type CardUpdateListener = (card: Card, success: boolean) => void;
 
 export class CardEvents {
   private static listeners: CardUpdateListener[] = [];
@@ -15,7 +15,7 @@ export class CardEvents {
   }
 
   // Method to notify all listeners about a card update
-  static emit(card: Card) {
-    this.listeners.forEach(listener => listener(card));
+  static emit(card: Card, success: boolean) {
+    this.listeners.forEach(listener => listener(card, success));
   }
 }

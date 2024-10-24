@@ -74,11 +74,11 @@ export default function CardPanel() {
       contextId: null,
       type: "card"
     };
-    
+
     await database.updateHistory(history);
     await database.updateCard(card);
     
-    CardEvents.emit(card);
+    CardEvents.emit(card, history.success);
   
     if (returnToApproval === 'true') {
       // Return to previous screen

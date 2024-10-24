@@ -1,7 +1,7 @@
 import { Card, Database } from '../../../components/db/database';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import wordGenerator from '../../../components/db/nextWordToLearn';
 
 interface CardDecks {
@@ -13,13 +13,15 @@ export default function CardDeckScreen() {
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [decks, setDecks] = useState<CardDecks>({});
 
-  useEffect(() => {
-    const initialize = async () => {
-      await database.initialize();
-      await getAllCards();
-    };
-    initialize();
-  }, []);
+  useFocusEffect(
+    React.useCallback(() => {
+      const initialize = async () => {
+        await database.initialize();
+        await getAllCards();
+      };
+      initialize();
+    }, [])
+  );
 
   const getAllCards = async () => {
     const cards = await database.getAllCards();
