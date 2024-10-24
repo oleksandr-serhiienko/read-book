@@ -46,8 +46,8 @@ export default function CardDeckScreen() {
       <Link 
         key={title}
         href={{
-          pathname: '/cardPanel',
-          params: { source: title, cards: JSON.stringify(cards) }
+            pathname: '/approvalCard',  
+            params: { source: title }
         }}
         asChild
       >

@@ -2,9 +2,10 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, PanResponder, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { Card, Database, HistoryEntry } from '../../../components/db/database';
 import wordGenerator, { getNextFibonacciLike } from '../../../components/db/nextWordToLearn';
-import { Link } from 'expo-router';
+import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Transform } from '@/components/transform';
 import { useLanguage } from '@/app/languageSelector';
+import { CardEvents } from './cardEvents';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
@@ -25,60 +26,65 @@ const renderHighlightedText = (text: string) => {
 
 export default function CardPanel() {
   const [database] = useState(() => new Database());
-  const [allCards, setAllCards] = useState<Card[]>([]);
-  const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const [card, setCard] = useState<Card>();
   const position = useRef(new Animated.ValueXY()).current;
   const rightOpacity = useRef(new Animated.Value(0)).current;
   const wrongOpacity = useRef(new Animated.Value(0)).current;
-  const { sourceLanguage, targetLanguage } = useLanguage();
+  const { cardId, returnToApproval } = useLocalSearchParams<{ 
+    cardId: string,
+    returnToApproval: string
+  }>();
+  const router = useRouter();
+
+  const useNumberParam = (param: string | undefined, defaultValue: number = 0): number => {
+    if (!param) return defaultValue;
+    const parsed = parseInt(param);
+    return isNaN(parsed) ? defaultValue : parsed;
+  };
 
   useEffect(() => {
     const initialize = async () => {
       await database.initialize();
-      await getAllCards();
+      await getCard();
     };
     initialize();
-  }, []);
+  }, [cardId]);
 
-  const getAllCards = async () => {
-    const cards = await database.getAllCards();
-    setAllCards(wordGenerator(cards));
+  const getCard = async () => {
+    const newCard = await database.getCardById(useNumberParam(cardId));
+    if (newCard !== null) {
+      setCard(newCard);
+    }
   };
 
   const onSwipeComplete = async (direction: 'left' | 'right') => {
-    const item = allCards[currentCardIndex];
+    if (!card) return;
+  
     if (direction === 'right') {
-      item.level = getNextFibonacciLike(item.level);
-      item.lastRepeat = new Date(Date.now());
-      let history: HistoryEntry = {
-        date: new Date(),
-        success: true,
-        cardId: item.id ?? 0,
-        contextId: null,
-        type: "card"
-      }
-      await database.updateHistory(history)
-      await database.updateCard(item)
+      card.level = getNextFibonacciLike(card.level);
     } else {
-      item.level = 0;
-      item.lastRepeat = new Date(Date.now());
-      let history: HistoryEntry = {
-        date: new Date(),
-        success: false,
-        cardId: item.id ?? 0,
-        contextId: null,
-        type: "card"
-      }
-      await database.updateHistory(history)
-      await database.updateCard(item)
-      setAllCards(prev => [...prev, item]);
+      card.level = 0;
     }
-    setCurrentCardIndex(prevIndex => prevIndex + 1);
-    position.setValue({ x: 0, y: 0 });
-    rightOpacity.setValue(0);
-    wrongOpacity.setValue(0);
+    card.lastRepeat = new Date(Date.now());
+    
+    let history: HistoryEntry = {
+      date: new Date(),
+      success: direction === 'right',
+      cardId: card.id ?? 0,
+      contextId: null,
+      type: "card"
+    };
+    
+    await database.updateHistory(history);
+    await database.updateCard(card);
+    
+    CardEvents.emit(card);
+  
+    if (returnToApproval === 'true') {
+      // Return to previous screen
+      router.back();
+    }
   };
-
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onPanResponderMove: (_, gesture) => {
@@ -149,12 +155,10 @@ export default function CardPanel() {
   };
 
   const renderCard = () => {
-    const currentCard = allCards[currentCardIndex];
-
-    if (!currentCard) {
+    if (!card) {
       return (
         <View style={styles.container}>
-          <Text>No more cards</Text>
+          <Text>No card available</Text>
         </View>
       );
     }
@@ -171,16 +175,16 @@ export default function CardPanel() {
             </Animated.View>
           </View>
   
-          <Text style={styles.word}>{currentCard.word}</Text>
-          <Text style={styles.translation}>{currentCard.translations[0]}</Text>
+          <Text style={styles.word}>{card.word}</Text>
+          <Text style={styles.translation}>{card.translations[0]}</Text>
           
-          {currentCard.context && currentCard.context.length > 0 && (
+          {card.context && card.context.length > 0 && (
             <View style={styles.contextContainer}>
               <Text style={styles.contextText}>
-                {renderHighlightedText(currentCard.context[0].sentence)}
+                {renderHighlightedText(card.context[0].sentence)}
               </Text>
               <Text style={styles.contextText}>
-                {renderHighlightedText(currentCard.context[0].translation)}
+                {renderHighlightedText(card.context[0].translation)}
               </Text>
             </View>
           )}
@@ -188,7 +192,7 @@ export default function CardPanel() {
             href={{
               pathname: "/wordInfo",
               params: { 
-                content: JSON.stringify(Transform.fromCardToWord(currentCard)),
+                content: JSON.stringify(Transform.fromCardToWord(card)),
                 added: 'true'
               }
             }}
@@ -210,7 +214,6 @@ export default function CardPanel() {
     </View>
   );
 }
-
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -304,3 +307,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
+
+function useNumberParam(cardId: string): number {
+  throw new Error('Function not implemented.');
+}

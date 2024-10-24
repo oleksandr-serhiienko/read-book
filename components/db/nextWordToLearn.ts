@@ -1,4 +1,4 @@
-import { Card, Database } from "../db/database";
+import { Card} from "../db/database";
 
 export default function wordGenerator (cards: Card[]) {
 

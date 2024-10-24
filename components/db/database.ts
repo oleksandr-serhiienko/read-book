@@ -144,6 +144,59 @@ export class Database {
     };
   }
 
+  async getCardToLearnBySource(source: string): Promise<Card[]> {
+    await this.initialize();
+    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+  
+    const query = `
+      SELECT 
+        c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId, 
+        c.source, c.sourceLanguage, c.targetLanguage,
+        ctx.id as contextId, ctx.sentence, ctx.translation
+      FROM cards c
+      LEFT JOIN contexts ctx ON c.id = ctx.cardId
+      WHERE c.source = ?
+      ORDER BY c.lastRepeat DESC
+    `;
+  
+    try {
+      const results = await this.db.getAllAsync<any>(query, [source]);
+      const cardMap = new Map<number, Card>();
+  
+      for (const row of results) {
+        if (!cardMap.has(row.id)) {
+          cardMap.set(row.id, {
+            id: row.id,
+            word: row.word,
+            translations: JSON.parse(row.translations),
+            lastRepeat: new Date(row.lastRepeat),
+            level: row.level,
+            userId: row.userId,
+            source: row.source,
+            sourceLanguage: row.sourceLanguage,
+            targetLanguage: row.targetLanguage,
+            context: []
+          });
+        }
+  
+        const card = cardMap.get(row.id)!;
+  
+        if (row.contextId) {
+          card.context!.push({
+            sentence: row.sentence,
+            translation: row.translation,
+            isBad: false  // Default value since it's not in the database
+          });
+        }
+      }
+  
+      console.log(`Got ${cardMap.size} cards for source: ${source}`);
+      return Array.from(cardMap.values());
+    } catch (error) {
+      console.error(`Error getting cards for source ${source}:`, error);
+      throw error;
+    }
+  }
   async getAllCards(): Promise<Card[]> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');

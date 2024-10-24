@@ -6,6 +6,7 @@ export default function CardLayout() {
       screenOptions={{ headerShown: false}}>
       <Stack.Screen name="index"/>
       <Stack.Screen name="cardPanel" />
+      <Stack.Screen name="approvalCard"/>
     </Stack>
   );
 }
