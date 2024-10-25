@@ -25,13 +25,15 @@ const renderHighlightedText = (text: string) => {
 
 export default function CardPanel() {
   const [database] = useState(() => new Database());
+  const [selectedContextId, setSelectedContextId] = useState<number | null>(null);
   const [card, setCard] = useState<Card>();
   const position = useRef(new Animated.ValueXY()).current;
   const rightOpacity = useRef(new Animated.Value(0)).current;
   const wrongOpacity = useRef(new Animated.Value(0)).current;
-  const { cardId, returnToApproval } = useLocalSearchParams<{ 
+  const { cardId, returnToApproval, contextId } = useLocalSearchParams<{ 
     cardId: string,
-    returnToApproval: string
+    returnToApproval: string,
+    contextId: string,
   }>();
   const router = useRouter();
 
@@ -46,6 +48,9 @@ export default function CardPanel() {
       await database.initialize();
       await getCard();
     };
+    if (contextId) {
+      setSelectedContextId(parseInt(contextId));
+    }
     initialize();
   }, [cardId]);
 
@@ -71,7 +76,7 @@ export default function CardPanel() {
       date: new Date(),
       success: direction === 'right',
       cardId: card.id ?? 0,
-      contextId: null,
+      contextId: selectedContextId, 
       type: "card"
     };
   
@@ -88,7 +93,7 @@ export default function CardPanel() {
       router.back();
     }
   };
-  
+
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onPanResponderMove: (_, gesture) => {

@@ -129,6 +129,63 @@ export class Database {
     return result.lastInsertRowId;
   }
 
+  async getNextContextForCard(cardId: number): Promise<number | null> {
+    await this.initialize();
+    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+
+    try {
+      // First get all non-bad contexts for the card
+      const goodContextsQuery = `
+        SELECT id, cardId
+        FROM contexts 
+        WHERE cardId = ? AND isBad = 0
+        ORDER BY id
+      `;
+      const goodContexts = await this.db.getAllAsync<{ id: number, cardId: number }>(goodContextsQuery, [cardId]);
+
+      if (goodContexts.length === 0) {
+        return null;
+      }
+
+      // Get history of context usage for this card
+      const historyQuery = `
+        SELECT contextId, MAX(date) as lastUsed
+        FROM histories
+        WHERE cardId = ? AND contextId IS NOT NULL
+        GROUP BY contextId
+        ORDER BY date ASC
+      `;
+      const contextHistory = await this.db.getAllAsync<{ contextId: number, lastUsed: string }>(historyQuery, [cardId]);
+
+      // If there are good contexts that haven't been used yet
+      const usedContextIds = contextHistory.map(h => h.contextId);
+      const unusedContexts = goodContexts.filter(ctx => !usedContextIds.includes(ctx.id));
+
+      if (unusedContexts.length > 0) {
+        // Return a random unused context
+        const randomIndex = Math.floor(Math.random() * unusedContexts.length);
+        return unusedContexts[randomIndex].id;
+      }
+
+      // If all contexts have been used, return the one used longest ago
+      if (contextHistory.length > 0) {
+        // Find the oldest used context that's still in the good contexts list
+        for (const history of contextHistory) {
+          if (goodContexts.some(ctx => ctx.id === history.contextId)) {
+            return history.contextId;
+          }
+        }
+      }
+
+      // If no history exists, return the first good context
+      return goodContexts[0].id;
+
+    } catch (error) {
+      console.error('Error getting next context:', error);
+      return null;
+    }
+  }
+
   async getCardById(id: number): Promise<Card | null> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');

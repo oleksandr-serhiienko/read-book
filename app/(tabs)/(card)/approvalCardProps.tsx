@@ -1,6 +1,6 @@
-import React, { FC } from 'react';
+import React, { FC, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { Card } from '@/components/db/database';
+import { Card, Database } from '@/components/db/database';
 import { useRouter } from 'expo-router';
 
 interface ApprovalCardProps {
@@ -61,6 +61,7 @@ type CardComponentsType = Record<number, CardComponentType>;
 
 export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate }) => {
   const router = useRouter();
+  const [database] = useState(() => new Database());
 
   const cardComponents: CardComponentsType = {
     0: WordOnlyCard,
@@ -73,22 +74,24 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate }) => {
     return Math.random() < 0.5 ? WordOnlyCard : TranslationOnlyCard;
   };
 
-  const handleShowAnswer = () => {
+  const handleShowAnswer = async () => {
+    if (!card?.id) return;
+
+    const contextId = await database.getNextContextForCard(card.id);
+    
     router.push({
       pathname: '/cardPanel',
       params: { 
         cardId: card.id,
         returnToApproval: 'true',
+        contextId: contextId?.toString() || ''
       }
     });
   };
 
   const getCardComponent = () => {
+    // If card has no context or empty context array
     if (!card.context || card.context.length === 0) {
-      return getRandomComponent();
-    }
-
-    if (!card.context[0] || !card.context[0].sentence) {
       return getRandomComponent();
     }
 
