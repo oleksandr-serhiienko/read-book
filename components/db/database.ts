@@ -132,20 +132,52 @@ export class Database {
   async getCardById(id: number): Promise<Card | null> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
-    console.log("teeeeeeeeeeeeeeeeeeeeeeest")
-    // await this.db.execAsync(`
-    //   ALTER TABLE contexts ADD COLUMN isBad BOOLEAN DEFAULT 0;
-    // `);
 
-    const card = await this.db.getFirstAsync<any>('SELECT * FROM cards WHERE id = ?', id);
-    if (!card) return null;
+    const query = `
+      SELECT 
+        c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId, 
+        c.source, c.sourceLanguage, c.targetLanguage,
+        ctx.id as contextId, ctx.sentence, ctx.translation, ctx.isBad
+      FROM cards c
+      LEFT JOIN contexts ctx ON c.id = ctx.cardId
+      WHERE c.id = ?
+    `;
 
-    console.log("card got");
-    return {
-      ...card,
-      translations: JSON.parse(card.translations),
-      lastRepeat: new Date(card.lastRepeat)
-    };
+    try {
+      const results = await this.db.getAllAsync<any>(query, [id]);
+      
+      if (results.length === 0) return null;
+
+      // Create the base card from the first result
+      const card: Card = {
+        id: results[0].id,
+        word: results[0].word,
+        translations: JSON.parse(results[0].translations),
+        lastRepeat: new Date(results[0].lastRepeat),
+        level: results[0].level,
+        userId: results[0].userId,
+        source: results[0].source,
+        sourceLanguage: results[0].sourceLanguage,
+        targetLanguage: results[0].targetLanguage,
+        context: []
+      };
+
+      // Add all contexts
+      results.forEach(row => {
+        if (row.contextId) {
+          card.context!.push({
+            sentence: row.sentence,
+            translation: row.translation,
+            isBad: Boolean(row.isBad)
+          });
+        }
+      });
+
+      return card;
+    } catch (error) {
+      console.error('Error getting card by id:', error);
+      throw error;
+    }
   }
 
   async getCardToLearnBySource(source: string): Promise<Card[]> {
@@ -257,8 +289,9 @@ export class Database {
   async updateCard(card: Card): Promise<void> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
-   
-    let result = await this.db.runAsync(
+     
+    // Update the card
+    await this.db.runAsync(
       `UPDATE cards SET 
         word = ?, translations = ?, lastRepeat = ?, level = ?, 
         userId = ?, source = ?, sourceLanguage = ?, targetLanguage = ?
@@ -275,8 +308,26 @@ export class Database {
         card.id ?? 0
       ]
     );
-    console.log("card upated");
-
+  
+    // Update contexts if they exist
+    if (card.context && card.context.length > 0) {
+      // First delete existing contexts
+      await this.db.runAsync('DELETE FROM contexts WHERE cardId = ?', [card.id ?? 1]);
+      
+      // Then insert new contexts
+      for (const context of card.context) {
+        await this.db.runAsync(
+          `INSERT INTO contexts (sentence, translation, cardId, isBad)
+           VALUES (?, ?, ?, ?)`,
+          [
+            context.sentence,
+            context.translation,
+            card.id ?? 1,
+            context.isBad || false
+          ]
+        );
+      }
+    }
   }
   
   async updateHistory(history: HistoryEntry): Promise<void> {

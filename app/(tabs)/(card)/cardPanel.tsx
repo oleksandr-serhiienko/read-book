@@ -59,6 +59,7 @@ export default function CardPanel() {
   const onSwipeComplete = async (direction: 'left' | 'right') => {
     if (!card) return;
   
+    // Calculate new level
     if (direction === 'right') {
       card.level = getNextFibonacciLike(card.level);
     } else {
@@ -73,17 +74,21 @@ export default function CardPanel() {
       contextId: null,
       type: "card"
     };
-
+  
     await database.updateHistory(history);
     await database.updateCard(card);
-    console.log("context before emitting");
-    console.log();
-    CardEvents.emit(card, history.success);
+    
+    // Fetch fresh card data to ensure we have all contexts
+    const updatedCard = await database.getCardById(card.id ?? 0);
+    if (updatedCard) {
+      CardEvents.emit(updatedCard, history.success);
+    }
   
     if (returnToApproval === 'true') {
       router.back();
     }
   };
+  
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onPanResponderMove: (_, gesture) => {

@@ -83,14 +83,11 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate }) => {
     });
   };
 
-  // Choose component based on level and context availability
   const getCardComponent = () => {
-    // If card has no context or empty context array
     if (!card.context || card.context.length === 0) {
       return getRandomComponent();
     }
 
-    // If card has context but the first context is empty
     if (!card.context[0] || !card.context[0].sentence) {
       return getRandomComponent();
     }
