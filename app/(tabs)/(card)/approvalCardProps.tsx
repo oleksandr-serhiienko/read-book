@@ -10,15 +10,19 @@ interface ApprovalCardProps {
 
 const WordOnlyCard: FC<ApprovalCardProps> = ({ card }) => (
   <View style={styles.cardContent}>
-    <Text style={styles.translation}>Translation: ______</Text>
-    <Text style={styles.word}>{card.word}</Text>
+    <Text style={styles.labelText}>Original</Text>
+    <Text style={styles.mainText}>{card.word}</Text>
+    <Text style={styles.labelText}>Translation</Text>
+    <Text style={styles.mainText}>{'_'.repeat(Math.max(8, card.translations[0].length))}</Text>
   </View>
 );
 
 const TranslationOnlyCard: FC<ApprovalCardProps> = ({ card }) => (
   <View style={styles.cardContent}>
-    <Text style={styles.word}>Word: ______</Text>
-    <Text style={styles.translation}>{card.translations[0]}</Text>
+    <Text style={styles.labelText}>Original</Text>
+    <Text style={styles.mainText}>{'_'.repeat(Math.max(8, card.word.length))}</Text>
+    <Text style={styles.labelText}>Translation</Text>
+    <Text style={styles.mainText}>{card.translations[0]}</Text>
   </View>
 );
 
@@ -116,21 +120,14 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate }) => {
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f0f0f0',
-    padding: 20,
-  },
   cardContent: {
     backgroundColor: 'white',
     borderRadius: 10,
     padding: 20,
     width: '100%',
-    minHeight: 150,
-    justifyContent: 'center',
+    minHeight: 200,
     alignItems: 'center',
+    justifyContent: 'space-evenly',
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -140,6 +137,40 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  labelText: {
+    fontSize: 18,
+    fontStyle: 'italic',
+    color: '#666',
+    marginVertical: 10,
+  },
+  mainText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginVertical: 5,
+  },
+  headerText: {
+    fontSize: 20,
+    color: '#666',
+    marginBottom: 8,
+  },
+  label: {
+    fontSize: 18,
+    color: '#666',
+    marginBottom: 8,
+  },
+  arrowContainer: {
+    marginVertical: 8,
+  },
+  arrow: {
+    fontSize: 24,
+    color: '#999',
+  },
+  blurredText: {
+    opacity: 0.1,
+  },
+ 
   word: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -151,6 +182,14 @@ const styles = StyleSheet.create({
     color: '#555',
     textAlign: 'center',
   },
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f0f0f0',
+    padding: 20,
+  },
+  
   contextText: {
     fontSize: 18,
     color: '#444',
