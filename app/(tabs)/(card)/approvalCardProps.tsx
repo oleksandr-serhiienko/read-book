@@ -1,28 +1,46 @@
-import React, { FC, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { FC, useState, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Card, Database } from '@/components/db/database';
 import { useRouter } from 'expo-router';
 
 interface ApprovalCardProps {
   card: Card;
   onCardUpdate: (card: Card) => void;
+  onShowAnswer?: () => void;
+  isFlipping?: boolean;
 }
 
-const WordOnlyCard: FC<ApprovalCardProps> = ({ card }) => (
+const WordOnlyCard: FC<ApprovalCardProps> = ({ card, onShowAnswer, isFlipping }) => (
   <View style={styles.cardContent}>
     <Text style={styles.labelText}>Original</Text>
     <Text style={styles.mainText}>{card.word}</Text>
     <Text style={styles.labelText}>Translation</Text>
     <Text style={styles.mainText}>{'_'.repeat(Math.max(8, card.translations[0].length))}</Text>
+    {!isFlipping && onShowAnswer && (
+      <TouchableOpacity 
+        style={styles.showAnswerButton}
+        onPress={onShowAnswer}
+      >
+        <Text style={styles.buttonText}>Show Answer</Text>
+      </TouchableOpacity>
+    )}
   </View>
 );
 
-const TranslationOnlyCard: FC<ApprovalCardProps> = ({ card }) => (
+const TranslationOnlyCard: FC<ApprovalCardProps> = ({ card, onShowAnswer, isFlipping }) => (
   <View style={styles.cardContent}>
     <Text style={styles.labelText}>Original</Text>
     <Text style={styles.mainText}>{'_'.repeat(Math.max(8, card.word.length))}</Text>
     <Text style={styles.labelText}>Translation</Text>
     <Text style={styles.mainText}>{card.translations[0]}</Text>
+    {!isFlipping && onShowAnswer && (
+      <TouchableOpacity 
+        style={styles.showAnswerButton}
+        onPress={onShowAnswer}
+      >
+        <Text style={styles.buttonText}>Show Answer</Text>
+      </TouchableOpacity>
+    )}
   </View>
 );
 
@@ -40,10 +58,9 @@ const renderHighlightedText = (text: string) => {
   });
 };
 
-const ContextWithBlankCard: FC<ApprovalCardProps> = ({ card }) => {
+const ContextWithBlankCard: FC<ApprovalCardProps> = ({ card, onShowAnswer, isFlipping }) => {
   if (!card.context || !card.context[0]) return null;
 
-  // Remove <em> tags from original sentence
   const originalSentence = card.context[0].sentence.replace(/<\/?em>/g, '');
   
   return (
@@ -56,6 +73,14 @@ const ContextWithBlankCard: FC<ApprovalCardProps> = ({ card }) => {
           {renderHighlightedText(card.context[0].translation)}
         </Text>
       </View>
+      {!isFlipping && onShowAnswer && (
+        <TouchableOpacity 
+          style={styles.showAnswerButton}
+          onPress={onShowAnswer}
+        >
+          <Text style={styles.buttonText}>Show Answer</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 };
@@ -66,6 +91,18 @@ type CardComponentsType = Record<number, CardComponentType>;
 export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate }) => {
   const router = useRouter();
   const [database] = useState(() => new Database());
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [flipAnim] = useState(new Animated.Value(0));
+  const [isAnswerVisible, setIsAnswerVisible] = useState(false);
+  const [isNavigating, setIsNavigating] = useState(false);
+
+  useEffect(() => {
+    // Reset animation when card changes
+    flipAnim.setValue(0);
+    setIsFlipping(false);
+    setIsAnswerVisible(false);
+    setIsNavigating(false);
+  }, [card]);
 
   const cardComponents: CardComponentsType = {
     0: WordOnlyCard,
@@ -74,52 +111,79 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate }) => {
   };
 
   const getRandomComponent = () => {
-    // Randomly return either WordOnlyCard or TranslationOnlyCard
     return Math.random() < 0.5 ? WordOnlyCard : TranslationOnlyCard;
   };
 
   const handleShowAnswer = async () => {
-    if (!card?.id) return;
+    if (!card?.id || isFlipping || isNavigating) return;
+    
+    setIsFlipping(true);
+    setIsNavigating(true);
 
     const contextId = await database.getNextContextForCard(card.id);
-    
-    router.push({
-      pathname: '/cardPanel',
-      params: { 
-        cardId: card.id,
-        returnToApproval: 'true',
-        contextId: contextId?.toString() || ''
-      }
+
+    Animated.timing(flipAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start(async () => {
+      router.push({
+        pathname: '/cardPanel',
+        params: { 
+          cardId: card.id,
+          returnToApproval: 'true',
+          contextId: contextId?.toString() || ''
+        }
+      });
     });
   };
 
   const getCardComponent = () => {
-    // If card has no context or empty context array
     if (!card.context || card.context.length === 0) {
       return getRandomComponent();
     }
-
-    // Otherwise, use the regular level-based selection
     const level = card.level;
     return cardComponents[level] || ContextWithBlankCard;
   };
 
   const CardComponent = getCardComponent();
 
+  const frontRotate = flipAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '180deg']
+  });
+
+  const frontOpacity = flipAnim.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [1, 0.5, 0]
+  });
+
   return (
     <View style={styles.container}>
-      <CardComponent card={card} onCardUpdate={onCardUpdate} />
-      <TouchableOpacity 
-        style={styles.showAnswerButton}
-        onPress={handleShowAnswer}
-      >
-        <Text style={styles.buttonText}>Show Answer</Text>
-      </TouchableOpacity>
+      <Animated.View style={[
+        styles.cardWrapper,
+        {
+          transform: [{ rotateY: frontRotate }],
+          opacity: frontOpacity,
+          //perspective: 1000,
+        }
+      ]}>
+        <CardComponent 
+          card={card} 
+          onCardUpdate={onCardUpdate} 
+          onShowAnswer={handleShowAnswer}
+          isFlipping={isFlipping}
+        />
+      </Animated.View>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
+  cardWrapper: {
+    backfaceVisibility: 'hidden',
+    width: '100%',
+  },
   cardContent: {
     backgroundColor: 'white',
     borderRadius: 10,
@@ -127,7 +191,7 @@ const styles = StyleSheet.create({
     width: '100%',
     minHeight: 200,
     alignItems: 'center',
-    justifyContent: 'space-evenly',
+    justifyContent: 'space-between', // Changed to space-between for better button placement
     shadowColor: "#000",
     shadowOffset: {
       width: 0,
@@ -170,7 +234,6 @@ const styles = StyleSheet.create({
   blurredText: {
     opacity: 0.1,
   },
- 
   word: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -189,7 +252,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f0f0f0',
     padding: 20,
   },
-  
   contextText: {
     fontSize: 18,
     color: '#444',
@@ -214,11 +276,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 8,
     elevation: 3,
+    width: '100%', // Make button full width
   },
   buttonText: {
     color: 'white',
     fontSize: 18,
     fontWeight: 'bold',
+    textAlign: 'center', // Center the text
   },
 });
 
