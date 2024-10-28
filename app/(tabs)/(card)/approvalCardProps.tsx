@@ -122,35 +122,46 @@ export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate }) => {
 
     const contextId = await database.getNextContextForCard(card.id);
 
-    Animated.timing(flipAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start(async () => {
+    Animated.sequence([
+      // First rotate to 90 degrees
+      Animated.timing(flipAnim, {
+        toValue: 0.5,
+        duration: 150, // Faster duration for smoother effect
+        useNativeDriver: true,
+      }),
+      // Small pause at 90 degrees
+      Animated.delay(50)
+    ]).start(async () => {
       router.push({
         pathname: '/cardPanel',
         params: { 
           cardId: card.id,
           returnToApproval: 'true',
-          contextId: contextId?.toString() || ''
+          contextId: contextId?.toString() || '',
+          isFlipped: 'true'
         }
       });
     });
-  };
+};
 
-  const getCardComponent = () => {
-    if (!card.context || card.context.length === 0) {
-      return getRandomComponent();
-    }
-    const level = card.level;
-    return cardComponents[level] || ContextWithBlankCard;
-  };
+const getCardComponent = () => {
+  if (!card) {
+    return WordOnlyCard; // Return a default component if card is undefined
+  }
+  
+  if (!card.context || card.context.length === 0) {
+    return getRandomComponent();
+  }
+  
+  const level = card.level;
+  return cardComponents[level] || ContextWithBlankCard;
+};
 
   const CardComponent = getCardComponent();
 
   const frontRotate = flipAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '180deg']
+    inputRange: [0, 0.5, 1],
+    outputRange: ['0deg', '90deg', '90deg']
   });
 
   const frontOpacity = flipAnim.interpolate({
