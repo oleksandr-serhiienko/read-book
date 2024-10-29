@@ -22,6 +22,37 @@ export interface SentenceTranslation{
 
 export default class Reverso {
   private TRANSLATION_URL = 'https://api.reverso.net/translate/v1/translation';
+  private MAX_WORDS_IN_CONTEXT = 20;
+
+  private extractEmphasisContent(text: string): string {
+    const match = text.match(/<em>(.*?)<\/em>/);
+    return match ? match[1] : '';
+  }
+
+  private countWords(text: string): number {
+    // Remove HTML tags and trim
+    const cleanText = text.replace(/<[^>]*>/g, '').trim();
+    // Split by whitespace and filter out empty strings
+    return cleanText.split(/\s+/).filter(word => word.length > 0).length;
+  }
+
+  private isContextValid(
+    context: TranslationContext, 
+    translations: Translation[]
+  ): boolean {
+    // Extract emphasized word from the original context
+    const emphasizedWord = this.extractEmphasisContent(context.translation);
+    console.log(emphasizedWord);
+    
+    // Check if the emphasized word exists in translations
+    const hasMatchingTranslation = translations.some(
+      translation => translation.word.toLowerCase() === emphasizedWord.toLowerCase()
+    );
+    const isOriginalLengthValid = this.countWords(context.original) <= this.MAX_WORDS_IN_CONTEXT;
+    const isTranslationLengthValid = this.countWords(context.translation) <= this.MAX_WORDS_IN_CONTEXT;
+
+    return hasMatchingTranslation && isOriginalLengthValid && isTranslationLengthValid;
+  }
 
   async getContextFromWebPage(
     text: string,
@@ -30,7 +61,6 @@ export default class Reverso {
   ): Promise<ResponseTranslation> {
     const url = `https://context.reverso.net/translation/${source}-${target}/${encodeURIComponent(text)}`;
     
-
     try {
       const response = await fetch(url, {
         headers: {
@@ -46,12 +76,17 @@ export default class Reverso {
 
       const html = await response.text();
       const translations = await this.parseTranslations(html);
-      const contexts = await this.parseContexts(html);
-
+      const allContexts = await this.parseContexts(html);
+      
+      // Filter contexts based on our criteria
+      const filteredContexts = allContexts.filter(context => 
+        this.isContextValid(context, translations)
+      );
+      console.log(filteredContexts);
       const transResponse: ResponseTranslation = {
         Original: text,
         Translations: translations,
-        Contexts: contexts,
+        Contexts: filteredContexts,
         TextView: translations.map(t => t.word).join(", "), 
         Book: ""     
       }
@@ -209,8 +244,6 @@ export default class Reverso {
     source: SupportedLanguage = SupportedLanguages.ENGLISH,
     target: SupportedLanguage = SupportedLanguages.RUSSIAN
   ): Promise<SentenceTranslation> {
-    //const url = `https://context.reverso.net/translation/${source}-${target}/${encodeURIComponent(text).replace(/%20/g, '+')}`;
-  
     const response = await fetch(this.TRANSLATION_URL, {
       method: 'POST',
       headers: {

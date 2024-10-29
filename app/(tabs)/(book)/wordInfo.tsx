@@ -17,7 +17,7 @@ export default function WordInfo() {
     `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
   );
 
-  const context = parsedContent.Contexts.filter(c => c.original.length < 100).slice(0, 5);
+  const context = parsedContent.Contexts;
 
   const renderTextWithBoldEmphasis = (text: string) => {
     const parts = text.split(/(<em>.*?<\/em>)/);
