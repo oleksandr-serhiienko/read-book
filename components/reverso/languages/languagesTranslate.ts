@@ -18,5 +18,7 @@ const languages = {
     chinese: 'chi',
     english: 'eng',
 }
-
 export  default languages;
+
+
+

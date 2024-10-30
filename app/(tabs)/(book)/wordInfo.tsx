@@ -6,18 +6,39 @@ import { Database } from '@/components/db/database';
 import SupportedLanguages from '@/components/reverso/languages/entities/languages';
 import { Transform } from '@/components/transform';
 import { useLanguage } from '@/app/languageSelector';
+import * as Speech from 'expo-speech';
+import { Volume2, Volume1 } from 'lucide-react-native';
+import languages from '@/components/reverso/languages/entities/languages';
+import voices from '@/components/reverso/languages/voicesTranslate';
 
 export default function WordInfo() {
   const { content, added } = useLocalSearchParams<{ content: string, added: string }>();
   const parsedContent: ResponseTranslation = JSON.parse(content as string);
   const [isAdded, setIsAdded] = useState(added === 'true');
+  const [isSpeaking, setIsSpeaking] = useState(false);
   const { sourceLanguage, targetLanguage } = useLanguage();
-
+  const languageKey = sourceLanguage.toLowerCase() as keyof typeof languages;
   const formattedTranslations = parsedContent.Translations.slice(0, 5).map(t =>
     `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
   );
 
   const context = parsedContent.Contexts;
+
+  const handleSpeak = async () => {
+    setIsSpeaking(true);
+    try {
+      const options = {
+        language: voices[languageKey as keyof typeof voices] || 'en-US',
+        pitch: 1.0,
+        rate: 0.75
+      };    
+      await Speech.speak(parsedContent.Original, options);
+    } catch (error) {
+      console.error('Error speaking:', error);
+    } finally {
+      setIsSpeaking(false);
+    }
+  };
 
   const renderTextWithBoldEmphasis = (text: string) => {
     const parts = text.split(/(<em>.*?<\/em>)/);
@@ -40,6 +61,21 @@ export default function WordInfo() {
 
   return (
     <ScrollView style={styles.container}>
+      <View style={styles.headerSection}>
+        <Text style={styles.originalWord}>{parsedContent.Original}</Text>
+        <TouchableOpacity 
+            style={[styles.speakButton, isSpeaking && styles.speakButtonActive]} 
+            onPress={handleSpeak}
+            disabled={isSpeaking}
+          >
+            {isSpeaking ? (
+              <Volume1 size={20} color="#666" strokeWidth={2} />
+            ) : (
+              <Volume2 size={20} color="#666" strokeWidth={2} />
+            )}
+          </TouchableOpacity>
+      </View>
+
       <TouchableOpacity 
         style={[styles.addButton, isAdded && styles.addButtonDisabled]} 
         onPress={handleAddToDictionary}
@@ -49,6 +85,7 @@ export default function WordInfo() {
           {isAdded ? 'Added to Dictionary' : 'Add to Dictionary'}
         </Text>
       </TouchableOpacity>
+
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Translations</Text>
         {formattedTranslations.map((translation, index) => (
@@ -78,6 +115,40 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: 20,
     backgroundColor: '#f0f0f0',
+  },
+  headerSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    padding: 15,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  originalWord: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  speakButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#f5f5f5',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  speakButtonActive: {
+    backgroundColor: '#e8e8e8',
+  },
+  speakButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: '500',
   },
   section: {
     marginBottom: 20,
@@ -127,7 +198,7 @@ const styles = StyleSheet.create({
     marginBottom: 10
   },
   addButtonDisabled: {
-    backgroundColor: '#B0C4DE', // Light Steel Blue for disabled state
+    backgroundColor: '#B0C4DE',
   },
   addButtonText: {
     color: 'white',
