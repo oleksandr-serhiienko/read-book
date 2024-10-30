@@ -22,7 +22,7 @@ export default function WordInfo() {
     `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
   );
 
-  const context = parsedContent.Contexts;
+  const context = parsedContent.Contexts.slice(0, 5);
 
   const handleSpeak = async () => {
     setIsSpeaking(true);
