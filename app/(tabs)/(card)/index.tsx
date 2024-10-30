@@ -1,6 +1,6 @@
 import { Card, Database } from '../../../components/db/database';
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
 import wordGenerator from '../../../components/db/nextWordToLearn';
 
@@ -24,6 +24,8 @@ export default function CardDeckScreen() {
   const [stats, setStats] = useState<StatsMap>({
     'All Cards': { total: 0, learning: 0, reviewed: 0 }
   });
+  const [bookCovers, setBookCovers] = useState<{[key: string]: string}>({});
+  const serverUrl = "http://192.168.1.41:3000";
   
 
   useFocusEffect(
@@ -35,6 +37,27 @@ export default function CardDeckScreen() {
       initialize();
     }, [])
   );
+  useEffect(() => {
+    fetchBooks();
+  }, []);
+
+  const fetchBooks = async () => {
+    try {      
+      const response = await fetch(`${serverUrl}/books`);
+      const data = await response.json();
+      const coverMap = data.reduce((acc: {[key: string]: string}, book: any) => {
+        if (book.coverImage) {
+          acc[book.title] = `${serverUrl}/covers/${encodeURIComponent(book.coverImage)}`;
+        }
+        return acc;
+      }, {});
+      // Add default cover for all decks without specific covers
+      coverMap['default'] = `${serverUrl}/covers/default.webp`; // or whatever extension your default image has
+      setBookCovers(coverMap);
+    } catch (error) {
+      console.error('Error fetching books:', error);
+    }
+  };
 
   const calculateStats = (cards: Card[]): DeckStats => {
     const today = new Date();
@@ -73,9 +96,10 @@ export default function CardDeckScreen() {
     setDecks(grouped);
     setStats(newStats);
   };
-  const renderDeck = (title: string, cards: Card[]) => {
-    const deckStats = stats[title] || { total: 0, learning: 0, reviewed: 0 };
 
+  const renderDeck = (title: string, cards: Card[], index: number) => {
+    const deckStats = stats[title] || { total: 0, learning: 0, reviewed: 0 };
+    const coverImage = bookCovers[title] || bookCovers['default'];
     return (
       <Link 
         key={title}
@@ -86,12 +110,19 @@ export default function CardDeckScreen() {
         asChild
       >
         <TouchableOpacity style={styles.deck}>
-          {/* Stack effect layers */}
-          <View style={styles.stackLayer3} />
-          <View style={styles.stackLayer2} />
-          <View style={styles.stackLayer1} />
-          
-          <View style={styles.cardContent}>
+          <View style={[
+            styles.cardContent
+          ]}>
+            {coverImage ? (
+              <ImageBackground 
+                source={{ uri: coverImage }} 
+                style={StyleSheet.absoluteFill}
+                imageStyle={styles.backgroundImage}
+              >
+                <View style={styles.overlay} />
+              </ImageBackground>
+            ) : null}
+                    
             <View style={styles.deckHeader}>
               <Text style={styles.deckTitle}>{title}</Text>
               <Text style={styles.cardCount}>
@@ -127,73 +158,104 @@ export default function CardDeckScreen() {
     );
   };
 
+
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.headerTitle}>Card Decks</Text>
-      {renderDeck('All Cards', allCards)}
-      {Object.entries(decks).map(([source, cards]) => renderDeck(source, cards))}
+      {/* Only show All Cards if there are cards to learn */}
+      {stats['All Cards'].learning > 0 && renderDeck('All Cards', allCards, 0)}
+      {/* Filter and map other decks */}
+      {Object.entries(decks)
+        .filter(([source, cards]) => {
+          const deckStats = stats[source];
+          return deckStats && deckStats.learning > 0;
+        })
+        .map(([source, cards], index) => 
+          renderDeck(source, cards, index + 1)
+        )}
     </ScrollView>
   );
 }
 
 
 const styles = StyleSheet.create({
-  deck: {
-    position: 'relative',
-    backgroundColor: 'transparent',
-    marginBottom: 24,
-    marginHorizontal: 8,
-    height: 160,
-  },
-  cardContent: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'white',
-    borderRadius: 10,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-    height: '100%',
-  },
-  stackLayer1: {
-    position: 'absolute',
-    top: 6,
-    left: 3,
-    right: -3,
-    height: '100%',
-    backgroundColor: '#f8f8f8',
-    borderRadius: 10,
-    transform: [{ rotate: '1deg' }],
-  },
-  stackLayer2: {
-    position: 'absolute',
-    top: 3,
-    left: 1.5,
-    right: -1.5,
-    height: '100%',
-    backgroundColor: '#f0f0f0',
-    borderRadius: 10,
-    transform: [{ rotate: '0.5deg' }],
-  },
-  stackLayer3: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    height: '100%',
-    backgroundColor: '#e8e8e8',
-    borderRadius: 10,
-  },
   progressContainer: {
-    gap: 4,
+    gap: 8, // Increased gap between bars
     marginTop: 'auto',
     paddingTop: 16,
   },
+  progressBar: {
+    height: 6, // Slightly taller
+    backgroundColor: 'rgba(0, 0, 0, 0.05)', // More subtle background
+    borderRadius: 4, // More rounded corners
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: 'rgba(52, 152, 219, 0.8)', // Slightly transparent blue
+    borderRadius: 4,
+    // Optional: add transition shadow
+    shadowColor: "#3498db",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  reviewedProgressFill: {
+    height: '100%',
+    backgroundColor: 'rgba(46, 204, 113, 0.8)', // Slightly transparent green
+    borderRadius: 4,
+    // Optional: add transition shadow
+    shadowColor: "#2ecc71",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  legendContainer: {
+    marginTop: 8, // Slightly more space
+    alignItems: 'flex-end',
+  },
+  legendText: {
+    fontSize: 12,
+    color: 'rgba(0, 0, 0, 0.5)', // More subtle text
+    fontStyle: 'italic',
+  },
+  backgroundImage: {
+    opacity: 0.3, // Increased opacity
+    borderRadius: 10,
+    resizeMode: 'cover',
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.5)', // Reduced overlay opacity
+  },
+  deck: {
+    marginBottom: 24,
+    marginHorizontal: 8,
+    height: 160,
+ },
+ cardContent: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    height: '100%',
+    overflow: 'hidden',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+ }, 
   container: {
     flex: 1,
     backgroundColor: '#f0f0f0',
@@ -219,33 +281,12 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: 'bold',
     color: '#333',
+    flex: 1, // This will take available space but allow cardCount to have its space
+    marginRight: 8,
   },
   cardCount: {
     fontSize: 14,
     color: '#666',
   },
-  
-  progressBar: {
-    height: 4,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    backgroundColor: '#3498db',
-  },
-  reviewedProgressFill: {
-    height: '100%',
-    backgroundColor: '#2ecc71',
-  },
-  legendContainer: {
-    marginTop: 4,
-    alignItems: 'flex-end',
-  },
-  legendText: {
-    fontSize: 12,
-    color: '#999',
-    fontStyle: 'italic',
-  },
+
 });
