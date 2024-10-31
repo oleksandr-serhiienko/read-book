@@ -1,12 +1,23 @@
-import React from 'react';
-import { Stack } from 'expo-router';
+import React, { useEffect, useRef } from 'react';
+import { Stack, router, usePathname } from 'expo-router';
 import { View, Text, StyleSheet } from 'react-native';
 import { LanguageProvider, useLanguage } from './languageSelector';
 import LanguageSelector from '@/components/languageComponent';
 
 function HeaderContent() {
   const { sourceLanguage, targetLanguage, setSourceLanguage, setTargetLanguage } = useLanguage();
+  const isFirstRender = useRef(true);
 
+  useEffect(() => {
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+    
+    // Only reload after initial render
+    router.replace('/(tabs)');
+  }, [sourceLanguage, targetLanguage]);
+  
   return (
     <View style={styles.headerContainer}>
       <Text style={styles.title}>ReadApp</Text>
@@ -23,11 +34,11 @@ function HeaderContent() {
 function LayoutWithLanguageSelector() {
   return (
     <Stack>
-      <Stack.Screen 
-        name="(tabs)" 
+      <Stack.Screen
+        name="(tabs)"
         options={{
           headerTitle: () => <HeaderContent />,
-        }} 
+        }}
       />
     </Stack>
   );

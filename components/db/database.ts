@@ -237,12 +237,12 @@ export class Database {
     }
   }
 
-  async getCardToLearnBySource(source: string): Promise<Card[]> {
+  async getCardToLearnBySource(source: string, sourceLanguage: string, targetLanguage: string): Promise<Card[]> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
 
     if (source === 'All Cards'){
-      return this.getAllCards();
+      return this.getAllCards(sourceLanguage, targetLanguage);
     }
   
     const query = `
@@ -252,14 +252,14 @@ export class Database {
         ctx.id as contextId, ctx.sentence, ctx.translation
       FROM cards c
       LEFT JOIN contexts ctx ON c.id = ctx.cardId
-      WHERE c.source = ?
+      WHERE c.source = ? AND c.sourceLanguage = ? AND c.targetLanguage = ?
       ORDER BY c.lastRepeat DESC
     `;
   
     try {
-      const results = await this.db.getAllAsync<any>(query, [source]);
+      const results = await this.db.getAllAsync<any>(query, [source, sourceLanguage, targetLanguage]);
       const cardMap = new Map<number, Card>();
-  
+
       for (const row of results) {
         if (!cardMap.has(row.id)) {
           cardMap.set(row.id, {
@@ -294,10 +294,10 @@ export class Database {
       throw error;
     }
   }
-  async getAllCards(): Promise<Card[]> {
+  async getAllCards(sourceLanguage: string, targetLanguage: string): Promise<Card[]> {
     await this.initialize();
+    
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
-  
     const query = `
       SELECT 
         c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId, 
@@ -305,11 +305,11 @@ export class Database {
         ctx.id as contextId, ctx.sentence, ctx.translation
       FROM cards c
       LEFT JOIN contexts ctx ON c.id = ctx.cardId
+      WHERE c.sourceLanguage = ? AND c.targetLanguage = ?
       ORDER BY c.lastRepeat DESC
     `;
   
-    const results = await this.db.getAllAsync<any>(query);
-  
+    const results = await this.db.getAllAsync<any>(query, [sourceLanguage, targetLanguage]);
     const cardMap = new Map<number, Card>();
   
     for (const row of results) {
@@ -338,7 +338,6 @@ export class Database {
         });
       }
     }
-    console.log("cards got");
   
     return Array.from(cardMap.values());
   }
@@ -404,7 +403,7 @@ export class Database {
     )
     console.log("history upated");
   }
-
+  
   async getCardHistory(cardId: number): Promise<HistoryEntry[]> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');

@@ -5,6 +5,7 @@ import wordGenerator, { getNextFibonacciLike } from '../../../components/db/next
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Transform } from '@/components/transform';
 import { CardEvents } from './cardEvents';
+import { useLanguage } from '@/app/languageSelector';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;

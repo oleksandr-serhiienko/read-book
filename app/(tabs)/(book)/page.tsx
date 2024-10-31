@@ -98,11 +98,9 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
       setIsLoading(true);
       await FileManager.init();
       
-      // Check if book exists locally
       let localPath = await FileManager.checkLocalFile(bookUrl);
       
       if (!localPath) {
-        // If not found locally, download it
         localPath = await FileManager.downloadBook(bookUrl);
         console.log("book is downloaded")
       }

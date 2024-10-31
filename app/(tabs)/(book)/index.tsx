@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Dimensions } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { Link } from 'expo-router';
+import { useLanguage } from '@/app/languageSelector';
 
 interface Book {
   title: string;
@@ -17,14 +18,15 @@ const itemWidth = (width - 40) / numColumns; // 40 is total horizontal padding
 const BookScreen: React.FC = () => {
   const [books, setBooks] = useState<Book[]>([]);
   const serverUrl = "http://192.168.1.41:3000";
-
+  const { sourceLanguage} = useLanguage();
   useEffect(() => {
     fetchBooks();
   }, []);
 
   const fetchBooks = async () => {
     try {      
-      const response = await fetch(`${serverUrl}/books`);
+      const response = await fetch(`${serverUrl}/books/${sourceLanguage.toLocaleLowerCase()}`);
+      console.log(`${serverUrl}/books/${sourceLanguage.toLocaleLowerCase()}`);
       const data = await response.json();
       setBooks(data);
     } catch (error) {
@@ -32,32 +34,35 @@ const BookScreen: React.FC = () => {
     }
   };
 
-  const renderBookItem = ({ item }: { item: Book }) => (
-    <Link          
+  const renderBookItem = ({ item }: { item: Book }) => {
+    //console.log( `${serverUrl}/covers/${item.coverImage}`);
+    return (
+      <Link          
         href={{
           pathname: "/page",
           params: {
-            bookUrl: `${serverUrl}/books/${item.fileName}`,
+            bookUrl: `${serverUrl}/books/${sourceLanguage.toLocaleLowerCase()}/${item.fileName}`,
             bookTitle: item.title
           }
         }}
         asChild>
-    <TouchableOpacity style={styles.bookItem}>
-      {item.coverImage ? (
-        <Image
-          source={{ uri: `${serverUrl}/covers/${item.coverImage}` }}
-          style={styles.coverImage}
-        />
-      ) : (
-        <View style={styles.placeholderCover}>
-          <Text style={styles.placeholderText}>{item.title.substring(0, 2).toUpperCase()}</Text>
-        </View>
-      )}
-      <Text style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{item.title}</Text>
-    </TouchableOpacity>
-    </Link>
-  );
-
+        <TouchableOpacity style={styles.bookItem}>
+          {item.coverImage ? (
+            <Image
+              source={{ uri: `${serverUrl}/covers/${item.coverImage}` }}
+              style={styles.coverImage}
+            />
+          ) : (
+            <View style={styles.placeholderCover}>
+              <Text style={styles.placeholderText}>{item.title.substring(0, 2).toUpperCase()}</Text>
+            </View>
+          )}
+          <Text style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{item.title}</Text>
+        </TouchableOpacity>
+      </Link>
+    );
+  };
+  
   return (
     <View style={styles.container}>
       <FlatList

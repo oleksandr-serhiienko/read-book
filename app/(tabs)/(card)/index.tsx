@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
 import wordGenerator from '../../../components/db/nextWordToLearn';
+import { useLanguage } from '@/app/languageSelector';
 
 interface CardDecks {
   [key: string]: Card[];
@@ -18,6 +19,7 @@ type StatsMap = {
 }
 
 export default function CardDeckScreen() {
+  const { sourceLanguage, targetLanguage} = useLanguage();
   const [database] = useState(() => new Database());
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [decks, setDecks] = useState<CardDecks>({});
@@ -26,6 +28,7 @@ export default function CardDeckScreen() {
   });
   const [bookCovers, setBookCovers] = useState<{[key: string]: string}>({});
   const serverUrl = "http://192.168.1.41:3000";
+  
   
 
   useFocusEffect(
@@ -43,11 +46,13 @@ export default function CardDeckScreen() {
 
   const fetchBooks = async () => {
     try {      
-      const response = await fetch(`${serverUrl}/books`);
+      const response = await fetch(`${serverUrl}/books/${sourceLanguage.toLocaleLowerCase()}`);
+      console.log(`${serverUrl}/books/${sourceLanguage.toLocaleLowerCase()}`);
       const data = await response.json();
       const coverMap = data.reduce((acc: {[key: string]: string}, book: any) => {
         if (book.coverImage) {
-          acc[book.title] = `${serverUrl}/covers/${encodeURIComponent(book.coverImage)}`;
+          //console.log(`${serverUrl}/covers/${(book.coverImage)}`);
+          acc[book.title] = `${serverUrl}/covers/${(book.coverImage)}`;
         }
         return acc;
       }, {});
@@ -75,7 +80,7 @@ export default function CardDeckScreen() {
   };
 
   const getAllCards = async () => {
-    const cards = await database.getAllCards();
+    const cards = await database.getAllCards(sourceLanguage.toLocaleLowerCase(), targetLanguage.toLocaleLowerCase());
     setAllCards(cards);
     
     const allStats = calculateStats(cards);

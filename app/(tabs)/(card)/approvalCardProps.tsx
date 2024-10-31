@@ -2,6 +2,7 @@ import React, { FC, useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated } from 'react-native';
 import { Card, Database } from '@/components/db/database';
 import { useRouter } from 'expo-router';
+import { useLanguage } from '@/app/languageSelector';
 
 interface ApprovalCardProps {
   card: Card;

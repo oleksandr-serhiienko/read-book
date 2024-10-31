@@ -5,6 +5,7 @@ import ApprovalCard from './approvalCardProps';
 import { router, useLocalSearchParams } from 'expo-router';
 import wordGenerator from '@/components/db/nextWordToLearn';
 import { CardEvents } from './cardEvents';
+import { useLanguage } from '@/app/languageSelector';
 
 
 // In your screen component:
@@ -12,11 +13,12 @@ export default function ApprovalScreen() {
   const { source } = useLocalSearchParams<{ source: string}>();
   const [cards, setCards] = useState<Card[]>([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
+  const { sourceLanguage, targetLanguage} = useLanguage();
 
   useEffect(() => {
     // Load your card data here
     const loadCard = async () => {
-        const cards = await database.getCardToLearnBySource(source) ?? [];
+        const cards = await database.getCardToLearnBySource(source, sourceLanguage.toLocaleLowerCase(), targetLanguage.toLocaleLowerCase()) ?? [];
         const cardsToLearn = wordGenerator(cards);
         setCards(cardsToLearn);
       };
