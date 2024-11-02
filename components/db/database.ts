@@ -14,6 +14,17 @@ export interface Card {
   history?: Array<{ date: Date; contextId?: number; success: boolean, cardId: number, number: string }>;
 }
 
+export interface Book {
+  id?: number;
+  name: string;
+  sourceLanguage: string;
+  updateDate: Date;
+  lastreadDate: Date;
+  bookUrl: string;
+  imageUrl?: string | null;
+  currentLocation?: string | null;
+}
+
 export interface HistoryEntry {
   id?: number;
   date: Date;
@@ -80,6 +91,17 @@ export class Database {
         FOREIGN KEY (cardId) REFERENCES cards(id)
         FOREIGN KEY (contextId) REFERENCES contexts(id)
       );
+
+        CREATE TABLE IF NOT EXISTS books (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          sourceLanguage TEXT NOT NULL,
+          updateDate TEXT NOT NULL,
+          lastreadDate TEXT NOT NULL,
+          bookUrl TEXT NOT NULL,
+          imageUrl TEXT NULL,
+          currentLocation TEXT NULL
+        );
     `);   
   }
 
@@ -294,6 +316,7 @@ export class Database {
       throw error;
     }
   }
+
   async getAllCards(sourceLanguage: string, targetLanguage: string): Promise<Card[]> {
     await this.initialize();
     
@@ -429,6 +452,123 @@ export class Database {
     await this.db.runAsync('DELETE FROM cards WHERE id = ?', id);
     console.log("card deleted");
   }
+
+  async insertBook(book: Book): Promise<number> {
+    await this.initialize();
+    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+    
+    try {
+      const result = await this.db.runAsync(
+        `INSERT INTO books (name, sourceLanguage, updateDate, lastreadDate, bookUrl, imageUrl, currentLocation)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        [
+          book.name,
+          book.sourceLanguage,
+          book.updateDate.toISOString(),
+          book.lastreadDate.toISOString(),
+          book.bookUrl,
+          book.imageUrl || null,
+          book.currentLocation || null
+        ]
+      );
+      
+      console.log("Book inserted successfully");
+      return result.lastInsertRowId;
+    } catch (error) {
+      console.error("Error inserting book:", error);
+      throw error;
+    }
+  }
+  
+  async getBookLocationById(id: number): Promise<string | null> {
+    await this.initialize();
+    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+  
+    try {
+      const result = await this.db.getFirstAsync<{ currentLocation: string | null }>(
+        'SELECT currentLocation FROM books WHERE id = ?',
+        [id]
+      );
+      
+      return result ? result.currentLocation : null;
+    } catch (error) {
+      console.error("Error getting book location:", error);
+      throw error;
+    }
+  }
+
+  // Update getBooksByName to include language filter
+  async getBooksByName(name: string, sourceLanguage?: string): Promise<Book[]> {
+    await this.initialize();
+    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+  
+    try {
+      let query = `SELECT * FROM books WHERE name LIKE ?`;
+      const params: any[] = [`%${name}%`];
+  
+      if (sourceLanguage) {
+        query += ` AND sourceLanguage = ?`;
+        params.push(sourceLanguage);
+      }
+  
+      query += ` ORDER BY lastreadDate DESC`;
+  
+      const results = await this.db.getAllAsync<any>(query, params);
+      
+      return results.map(result => ({
+        id: result.id,
+        name: result.name,
+        sourceLanguage: result.sourceLanguage,
+        updateDate: new Date(result.updateDate),
+        lastreadDate: new Date(result.lastreadDate),
+        bookUrl: result.bookUrl,
+        imageUrl: result.imageUrl,
+        currentLocation: result.currentLocation
+      }));
+    } catch (error) {
+      console.error("Error getting books by name:", error);
+      throw error;
+    }
+  }
+
+  async updateBook(book: Book): Promise<void> {
+    await this.initialize();
+    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+    
+    if (!book.id) {
+      throw new Error('Book ID is required for update');
+    }
+  
+    try {
+      await this.db.runAsync(
+        `UPDATE books 
+         SET name = ?,
+             sourceLanguage = ?,
+             updateDate = ?,
+             lastreadDate = ?,
+             bookUrl = ?,
+             imageUrl = ?,
+             currentLocation = ?
+         WHERE id = ?`,
+        [
+          book.name,
+          book.sourceLanguage,
+          book.updateDate.toISOString(),
+          book.lastreadDate.toISOString(),
+          book.bookUrl,
+          book.imageUrl || null,
+          book.currentLocation || null,
+          book.id
+        ]
+      );
+      
+      console.log("Book updated successfully");
+    } catch (error) {
+      console.error("Error updating book:", error);
+      throw error;
+    }
+  }
+  
 }
 
 // Export a single instance of the Database class

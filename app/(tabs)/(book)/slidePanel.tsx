@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Text, StyleSheet, TouchableOpacity, Animated, View } from 'react-native';
 import { Link } from 'expo-router';
 import { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
-import { Card, Database } from '@/components/db/database';
+import { Database } from '@/components/db/database';
 import SupportedLanguages from '@/components/reverso/languages/entities/languages';
 import { Transform } from '@/components/transform';
 import { useLanguage } from '@/app/languageSelector';
