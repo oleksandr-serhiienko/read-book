@@ -484,6 +484,44 @@ export class Database {
       throw error;
     }
   }
+
+  async getAllBooks(sourceLanguage: string): Promise<Book[]> {
+    await this.initialize();
+    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+    
+    try {
+        console.log(`Fetching all books for language: ${sourceLanguage}`);
+        const result = await this.db.getAllAsync<{
+            id: number;
+            name: string;
+            sourceLanguage: string;
+            updateDate: string;
+            lastreadDate: string;
+            bookUrl: string;
+            imageUrl: string | null;
+            currentLocation: string | null;
+        }>(
+            `SELECT * FROM books WHERE sourceLanguage = ? ORDER BY lastreadDate DESC`,
+            [sourceLanguage]
+        );
+
+        const books: Book[] = result.map(row => ({
+            name: row.name,
+            sourceLanguage: row.sourceLanguage,
+            updateDate: new Date(row.updateDate),
+            lastreadDate: new Date(row.lastreadDate),
+            bookUrl: row.bookUrl,
+            imageUrl: row.imageUrl,
+            currentLocation: row.currentLocation
+        }));
+
+        console.log(`Found ${books.length} books for language ${sourceLanguage}`);
+        return books;
+    } catch (error) {
+        console.error(`Error fetching books for language ${sourceLanguage}:`, error);
+        throw error;
+    }
+  }
   
   async getBookLocationById(id: number): Promise<string | null> {
     await this.initialize();
