@@ -24,7 +24,9 @@ const FileManager = {
 
   getLocalPath(bookUrl: string): string {
     const filename = bookUrl.split('/').pop();
-    return `${this.booksDirectory}${filename}`;
+    // Ensure proper encoding of the filename
+    const encodedFilename = encodeURIComponent(filename || '');
+    return `${this.booksDirectory}${encodedFilename}`;
   },
 
   async checkLocalFile(bookUrl: string): Promise<string | null> {
@@ -33,10 +35,51 @@ const FileManager = {
     return fileInfo.exists ? localPath : null;
   },
 
+   async isFileCorrupted (filePath: string): Promise<boolean>  {
+    try {
+      // On Android, we can try to open the file to verify it exists
+      // On iOS, we'll just check if it exists
+      const fileInfo = await FileSystem.getInfoAsync(filePath);      
+      if (!fileInfo.exists) return true;
+      
+      try {
+        // Try to read the first few bytes of the file
+        const reader = await FileSystem.readAsStringAsync(filePath, {
+          length: 50,  // Read just the first 50 bytes to check if file is readable
+          position: 0,
+        });
+        return !reader; // If we can't read, consider it corrupted
+      } catch (readError) {
+        console.error('Error reading file:', readError);
+        return true; // If we can't read the file, consider it corrupted
+      }
+    } catch (error) {
+      console.error('Error checking file:', error);
+      return true;
+    }
+  },
+
+  async checkBook(bookUrl: string): Promise<string>{
+    const localPath = await this.checkLocalFile(bookUrl);
+    if (localPath !== null){
+      if (await this.isFileCorrupted(localPath)) {
+        console.log("Removing corrupted file before download");
+        await FileSystem.deleteAsync(localPath);
+        return this.downloadBook(bookUrl);
+      }
+      return localPath;
+    }
+    else{
+      return this.downloadBook(bookUrl); 
+    }
+
+  },
+
   async downloadBook(bookUrl: string): Promise<string> {
     const localPath = this.getLocalPath(bookUrl);
     
     try {
+
       const downloadResumable = FileSystem.createDownloadResumable(
         bookUrl,
         localPath,
@@ -50,6 +93,11 @@ const FileManager = {
       const result = await downloadResumable.downloadAsync();
       if (!result) {
         throw new Error('Download failed - no result returned');
+      }
+      
+      // Verify the downloaded file exists and is readable
+      if (await this.isFileCorrupted(result.uri)) {
+        throw new Error('Downloaded file appears to be corrupted');
       }
       
       return result.uri;
@@ -97,16 +145,9 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
     try {
       setIsLoading(true);
       await FileManager.init();
-      
-      let localPath = await FileManager.checkLocalFile(bookUrl);
-      
-      if (!localPath) {
-        localPath = await FileManager.downloadBook(bookUrl);
-        console.log("book is downloaded")
-      }
+      let localPath = await FileManager.checkBook(bookUrl);
       
       setLocalBookUrl(localPath);
-     
     } catch (error) {
       console.error('Error setting up book:', error);
       Alert.alert('Error', 'Failed to load the book. Please try again.');

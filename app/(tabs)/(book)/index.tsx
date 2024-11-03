@@ -41,7 +41,7 @@ const BookScreen: React.FC = () => {
         href={{
           pathname: "/page",
           params: {
-            bookUrl: `${serverUrl}/books/${sourceLanguage.toLocaleLowerCase()}/${item.fileName}`,
+            bookUrl: `${serverUrl}/books/${item.fileName}`,
             bookTitle: item.title
           }
         }}
