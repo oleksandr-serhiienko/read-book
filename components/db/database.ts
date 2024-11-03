@@ -60,6 +60,9 @@ export class Database {
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
     
     await this.db.execAsync(`
+
+      DELETE FROM books;
+      
       CREATE TABLE IF NOT EXISTS cards (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         word TEXT NOT NULL,
@@ -456,7 +459,10 @@ export class Database {
   async insertBook(book: Book): Promise<number> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
-    
+    const bookExist = this.getBookByName(book.name, book.sourceLanguage);
+    if (bookExist !== null){
+      return 0;
+    }
     try {
       const result = await this.db.runAsync(
         `INSERT INTO books (name, sourceLanguage, updateDate, lastreadDate, bookUrl, imageUrl, currentLocation)
@@ -498,24 +504,19 @@ export class Database {
   }
 
   // Update getBooksByName to include language filter
-  async getBooksByName(name: string, sourceLanguage?: string): Promise<Book[]> {
+  async getBookByName(name: string, sourceLanguage: string): Promise<Book | null> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
   
     try {
-      let query = `SELECT * FROM books WHERE name LIKE ?`;
-      const params: any[] = [`%${name}%`];
-  
-      if (sourceLanguage) {
-        query += ` AND sourceLanguage = ?`;
-        params.push(sourceLanguage);
-      }
-  
-      query += ` ORDER BY lastreadDate DESC`;
-  
-      const results = await this.db.getAllAsync<any>(query, params);
+      const query = `SELECT * FROM books WHERE name = ? AND sourceLanguage = ?`;
+      const result = await this.db.getFirstAsync<Book>(query, [name, sourceLanguage.toLowerCase()]);
       
-      return results.map(result => ({
+      if (!result) {
+        return null;
+      }
+
+      return {
         id: result.id,
         name: result.name,
         sourceLanguage: result.sourceLanguage,
@@ -524,41 +525,28 @@ export class Database {
         bookUrl: result.bookUrl,
         imageUrl: result.imageUrl,
         currentLocation: result.currentLocation
-      }));
+      };
     } catch (error) {
-      console.error("Error getting books by name:", error);
+      console.error("Error getting book by name:", error);
       throw error;
     }
-  }
+}
 
-  async updateBook(book: Book): Promise<void> {
+  async updateBook(name: string, source: string, currentLocation: string): Promise<void> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
-    
-    if (!book.id) {
-      throw new Error('Book ID is required for update');
-    }
   
     try {
       await this.db.runAsync(
         `UPDATE books 
-         SET name = ?,
-             sourceLanguage = ?,
-             updateDate = ?,
-             lastreadDate = ?,
-             bookUrl = ?,
-             imageUrl = ?,
-             currentLocation = ?
-         WHERE id = ?`,
+         SET currentLocation = ?,
+             lastreadDate = ?
+         WHERE name = ? AND sourceLanguage = ?`,
         [
-          book.name,
-          book.sourceLanguage,
-          book.updateDate.toISOString(),
-          book.lastreadDate.toISOString(),
-          book.bookUrl,
-          book.imageUrl || null,
-          book.currentLocation || null,
-          book.id
+          currentLocation,
+          new Date().toISOString(),  // Update lastreadDate to current time
+          name,
+          source.toLowerCase()
         ]
       );
       
