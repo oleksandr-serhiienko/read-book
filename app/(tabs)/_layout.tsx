@@ -19,6 +19,11 @@ export default function TabLayout() {
             headerShown: false,
             tabBarIcon: ({ color }) => <FontAwesome size={28} name='folder' color={color} />,
             }} />
+      <Tabs.Screen name="(setting)" options={{
+            title: "Settings",
+            headerShown: false,
+            tabBarIcon: ({ color }) => <FontAwesome size={28} name='gear' color={color} />,
+            }} />
     </Tabs>
   );
 }
