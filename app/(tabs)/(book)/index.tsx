@@ -42,7 +42,8 @@ const BookScreen: React.FC = () => {
           pathname: "/page",
           params: {
             bookUrl: `${serverUrl}/books/${item.fileName}`,
-            bookTitle: item.title
+            bookTitle: item.title,
+            imageUrl: `${serverUrl}/covers/${item.coverImage}`
           }
         }}
         asChild>

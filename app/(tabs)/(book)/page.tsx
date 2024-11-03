@@ -66,23 +66,33 @@ const FileManager = {
       if (await this.isFileCorrupted(localPath)) {
         console.log("Removing corrupted file before download");
         await FileSystem.deleteAsync(localPath);
-        return this.downloadBook(bookUrl);
+        return this.downloadFile(bookUrl);
       }
       return localPath;
     }
     else{
-      return this.downloadBook(bookUrl); 
+      return this.downloadFile(bookUrl); 
     }
 
   },
 
-  async downloadBook(bookUrl: string): Promise<string> {
-    const localPath = this.getLocalPath(bookUrl);
+  async checkImage(imageUrl: string): Promise<string>{
+    const localPath = await this.checkLocalFile(imageUrl);
+    if (localPath !== null){      
+      return localPath;
+    }
+    else{
+      return this.downloadFile(imageUrl); 
+    }
+
+  },
+
+  async downloadFile(fileUrl: string): Promise<string> {
+    const localPath = this.getLocalPath(fileUrl);
     
     try {
-
       const downloadResumable = FileSystem.createDownloadResumable(
-        bookUrl,
+        fileUrl,
         localPath,
         {},
         (downloadProgress) => {
@@ -96,7 +106,6 @@ const FileManager = {
         throw new Error('Download failed - no result returned');
       }
       
-      // Verify the downloaded file exists and is readable
       if (await this.isFileCorrupted(result.uri)) {
         throw new Error('Downloaded file appears to be corrupted');
       }
@@ -104,7 +113,7 @@ const FileManager = {
       return result.uri;
     } catch (error) {
       console.error('Download error:', error);
-      throw new Error('Failed to download the book');
+      throw new Error(`Failed to download`);
     }
   }
 };
@@ -112,6 +121,7 @@ const FileManager = {
 interface ReaderComponentProps {
   bookUrl: string;
   bookTitle: string;
+  imageUrl: string;
   initialLocation: string | undefined;
   onLocationChange: (
     totalLocations: number,
@@ -125,6 +135,7 @@ interface ReaderComponentProps {
 
 const ReaderComponent: React.FC<ReaderComponentProps> = ({
   bookUrl,
+  imageUrl,
   bookTitle,
   initialLocation,
   onLocationChange,
@@ -146,7 +157,8 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
     try {
       setIsLoading(true);
       await FileManager.init();
-      let localPath = await FileManager.checkBook(bookUrl);      
+      let localPath = await FileManager.checkBook(bookUrl);   
+      let localImage = await FileManager.checkImage(imageUrl);    
       const bookExist = await database.getBookByName(bookTitle, sourceLanguage.toLowerCase());
       setLocalBookUrl(localPath);
       if (bookExist === null){
@@ -155,7 +167,8 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
           name : bookTitle,
           sourceLanguage : sourceLanguage.toLowerCase(),
           updateDate : new Date() ,
-          lastreadDate : new Date()        
+          lastreadDate : new Date(),
+          imageUrl: localImage        
         }
         database.insertBook(book);
       } 
@@ -231,7 +244,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
 };
 
 export default function PageScreen() {
-  const { bookUrl, bookTitle } = useLocalSearchParams<{ bookUrl: string, bookTitle: string }>();
+  const { bookUrl, bookTitle, imageUrl } = useLocalSearchParams<{ bookUrl: string, bookTitle: string, imageUrl: string }>();
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [panelContent, setPanelContent] = useState<SentenceTranslation | ResponseTranslation | null>(null);
   const [initialLocation, setInitialLocation] = useState<string | undefined>(undefined);
@@ -276,6 +289,7 @@ export default function PageScreen() {
       <ReaderProvider>
         <ReaderComponent
           bookUrl={bookUrl}
+          imageUrl = {imageUrl}
           bookTitle={bookTitle}
           initialLocation={initialLocation}
           onLocationChange={handleLocationChange}
