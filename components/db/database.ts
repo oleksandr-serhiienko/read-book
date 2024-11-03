@@ -61,8 +61,6 @@ export class Database {
     
     await this.db.execAsync(`
 
-      DELETE FROM books;
-      
       CREATE TABLE IF NOT EXISTS cards (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         word TEXT NOT NULL,
@@ -459,11 +457,12 @@ export class Database {
   async insertBook(book: Book): Promise<number> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
-    const bookExist = this.getBookByName(book.name, book.sourceLanguage);
+    const bookExist = await  this.getBookByName(book.name, book.sourceLanguage);
     if (bookExist !== null){
-      return 0;
+      return 0;      
     }
     try {
+      console.log("try to insert....");
       const result = await this.db.runAsync(
         `INSERT INTO books (name, sourceLanguage, updateDate, lastreadDate, bookUrl, imageUrl, currentLocation)
          VALUES (?, ?, ?, ?, ?, ?, ?)`,

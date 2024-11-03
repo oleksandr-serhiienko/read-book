@@ -100,8 +100,6 @@ const FileManager = {
       if (await this.isFileCorrupted(result.uri)) {
         throw new Error('Downloaded file appears to be corrupted');
       }
-      
-      
 
       return result.uri;
     } catch (error) {
@@ -148,12 +146,10 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
     try {
       setIsLoading(true);
       await FileManager.init();
-      let localPath = await FileManager.checkBook(bookUrl);
-      
-      //let localPath = await FileManager.checkLocalFile(bookUrl);      
-      
-      if (!localPath) {
-        localPath = await FileManager.downloadBook(bookUrl);
+      let localPath = await FileManager.checkBook(bookUrl);      
+      const bookExist = await database.getBookByName(bookTitle, sourceLanguage.toLowerCase());
+      setLocalBookUrl(localPath);
+      if (bookExist === null){
         const book: Book = {
           bookUrl : localPath,
           name : bookTitle,
@@ -162,26 +158,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
           lastreadDate : new Date()        
         }
         database.insertBook(book);
-        console.log("book is downloaded")
-      }
-      else 
-      {
-        const bookExist = await database.getBookByName(bookTitle, sourceLanguage.toLowerCase());
-        console.log("booooook");
-        console.log(bookExist);
-        if (bookExist === null){
-          const book: Book = {
-            bookUrl : localBookUrl,
-            name : bookTitle,
-            sourceLanguage : sourceLanguage.toLowerCase(),
-            updateDate : new Date() ,
-            lastreadDate : new Date()        
-          }
-          database.insertBook(book);
-        }
-        
-      }
-      
+      } 
       setLocalBookUrl(localPath);
     } catch (error) {
       console.error('Error setting up book:', error);
@@ -272,11 +249,7 @@ export default function PageScreen() {
   ) => {
     try {
       if (currentLocation && currentLocation.start) {
-
         await database.updateBook(bookTitle, sourceLanguage.toLowerCase(), currentLocation.start.cfi)
-        const test = await database.getBookByName(bookTitle, sourceLanguage);
-        console.log(test);
-        //await AsyncStorage.setItem('readerLocation', currentLocation.start.cfi);
       }
     } catch (error) {
       console.error('Error saving location:', error);
@@ -285,16 +258,10 @@ export default function PageScreen() {
 
   const loadSavedLocation = async () => {
     try {
-      //const savedLocation = await AsyncStorage.getItem('readerLocation');
       const book = await database.getBookByName(bookTitle, sourceLanguage.toLowerCase());
-      // if (savedLocation !== null) {
-      //   setInitialLocation(savedLocation);
-      // }
       if (book?.currentLocation !== null) {
-        console.log("the location was loaded");
         setInitialLocation(book?.currentLocation);
       }
-      console.log("the location was not loaded");
     } catch (error) {
       console.error('Error loading saved location:', error);
     }
