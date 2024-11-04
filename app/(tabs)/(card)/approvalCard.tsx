@@ -12,6 +12,8 @@ import { useLanguage } from '@/app/languageSelector';
 export default function ApprovalScreen() {
   const { source } = useLocalSearchParams<{ source: string}>();
   const [cards, setCards] = useState<Card[]>([]);
+  const [cardsToLearn, setCardsToLearn] = useState<number>(0);
+  const [cardsLearned, setCardsLearned] = useState<number>(0);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
   const { sourceLanguage, targetLanguage} = useLanguage();
 
@@ -21,6 +23,8 @@ export default function ApprovalScreen() {
         const cards = await database.getCardToLearnBySource(source, sourceLanguage.toLocaleLowerCase(), targetLanguage.toLocaleLowerCase()) ?? [];
         const cardsToLearn = wordGenerator(cards);
         setCards(cardsToLearn);
+        setCardsToLearn(cardsToLearn.length);
+
       };
       loadCard();
     }, [source]);
@@ -30,8 +34,9 @@ export default function ApprovalScreen() {
           setCards(prevCards => {
             const newCards = prevCards.filter(card => card.id !== updatedCard.id);
             if (!success) {
-              return [...newCards, updatedCard];
+              return [...newCards, updatedCard];              
             }
+            setCardsLearned(prev => prev + 1); // Use functional update
             return newCards;
           });
         });
@@ -65,6 +70,8 @@ export default function ApprovalScreen() {
     <ApprovalCard 
       card={cards[currentCardIndex]}
       onCardUpdate={handleCardUpdate}
+      cardsToLearn={cardsToLearn}
+      cardsLearned={cardsLearned}
     />
   );
 }

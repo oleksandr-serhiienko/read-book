@@ -9,6 +9,8 @@ interface ApprovalCardProps {
   onCardUpdate: (card: Card) => void;
   onShowAnswer?: () => void;
   isFlipping?: boolean;
+  cardsToLearn: number;
+  cardsLearned: number;
 }
 
 const WordOnlyCard: FC<ApprovalCardProps> = ({ card, onShowAnswer, isFlipping }) => (
@@ -89,7 +91,28 @@ const ContextWithBlankCard: FC<ApprovalCardProps> = ({ card, onShowAnswer, isFli
 type CardComponentType = FC<ApprovalCardProps>;
 type CardComponentsType = Record<number, CardComponentType>;
 
-export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate }) => {
+const ProgressBar: FC<{ cardsLearned: number; cardsToLearn: number }> = ({ cardsLearned, cardsToLearn }) => (
+  <View style={styles.progressContainer}>
+    <View style={styles.progressInfo}>
+      <Text style={styles.progressText}>
+        {cardsLearned} of {cardsToLearn} cards learned
+      </Text>
+      <Text style={styles.progressPercentage}>
+        {Math.round((cardsLearned / cardsToLearn) * 100)}%
+      </Text>
+    </View>
+    <View style={styles.progressBarContainer}>
+      <View 
+        style={[
+          styles.progressBar,
+          { width: `${(cardsLearned / cardsToLearn) * 100}%` }
+        ]} 
+      />
+    </View>
+  </View>
+);
+
+export const ApprovalCard: FC<ApprovalCardProps> = ({ card, onCardUpdate, cardsToLearn, cardsLearned }) => {
   const router = useRouter();
   const [database] = useState(() => new Database());
   const [isFlipping, setIsFlipping] = useState(false);
@@ -172,17 +195,19 @@ const getCardComponent = () => {
 
   return (
     <View style={styles.container}>
+      <ProgressBar cardsLearned={cardsLearned} cardsToLearn={cardsToLearn} />
       <Animated.View style={[
         styles.cardWrapper,
         {
           transform: [{ rotateY: frontRotate }],
           opacity: frontOpacity,
-          //perspective: 1000,
         }
       ]}>
         <CardComponent 
           card={card} 
-          onCardUpdate={onCardUpdate} 
+          onCardUpdate={onCardUpdate}
+          cardsLearned={cardsLearned}
+          cardsToLearn={cardsToLearn}           
           onShowAnswer={handleShowAnswer}
           isFlipping={isFlipping}
         />
@@ -192,6 +217,48 @@ const getCardComponent = () => {
 };
 
 const styles = StyleSheet.create({
+  progressContainer: {
+    position: 'absolute',
+    top: 40,
+    left: 20,
+    right: 20,
+    zIndex: 10,
+  },
+  progressInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+  },
+  progressText: {
+    fontSize: 16,
+    color: '#4b5563',
+    fontWeight: '500',
+  },
+  progressPercentage: {
+    fontSize: 16,
+    color: '#2563eb',
+    fontWeight: '600',
+  },
+  progressBarContainer: {
+    height: 6,
+    backgroundColor: '#e5e7eb',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBar: {
+    height: '100%',
+    backgroundColor: '#2563eb',
+    borderRadius: 3,
+    // Optional: add transition shadow
+    shadowColor: "#2563eb",
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 2,
+  },
   cardWrapper: {
     backfaceVisibility: 'hidden',
     width: '100%',
