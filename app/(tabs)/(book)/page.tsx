@@ -1,8 +1,8 @@
 import * as React from 'react';
-import { SafeAreaView, StyleSheet, Alert } from 'react-native';
+import { SafeAreaView, StyleSheet, Alert, TouchableOpacity, View, Animated, Text } from 'react-native';
 import { Reader, useReader, ReaderProvider, Section, Location, Annotation } from '@epubjs-react-native/core';
 import { useFileSystem } from '@epubjs-react-native/expo-file-system';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system';
 import Reverso, { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
@@ -11,111 +11,92 @@ import { useLocalSearchParams } from 'expo-router';
 import SupportedLanguages from '@/components/reverso/languages/entities/languages';
 import { useLanguage } from '@/app/languageSelector';
 import { Book, database } from '@/components/db/database';
+import { MinusCircle, PlusCircle, Type } from 'lucide-react-native';
+import FileManager from './fileManager';
 
-// File management utilities
-const FileManager = {
-  booksDirectory: `${FileSystem.documentDirectory}books/`,
+const MIN_FONT_SIZE = 12;
+const MAX_FONT_SIZE = 24;
 
-  async init() {
-    const dirInfo = await FileSystem.getInfoAsync(this.booksDirectory);
-    if (!dirInfo.exists) {
-      await FileSystem.makeDirectoryAsync(this.booksDirectory, { intermediates: true });
+const FontControls = ({ 
+  increaseFontSize, 
+  decreaseFontSize, 
+  currentFontSize 
+}: { 
+  increaseFontSize: () => void;
+  decreaseFontSize: () => void;
+  currentFontSize: number;
+}) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(-100)).current;
+
+  const toggleControls = () => {
+    if (isVisible) {
+      // Hide controls
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: -100,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start(() => setIsVisible(false));
+    } else {
+      // Show controls
+      setIsVisible(true);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 200,
+          useNativeDriver: true,
+        }),
+      ]).start();
     }
-  },
+  };
 
-  getLocalPath(bookUrl: string): string {
-    const filename = bookUrl.split('/').pop();
-    // Ensure proper encoding of the filename
-    const encodedFilename = encodeURIComponent(filename || '');
-    return `${this.booksDirectory}${encodedFilename}`;
-  },
+  return (
+    <View style={styles.fontControlsContainer}>
+      {/* Toggle button */}
+      <TouchableOpacity 
+        onPress={toggleControls} 
+        style={styles.toggleButton}
+      >
+        <Type size={24} color="#666" />
+      </TouchableOpacity>
 
-  async checkLocalFile(bookUrl: string): Promise<string | null> {
-    const localPath = this.getLocalPath(bookUrl);
-    const fileInfo = await FileSystem.getInfoAsync(localPath);
-    return fileInfo.exists ? localPath : null;
-  },
-
-   async isFileCorrupted (filePath: string): Promise<boolean>  {
-    try {
-      // On Android, we can try to open the file to verify it exists
-      // On iOS, we'll just check if it exists
-      const fileInfo = await FileSystem.getInfoAsync(filePath);      
-      if (!fileInfo.exists) return true;
-      
-      try {
-        // Try to read the first few bytes of the file
-        const reader = await FileSystem.readAsStringAsync(filePath, {
-          length: 50,  // Read just the first 50 bytes to check if file is readable
-          position: 0,
-        });
-        return !reader; // If we can't read, consider it corrupted
-      } catch (readError) {
-        console.error('Error reading file:', readError);
-        return true; // If we can't read the file, consider it corrupted
-      }
-    } catch (error) {
-      console.error('Error checking file:', error);
-      return true;
-    }
-  },
-
-  async checkBook(bookUrl: string): Promise<string>{
-    const localPath = await this.checkLocalFile(bookUrl);
-    if (localPath !== null){
-      if (await this.isFileCorrupted(localPath)) {
-        console.log("Removing corrupted file before download");
-        await FileSystem.deleteAsync(localPath);
-        return this.downloadFile(bookUrl);
-      }
-      return localPath;
-    }
-    else{
-      return this.downloadFile(bookUrl); 
-    }
-
-  },
-
-  async checkImage(imageUrl: string): Promise<string>{
-    const localPath = await this.checkLocalFile(imageUrl);
-    if (localPath !== null){      
-      return localPath;
-    }
-    else{
-      return this.downloadFile(imageUrl); 
-    }
-
-  },
-
-  async downloadFile(fileUrl: string): Promise<string> {
-    const localPath = this.getLocalPath(fileUrl);
-    
-    try {
-      const downloadResumable = FileSystem.createDownloadResumable(
-        fileUrl,
-        localPath,
-        {},
-        (downloadProgress) => {
-          const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
-          console.log(`Download progress: ${progress * 100}%`);
-        }
-      );
-  
-      const result = await downloadResumable.downloadAsync();
-      if (!result) {
-        throw new Error('Download failed - no result returned');
-      }
-      
-      if (await this.isFileCorrupted(result.uri)) {
-        throw new Error('Downloaded file appears to be corrupted');
-      }
-
-      return result.uri;
-    } catch (error) {
-      console.error('Download error:', error);
-      throw new Error(`Failed to download`);
-    }
-  }
+      {/* Controls panel */}
+      {isVisible && (
+        <Animated.View 
+          style={[
+            styles.controlsPanel,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateX: slideAnim }]
+            }
+          ]}
+        >
+          <TouchableOpacity onPress={decreaseFontSize} style={styles.fontButton}>
+            <MinusCircle size={24} color="#666" />
+          </TouchableOpacity>
+          <View style={styles.fontSizeDisplay}>
+            <Text style={styles.fontSizeText}>{currentFontSize}</Text>
+          </View>
+          <TouchableOpacity onPress={increaseFontSize} style={styles.fontButton}>
+            <PlusCircle size={24} color="#666" />
+          </TouchableOpacity>
+        </Animated.View>
+      )}
+    </View>
+  );
 };
 
 interface ReaderComponentProps {
@@ -133,6 +114,7 @@ interface ReaderComponentProps {
   setIsPanelVisible: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
+// Your existing ReaderComponent with the new FontControls
 const ReaderComponent: React.FC<ReaderComponentProps> = ({
   bookUrl,
   imageUrl,
@@ -142,16 +124,49 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
   setPanelContent,
   setIsPanelVisible,
 }) => {
-  const { addAnnotation, removeAnnotation } = useReader();
+  const { addAnnotation, removeAnnotation, changeFontSize } = useReader();
   const { sourceLanguage, targetLanguage } = useLanguage();
   const [localBookUrl, setLocalBookUrl] = useState<string>(bookUrl);
   const [isLoading, setIsLoading] = useState(true);
+  const [currentFontSize, setCurrentFontSize] = useState(16); // Default font size
   let reverso = new Reverso();
   const [currentAnnotation, setCurrentAnnotation] = useState<Annotation | null>(null);
 
   useEffect(() => {
     setupBook();
+    loadFontSize();
   }, [bookUrl]);
+
+  const loadFontSize = async () => {
+    try {
+      const savedFontSize = await AsyncStorage.getItem('fontSize');
+      if (savedFontSize) {
+        const size = parseInt(savedFontSize);
+        setCurrentFontSize(size);
+        changeFontSize(`${size}px`);
+      }
+    } catch (error) {
+      console.error('Error loading font size:', error);
+    }
+  };
+
+  const increaseFontSize = () => {
+    if (currentFontSize < MAX_FONT_SIZE) {
+      const newSize = currentFontSize + 1;
+      setCurrentFontSize(newSize);
+      changeFontSize(`${newSize}px`);
+      AsyncStorage.setItem('fontSize', newSize.toString());
+    }
+  };
+
+  const decreaseFontSize = () => {
+    if (currentFontSize > MIN_FONT_SIZE) {
+      const newSize = currentFontSize - 1;
+      setCurrentFontSize(newSize);
+      changeFontSize(`${newSize}px`);
+      AsyncStorage.setItem('fontSize', newSize.toString());
+    }
+  };
 
   const setupBook = async () => {
     try {
@@ -166,7 +181,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
           bookUrl : localPath,
           name : bookTitle,
           sourceLanguage : sourceLanguage.toLowerCase(),
-          updateDate : new Date() ,
+          updateDate : new Date(),
           lastreadDate : new Date(),
           imageUrl: localImage        
         }
@@ -227,19 +242,27 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
   };
 
   if (isLoading) {
-    return null; // Or return a loading spinner
+    return null;
   }
 
   return (
-    <Reader
-      src={localBookUrl}
-      fileSystem={useFileSystem}
-      enableSelection={true}
-      onSelected={handleSelected}
-      flow="scrolled-doc"
-      initialLocation={initialLocation}
-      onLocationChange={onLocationChange}
-    />
+    <View style={styles.container}>
+      <FontControls 
+        increaseFontSize={increaseFontSize}
+        decreaseFontSize={decreaseFontSize}
+        currentFontSize={currentFontSize}
+      />
+      
+      <Reader
+        src={localBookUrl}
+        fileSystem={useFileSystem}
+        enableSelection={true}
+        onSelected={handleSelected}
+        flow="scrolled-doc"
+        initialLocation={initialLocation}
+        onLocationChange={onLocationChange}
+      />
+    </View>
   );
 };
 
@@ -310,5 +333,59 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f0f0f0',
+  },
+  fontControlsContainer: {
+    position: 'absolute',
+    right: 16,
+    top: 16,
+    zIndex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  toggleButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'white',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  controlsPanel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 20,
+    marginRight: 8,
+    padding: 4,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  fontButton: {
+    padding: 8,
+    marginHorizontal: 4,
+  },
+  fontSizeDisplay: {
+    minWidth: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  fontSizeText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
   },
 });
