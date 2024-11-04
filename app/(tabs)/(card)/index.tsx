@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground }
 import { Link, useFocusEffect } from 'expo-router';
 import wordGenerator from '../../../components/db/nextWordToLearn';
 import { useLanguage } from '@/app/languageSelector';
+import DeckCard, { deckThemes } from './deck'; 
 
 interface CardDecks {
   [key: string]: Card[];
@@ -17,6 +18,8 @@ interface DeckStats {
 type StatsMap = {
   [key: string]: DeckStats;
 }
+
+
 
 export default function CardDeckScreen() {
   const { sourceLanguage, targetLanguage} = useLanguage();
@@ -102,9 +105,18 @@ export default function CardDeckScreen() {
     setStats(newStats);
   };
 
-  const renderDeck = (title: string, cards: Card[], index: number) => {
+  const renderBookDeck = (title: string, cards: Card[], index: number) => {
     const deckStats = stats[title] || { total: 0, learning: 0, reviewed: 0 };
     const coverImage = bookCovers[title] || bookCovers['default'];
+    
+    const bookTheme = {
+      background: '#4A69BD',
+      accent: '#FED330',    
+      title: title,
+      count: `${deckStats.learning} words`,
+      coverImage
+    };
+
     return (
       <Link 
         key={title}
@@ -114,80 +126,65 @@ export default function CardDeckScreen() {
         }}
         asChild
       >
-        <TouchableOpacity style={styles.deck}>
-          <View style={[
-            styles.cardContent
-          ]}>
-            {coverImage ? (
-              <ImageBackground 
-                source={{ uri: coverImage }} 
-                style={StyleSheet.absoluteFill}
-                imageStyle={styles.backgroundImage}
-              >
-                <View style={styles.overlay} />
-              </ImageBackground>
-            ) : null}
-                    
-            <View style={styles.deckHeader}>
-              <Text style={styles.deckTitle}>{title}</Text>
-              <Text style={styles.cardCount}>
-                {deckStats.reviewed}/{deckStats.learning}/{deckStats.total}
-              </Text>
-            </View>
-            
-            <View style={styles.progressContainer}>
-              <View style={styles.progressBar}>
-                <View 
-                  style={[
-                    styles.progressFill, 
-                    { width: `${(deckStats.learning / Math.max(deckStats.total, 1)) * 100}%` }
-                  ]} 
-                />
-              </View>
-              <View style={styles.progressBar}>
-                <View 
-                  style={[
-                    styles.reviewedProgressFill, 
-                    { width: `${(deckStats.reviewed / Math.max(deckStats.learning, 1)) * 100}%` }
-                  ]} 
-                />
-              </View>
-            </View>
-            
-            <View style={styles.legendContainer}>
-              <Text style={styles.legendText}>Reviewed/Learning/Total</Text>
-            </View>
-          </View>
-        </TouchableOpacity>
+        <DeckCard
+          theme={bookTheme}
+          onPress={() => {}}
+          reviewCount={deckStats.reviewed}
+        />
       </Link>
     );
   };
 
-
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.headerTitle}>Card Decks</Text>
-      {/* Only show All Cards if there are cards to learn */}
-      {stats['All Cards'].learning > 0 && renderDeck('All Cards', allCards, 0)}
-      {/* Filter and map other decks */}
-      {Object.entries(decks)
-        .filter(([source, cards]) => {
-          const deckStats = stats[source];
-          return deckStats && deckStats.learning > 0;
-        })
-        .map(([source, cards], index) => 
-          renderDeck(source, cards, index + 1)
-        )}
+      {/* Book Decks */}
+      <View style={styles.bookDecksSection}>
+        <View style={styles.decksContainer}>
+          {stats['All Cards'].learning > 0 && renderBookDeck('All Cards', allCards, 0)}
+          {Object.entries(decks)
+            .filter(([source, cards]) => {
+              const deckStats = stats[source];
+              return deckStats && deckStats.learning > 0;
+            })
+            .map(([source, cards], index) => 
+              renderBookDeck(source, cards, index + 1)
+            )}
+        </View>
+      </View>
     </ScrollView>
   );
 }
 
 
 const styles = StyleSheet.create({
+  decksContainer: {
+    width: '100%',
+    alignItems: 'center', // Center cards
+  },
   progressContainer: {
     gap: 8, // Increased gap between bars
     marginTop: 'auto',
     paddingTop: 16,
+  },
+  themedDecksSection: {
+    marginBottom: 24,
+  },
+  themedDecksContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+  },
+  bookDecksSection: {
+    flex: 1,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 16,
+    marginLeft: 16,
   },
   progressBar: {
     height: 6, // Slightly taller
@@ -267,6 +264,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 16,
+    alignItems: 'center', // Center content horizontally
   },
   headerTitle: {
     fontSize: 28,
