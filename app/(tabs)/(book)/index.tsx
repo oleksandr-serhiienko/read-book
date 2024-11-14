@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Dimensions, ListRenderItem } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Dimensions, ScrollView } from 'react-native';
 import { Link } from 'expo-router';
 import { useLanguage } from '@/app/languageSelector';
 import { Book, database } from '@/components/db/database';
@@ -11,14 +11,9 @@ interface ServerBook {
   coverImage: string | null;
 }
 
-interface BookSection {
-  title: string;
-  data: (Book | ServerBook)[];
-}
-
 const { width } = Dimensions.get('window');
-const numColumns = 3;
-const itemWidth = (width - 40) / numColumns;
+const myBookWidth = width * 0.4;
+const otherBookHeight = 150;
 
 const BookScreen: React.FC = () => {
   const [myBooks, setMyBooks] = useState<Book[]>([]);
@@ -32,94 +27,96 @@ const BookScreen: React.FC = () => {
 
   const fetchAllBooks = async () => {
     try {
-      // Fetch books from database
       const localBooks = await database.getAllBooks(sourceLanguage.toLowerCase());
       setMyBooks(localBooks);
 
-      // Fetch books from server
       const response = await fetch(`${serverUrl}/books/${sourceLanguage.toLowerCase()}`);
       const serverBooks: ServerBook[] = await response.json();
-
-      // Filter out books that are already in the database
       const uniqueServerBooks = serverBooks.filter(serverBook => 
         !localBooks.some(localBook => localBook.name === serverBook.title)
       );
-
       setOtherBooks(uniqueServerBooks);
     } catch (error) {
       console.error('Error fetching books:', error);
     }
   };
 
-  const renderBookItem = ({ item, isLocalBook }: { item: Book | ServerBook; isLocalBook: boolean }) => {
-    const title = isLocalBook ? (item as Book).name : (item as ServerBook).title;
-    const imageUrl = isLocalBook 
-      ? (item as Book).imageUrl 
-      : `${serverUrl}/covers/${(item as ServerBook).coverImage}`;
-    const bookUrl = isLocalBook 
-      ? (item as Book).bookUrl 
-      : `${serverUrl}/books/${(item as ServerBook).fileName}`;
-
-    return (
-      <Link
-        href={{
-          pathname: "/page",
-          params: {
-            bookUrl: bookUrl,
-            bookTitle: title,
-            imageUrl: isLocalBook ? imageUrl : `${serverUrl}/covers/${(item as ServerBook).coverImage}`
-          }
-        }}
-        asChild>
-        <TouchableOpacity style={styles.bookItem}>
-          {imageUrl ? (
-            <Image
-              source={{ uri: imageUrl }}
-              style={styles.coverImage}
-            />
-          ) : (
-            <View style={styles.placeholderCover}>
-              <Text style={styles.placeholderText}>{title.substring(0, 2).toUpperCase()}</Text>
-            </View>
-          )}
-          <Text style={styles.bookTitle} numberOfLines={2} ellipsizeMode="tail">{title}</Text>
-        </TouchableOpacity>
-      </Link>
-    );
-  };
-
-  const renderSection: ListRenderItem<BookSection> = ({ item }) => (
-    <View style={styles.section}>
-      <Text style={styles.sectionTitle}>{item.title}</Text>
-      <FlatList
-        data={item.data}
-        renderItem={({ item: bookItem }) => renderBookItem({ 
-          item: bookItem, 
-          isLocalBook: item.title === 'My Books' 
-        })}
-        keyExtractor={(bookItem) => 
-          'fileName' in bookItem ? bookItem.fileName : bookItem.name
+  const renderMyBookItem = (item: Book) => (
+    <Link
+      href={{
+        pathname: "/page",
+        params: {
+          bookUrl: item.bookUrl,
+          bookTitle: item.name,
+          imageUrl: item.imageUrl
         }
-        numColumns={numColumns}
-        contentContainerStyle={styles.listContainer}
-      />
-    </View>
+      }}
+      asChild>
+      <TouchableOpacity style={styles.myBookItem}>
+        {item.imageUrl ? (
+          <Image source={{ uri: item.imageUrl }} style={styles.myBookCover} />
+        ) : (
+          <View style={styles.myBookPlaceholder}>
+            <Text style={styles.placeholderText}>{item.name.substring(0, 2).toUpperCase()}</Text>
+          </View>
+        )}
+        <Text style={styles.myBookTitle} numberOfLines={2} ellipsizeMode="tail">{item.name}</Text>
+      </TouchableOpacity>
+    </Link>
   );
 
-  const sections: BookSection[] = [
-    { title: 'My Books', data: myBooks },
-    { title: 'Other Books', data: otherBooks }
-  ];
+  const renderOtherBookItem = (item: ServerBook) => (
+    <Link
+      href={{
+        pathname: "/page",
+        params: {
+          bookUrl: `${serverUrl}/books/${item.fileName}`,
+          bookTitle: item.title,
+          imageUrl: `${serverUrl}/covers/${item.coverImage}`
+        }
+      }}
+      asChild>
+      <TouchableOpacity style={styles.otherBookItem}>
+        {item.coverImage ? (
+          <Image 
+            source={{ uri: `${serverUrl}/covers/${item.coverImage}` }} 
+            style={styles.otherBookCover} 
+          />
+        ) : (
+          <View style={styles.otherBookPlaceholder}>
+            <Text style={styles.placeholderText}>{item.title.substring(0, 2).toUpperCase()}</Text>
+          </View>
+        )}
+        <View style={styles.otherBookInfo}>
+          <Text style={styles.otherBookTitle}>{item.title}</Text>
+          <Text style={styles.otherBookType}>{item.fileType}</Text>
+        </View>
+      </TouchableOpacity>
+    </Link>
+  );
 
   return (
-    <View style={styles.container}>
-      <FlatList
-        data={sections}
-        renderItem={renderSection}
-        keyExtractor={(item) => item.title}
-        contentContainerStyle={styles.mainContainer}
-      />
-    </View>
+    <ScrollView style={styles.container}>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>My Books</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {myBooks.map((book, index) => (
+            <View key={book.name} style={index > 0 ? { marginLeft: 10 } : undefined}>
+              {renderMyBookItem(book)}
+            </View>
+          ))}
+        </ScrollView>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Other Books</Text>
+        {otherBooks.map(book => (
+          <View key={book.fileName}>
+            {renderOtherBookItem(book)}
+          </View>
+        ))}
+      </View>
+    </ScrollView>
   );
 };
 
@@ -128,51 +125,83 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f0f0f0',
   },
-  mainContainer: {
-    padding: 10,
-  },
   section: {
-    marginBottom: 20,
+    padding: 15,
   },
   sectionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 15,
-    paddingHorizontal: 10,
     color: '#333',
   },
-  listContainer: {
-    paddingVertical: 10,
-  },
-  bookItem: {
-    width: itemWidth,
-    marginBottom: 20,
+  myBookItem: {
+    width: myBookWidth,
     alignItems: 'center',
   },
-  coverImage: {
-    width: itemWidth - 10,
-    height: (itemWidth - 10) * 1.5,
+  myBookCover: {
+    width: myBookWidth - 20,
+    height: (myBookWidth - 20) * 1.5,
     borderRadius: 8,
     marginBottom: 5,
   },
-  placeholderCover: {
-    width: itemWidth - 10,
-    height: (itemWidth - 10) * 1.5,
+  myBookPlaceholder: {
+    width: myBookWidth - 20,
+    height: (myBookWidth - 20) * 1.5,
     backgroundColor: '#ddd',
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: 8,
     marginBottom: 5,
   },
+  myBookTitle: {
+    fontSize: 12,
+    textAlign: 'center',
+    paddingHorizontal: 5,
+  },
+  otherBookItem: {
+    flexDirection: 'row',
+    height: otherBookHeight,
+    marginBottom: 15,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    padding: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  otherBookCover: {
+    width: otherBookHeight - 20,
+    height: otherBookHeight - 20,
+    borderRadius: 4,
+  },
+  otherBookPlaceholder: {
+    width: otherBookHeight - 20,
+    height: otherBookHeight - 20,
+    backgroundColor: '#ddd',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 4,
+  },
+  otherBookInfo: {
+    flex: 1,
+    marginLeft: 15,
+    justifyContent: 'center',
+  },
+  otherBookTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 5,
+  },
+  otherBookType: {
+    fontSize: 14,
+    color: '#666',
+  },
   placeholderText: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#888',
-  },
-  bookTitle: {
-    fontSize: 12,
-    textAlign: 'center',
-    paddingHorizontal: 5,
   },
 });
 
