@@ -1,10 +1,9 @@
 import * as React from 'react';
 import { SafeAreaView, StyleSheet, Alert, TouchableOpacity, View, Animated, Text } from 'react-native';
-import { Reader, useReader, ReaderProvider, Section, Location, Annotation } from '@epubjs-react-native/core';
+import { Reader, useReader, ReaderProvider, Section, Location, Annotation } from '@/components/epub';
 import { useFileSystem } from '@epubjs-react-native/expo-file-system';
 import { useState, useEffect, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
 import Reverso, { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
 import SlidePanel from './slidePanel';
 import { useLocalSearchParams } from 'expo-router';
@@ -13,6 +12,7 @@ import { useLanguage } from '@/app/languageSelector';
 import { Book, database } from '@/components/db/database';
 import { MinusCircle, PlusCircle, Type } from 'lucide-react-native';
 import FileManager from './fileManager';
+import { WebViewMessageEvent } from 'react-native-webview';
 
 const MIN_FONT_SIZE = 12;
 const MAX_FONT_SIZE = 24;
@@ -131,6 +131,8 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
   const [currentFontSize, setCurrentFontSize] = useState(16); // Default font size
   let reverso = new Reverso();
   const [currentAnnotation, setCurrentAnnotation] = useState<Annotation | null>(null);
+  const [currentSenteceCfi, setSentenceCurrentCfi] = useState<string | null>(null);
+  const [currentSentenceAnnotation, setCurrentSentenceAnnotation] = useState<Annotation | null>(null);
 
   useEffect(() => {
     setupBook();
@@ -150,6 +152,51 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
     }
   };
 
+  const handleSentenceSelection = React.useCallback((text: string, cfiRange: string) => {
+    
+    // Remove previous annotation if exists
+    if (currentSentenceAnnotation) {
+      removeAnnotation(currentSentenceAnnotation);
+      setCurrentSentenceAnnotation(null);
+    }
+    
+    console.log('Selection handler called with:', { text, cfiRange });
+    try {
+      // Add the new annotation
+      const annotation = {
+        type: 'highlight',
+        cfiRange,
+        styles: { color: '#23CE6B' },
+        data: {}
+      } as Annotation;
+  
+      addAnnotation(annotation.type, annotation.cfiRange, annotation.data, annotation.styles);
+
+      setCurrentSentenceAnnotation(annotation);
+      console.log('Annotation added successfully');
+    } catch (error) {
+      console.error('Error adding annotation:', error);
+    }
+  }, [addAnnotation, removeAnnotation, currentSentenceAnnotation]);
+
+  interface SentenceSelectedMessage {   type: 'onSentenceSelected';   text: string;   cfiRange: string;   section?: number; } 
+  // WebView message handler
+  const handleWebViewMessage = React.useCallback((event: WebViewMessageEvent) => {
+    try {
+      const messageData = event as unknown as SentenceSelectedMessage;
+      console.log('WebView message received:', messageData);
+
+      if (messageData.type === 'onSentenceSelected') {
+        setSentenceCurrentCfi(messageData.cfiRange);
+        //handleSentenceSelection(messageData.text, messageData.cfiRange);
+      }
+    } catch (error) {
+      console.error('Error handling WebView message:', error);
+    }
+  }, [handleSentenceSelection]);
+
+
+  
   const increaseFontSize = () => {
     if (currentFontSize < MAX_FONT_SIZE) {
       const newSize = currentFontSize + 1;
@@ -211,7 +258,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
     } as Annotation;
 
     addAnnotation(annotation.type, annotation.cfiRange, annotation.data, annotation.styles);
-    setCurrentAnnotation(annotation);
+    setCurrentAnnotation(annotation);    
 
     try {
       const translationsNew = await reverso.getContextFromWebPage(
@@ -245,6 +292,17 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
     return null;
   }
 
+  const menuItems = [
+    {
+      key: 'annotate-sentence',
+      label: 'Annotate Sentence',
+      action: () => {
+        console.log(currentSenteceCfi);
+        handleSentenceSelection("", currentSenteceCfi ?? "");
+        return true; // Return true to indicate the action was handled
+      }
+    }
+  ];
   return (
     <View style={styles.container}>
       <FontControls 
@@ -261,6 +319,8 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
         flow="scrolled-doc"
         initialLocation={initialLocation}
         onLocationChange={onLocationChange}
+        onWebViewMessage={handleWebViewMessage}
+        menuItems={menuItems}
       />
     </View>
   );

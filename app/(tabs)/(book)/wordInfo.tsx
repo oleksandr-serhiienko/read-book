@@ -54,7 +54,6 @@ export default function WordInfo() {
     if (!isAdded) {
       const database = new Database();     
       database.insertCard(Transform.fromWordToCard(parsedContent, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]));
-      console.log('Adding to dictionary:', parsedContent.Original);
       setIsAdded(true);
     }
   };

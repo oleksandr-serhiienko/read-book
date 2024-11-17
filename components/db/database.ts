@@ -572,8 +572,6 @@ export class Database {
   async updateBook(name: string, source: string, currentLocation: string): Promise<void> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
-    let test = await this.getBookByName(name, source);
-    console.log(test);
     try {
       await this.db.runAsync(
         `UPDATE books 

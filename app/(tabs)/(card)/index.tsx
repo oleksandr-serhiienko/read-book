@@ -54,7 +54,6 @@ export default function CardDeckScreen() {
       const data = await response.json();
       const coverMap = data.reduce((acc: {[key: string]: string}, book: any) => {
         if (book.coverImage) {
-          //console.log(`${serverUrl}/covers/${(book.coverImage)}`);
           acc[book.title] = `${serverUrl}/covers/${(book.coverImage)}`;
         }
         return acc;

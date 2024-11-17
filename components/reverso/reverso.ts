@@ -42,7 +42,6 @@ export default class Reverso {
   ): boolean {
     // Extract emphasized word from the original context
     const emphasizedWord = this.extractEmphasisContent(context.translation);
-    console.log(emphasizedWord);
     
     // Check if the emphasized word exists in translations
     const hasMatchingTranslation = translations.some(
@@ -82,7 +81,6 @@ export default class Reverso {
       const filteredContexts = allContexts.filter(context => 
         this.isContextValid(context, translations)
       );
-      console.log(filteredContexts);
       const transResponse: ResponseTranslation = {
         Original: text,
         Translations: translations,
