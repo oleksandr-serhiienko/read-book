@@ -4,7 +4,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground }
 import { Link, useFocusEffect } from 'expo-router';
 import wordGenerator from '../../../components/db/nextWordToLearn';
 import { useLanguage } from '@/app/languageSelector';
-import DeckCard, { deckThemes } from './deck'; 
+import DeckCard, { deckThemes } from './components/Deck'; 
 
 interface CardDecks {
   [key: string]: Card[];

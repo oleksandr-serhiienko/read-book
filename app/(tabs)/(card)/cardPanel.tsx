@@ -4,7 +4,7 @@ import { Card, Database, HistoryEntry } from '../../../components/db/database';
 import wordGenerator, { getNextFibonacciLike } from '../../../components/db/nextWordToLearn';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Transform } from '@/components/transform';
-import { CardEvents } from './cardEvents';
+import { CardEvents } from './components/CardEvents';
 import { useLanguage } from '@/app/languageSelector';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
