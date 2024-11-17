@@ -131,7 +131,8 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
   const [currentFontSize, setCurrentFontSize] = useState(16); // Default font size
   let reverso = new Reverso();
   const [currentAnnotation, setCurrentAnnotation] = useState<Annotation | null>(null);
-  const [currentSenteceCfi, setSentenceCurrentCfi] = useState<string | null>(null);
+  const [currentSenteceCfi, setSentenceCurrentCfi] = useState<string>("");
+  const [currentSenteceText, setSentenceCurrentText] = useState<string>("");
   const [currentSentenceAnnotation, setCurrentSentenceAnnotation] = useState<Annotation | null>(null);
 
   useEffect(() => {
@@ -188,6 +189,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
 
       if (messageData.type === 'onSentenceSelected') {
         setSentenceCurrentCfi(messageData.cfiRange);
+        setSentenceCurrentText(messageData.text);
         //handleSentenceSelection(messageData.text, messageData.cfiRange);
       }
     } catch (error) {
@@ -292,13 +294,13 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
     return null;
   }
 
-  const menuItems = [
+  const  menuItems = [
     {
       key: 'annotate-sentence',
       label: 'Annotate Sentence',
       action: () => {
         console.log(currentSenteceCfi);
-        handleSentenceSelection("", currentSenteceCfi ?? "");
+        handleSelected(currentSenteceText, currentSenteceCfi);
         return true; // Return true to indicate the action was handled
       }
     }

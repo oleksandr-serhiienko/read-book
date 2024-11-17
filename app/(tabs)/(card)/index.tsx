@@ -41,8 +41,7 @@ export default function CardDeckScreen() {
         await getAllCards();
       };
       initialize();
-    }, [])
-  );
+    }, [sourceLanguage, targetLanguage]));
   useEffect(() => {
     fetchBooks();
   }, []);
