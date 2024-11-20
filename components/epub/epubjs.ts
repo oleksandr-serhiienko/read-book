@@ -3891,30 +3891,56 @@ export default `
             250
           ));
         }
-        selectSentence(range) {
-          try {
-            let node = range.startContainer;
-            let startOffset = range.startOffset;
-            let endOffset = range.endOffset;
+          selectSentence(range) {
+              try {
+                  let node = range.startContainer;
+                  let text = node.textContent;
+                  let startOffset = range.startOffset;
+                  let endOffset = range.endOffset;
 
-            while (startOffset > 0 && !".!?".includes(node.textContent[startOffset - 1])) {
-              startOffset--;
-            }
+                  // Find sentence boundaries
+                  while (startOffset > 0 && !".!?".includes(text[startOffset - 1])) {
+                      startOffset--;
+                  }
 
-            while (endOffset < node.textContent.length && !".!?".includes(node.textContent[endOffset])) {
-              endOffset++;
-            }
-            endOffset++;
+                  while (endOffset < text.length && !".!?".includes(text[endOffset])) {
+                      endOffset++;
+                  }
+                  if (endOffset < text.length && ".!?".includes(text[endOffset])) {
+                      endOffset++;
+                  }
 
-            let sentenceRange = this.document.createRange();
-            sentenceRange.setStart(node, startOffset);            
-            sentenceRange.setEnd(node, endOffset);
-            return sentenceRange;
-          } catch (error) {
-            return null;
+                  // Get sentence and check if it has matching quotes
+                  let tempText = text.slice(startOffset, endOffset);
+                  const openQuoteIndex = tempText.indexOf('»');
+                  const closeQuoteIndex = tempText.indexOf('«');
+                  
+                  // If quotes don't match within this sentence, remove them
+                  if (openQuoteIndex === -1 || closeQuoteIndex === -1 || 
+                      closeQuoteIndex < openQuoteIndex) {
+                      // Move start past any quote or whitespace
+                      while (startOffset < endOffset && 
+                            (text[startOffset] === ' ' || 
+                              text[startOffset] === '»' || 
+                              text[startOffset] === '«')) {
+                          startOffset++;
+                      }
+                  }
+
+                  let sentenceRange = this.document.createRange();
+                  sentenceRange.setStart(node, startOffset);
+                  sentenceRange.setEnd(node, endOffset);
+
+                  // Alert if startOffset points to space
+                  if (text[startOffset] === ' ') {
+                      //alert('StartOffset is space!');
+                  }
+
+                  return sentenceRange;
+              } catch (error) {
+                  return null;
+              }
           }
-          
-        }
         triggerSelectedEvent(t) {
           var e, i;
           t &&
