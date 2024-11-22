@@ -11,12 +11,14 @@ interface SlidePanelProps {
   isVisible: boolean;
   content: SentenceTranslation | ResponseTranslation | null;
   onClose: () => void;
+  onAnnotateSentence: () => void;
 }
 
 const SlidePanel: React.FC<SlidePanelProps> = ({
   isVisible,
   content,
-  onClose
+  onClose,
+  onAnnotateSentence
 }) => {
   const [animation] = useState(new Animated.Value(0));
   const [isAdded, setIsAdded] = useState(false);
@@ -87,6 +89,15 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
           disabled={isAdded}
         >
           <Text style={styles.addButtonText}>{isAdded ? '✓' : '+'}</Text>
+        </TouchableOpacity>
+      )}
+      {isResponseTranslation && (
+        <TouchableOpacity 
+          onPress={onAnnotateSentence} 
+          style={[styles.addButton, isAdded && styles.addButtonDisabled]}
+          disabled={isAdded}
+        >
+          <Text style={styles.addButtonText}>{'select'}</Text>
         </TouchableOpacity>
       )}
       <TouchableOpacity onPress={onClose} style={styles.closeButton}>

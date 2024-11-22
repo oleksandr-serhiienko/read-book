@@ -25,6 +25,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
     onLocationChange,
     setPanelContent,
     setIsPanelVisible,
+    onAnnotateSentenceRef
   }) => {
     const { addAnnotation, removeAnnotation, changeFontSize } = useReader();
     const { sourceLanguage, targetLanguage } = useLanguage();
@@ -55,7 +56,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
       }
     };
   
-    const handleSentenceSelection = React.useCallback((text: string, cfiRange: string) => {
+    const handleSentenceSelection = React.useCallback(async (text: string, cfiRange: string) => {
       
       // Remove previous annotation if exists
       if (currentSentenceAnnotation) {
@@ -77,10 +78,27 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
   
         setCurrentSentenceAnnotation(annotation);
         console.log('Annotation added successfully');
+        let translation = await reverso.getTranslationFromAPI(
+          text,
+          SupportedLanguages[sourceLanguage],
+          SupportedLanguages[targetLanguage]
+        );
+        setPanelContent(translation);
       } catch (error) {
         console.error('Error adding annotation:', error);
       }
     }, [addAnnotation, removeAnnotation, currentSentenceAnnotation]);
+
+    const handleAnnotateSentence = React.useCallback(() => {
+      if (currentSenteceText && currentSenteceCfi) {
+        handleSentenceSelection(currentSenteceText, currentSenteceCfi);
+      }
+    }, [currentSenteceText, currentSenteceCfi, handleSentenceSelection]);
+  
+    // Set the ref whenever handleAnnotateSentence changes
+    React.useEffect(() => {
+      onAnnotateSentenceRef.current = handleAnnotateSentence;
+    }, [handleAnnotateSentence, onAnnotateSentenceRef]);
   
     interface SentenceSelectedMessage {   type: 'onSentenceSelected';   text: string;   cfiRange: string;   section?: number; } 
     // WebView message handler
@@ -196,17 +214,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
       return null;
     }
   
-    const  menuItems = [
-      {
-        key: 'annotate-sentence',
-        label: 'Annotate Sentence',
-        action: () => {
-          console.log(currentSenteceCfi);
-          handleSelected(currentSenteceText, currentSenteceCfi);
-          return true; // Return true to indicate the action was handled
-        }
-      }
-    ];
+    
     return (
       <View style={styles.container}>
         <FontControls 
@@ -224,7 +232,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
           initialLocation={initialLocation}
           onLocationChange={onLocationChange}
           onWebViewMessage={handleWebViewMessage}
-          menuItems={menuItems}
+          menuItems={[]}
         />
       </View>
     );

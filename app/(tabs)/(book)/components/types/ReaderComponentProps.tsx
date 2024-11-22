@@ -14,4 +14,5 @@ export interface ReaderComponentProps {
     ) => void;
     setPanelContent: React.Dispatch<React.SetStateAction<SentenceTranslation | ResponseTranslation | null>>;
     setIsPanelVisible: React.Dispatch<React.SetStateAction<boolean>>;
+    onAnnotateSentenceRef: React.MutableRefObject<(() => void) | undefined>;
   }

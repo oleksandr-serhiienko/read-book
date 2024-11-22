@@ -3884,6 +3884,7 @@ export default `
                     let i = new o.a(sentenceRange, this.cfiBase).toString();
                     this.emit(l.c.CONTENTS.SENTENCE_SELECTED, i);
                     this.emit(l.c.CONTENTS.SENTENCE_SELECTED_RANGE, sentenceRange);
+                    this.window.getSelection().removeAllRanges();
                   }
                 }
               }

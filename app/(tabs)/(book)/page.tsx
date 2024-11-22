@@ -15,6 +15,10 @@ export default function PageScreen() {
   const [panelContent, setPanelContent] = useState<SentenceTranslation | ResponseTranslation | null>(null);
   const [initialLocation, setInitialLocation] = useState<string | undefined>(undefined);
   const { sourceLanguage } = useLanguage();
+  const annotateRef = useRef<(() => void) | undefined>(undefined);
+  const handleAnnotateSentence = () => {
+    annotateRef.current?.();
+  };
 
   React.useEffect(() => {
     loadSavedLocation();
@@ -61,14 +65,16 @@ export default function PageScreen() {
           onLocationChange={handleLocationChange}
           setPanelContent={setPanelContent}
           setIsPanelVisible={setIsPanelVisible}
+          onAnnotateSentenceRef={annotateRef}
+          />
+        </ReaderProvider>
+        <SlidePanel
+          isVisible={isPanelVisible}
+          content={panelContent}
+          onClose={handlePanelClose}
+          onAnnotateSentence={handleAnnotateSentence}
         />
-      </ReaderProvider>
-      <SlidePanel
-        isVisible={isPanelVisible}
-        content={panelContent}
-        onClose={handlePanelClose}
-      />
-    </SafeAreaView>
+      </SafeAreaView>
   );
 }
 
