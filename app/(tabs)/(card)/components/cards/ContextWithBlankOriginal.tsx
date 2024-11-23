@@ -1,10 +1,11 @@
-import React, { FC } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet as RNStyleSheet } from 'react-native';
+import React, { FC, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
 import { renderHighlightedText } from '../shared/helpers';
+import { getWordHints } from '../../../../../components/db/nextWordToLearn';
 
-const localStyles = RNStyleSheet.create({
+const localStyles = StyleSheet.create({
   contextText: {
     fontSize: 18,
     color: '#444',
@@ -22,6 +23,36 @@ const localStyles = RNStyleSheet.create({
     borderTopColor: '#eee',
     width: '100%',
   },
+  // New styles for hints
+  hintsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 10,
+    padding: 10,
+  },
+  hintLetter: {
+    fontSize: 18,
+    color: '#666',
+    backgroundColor: '#f0f0f0',
+    padding: 8,
+    borderRadius: 4,
+    minWidth: 36,
+    textAlign: 'center',
+  },
+  showHintsButton: {
+    marginVertical: 10,
+    backgroundColor: '#f0f0f0',
+    padding: 8,
+    borderRadius: 4,
+    alignSelf: 'center',
+  },
+  showHintsText: {
+    color: '#666',
+    fontSize: 16,
+    textAlign: 'center',
+  },
 });
 
 const styles = {
@@ -30,15 +61,37 @@ const styles = {
 };
 
 const ContextWithBlankOriginal: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
+  const [showHints, setShowHints] = useState(false);
+  
   if (!card.context || !card.context[0]) return null;
 
   const originalSentence = card.context[0].sentence.replace(/<\/?em>/g, '');
+  const hints = getWordHints(card.word);
   
   return (
     <View style={styles.cardContent}>
       <Text style={styles.contextText}>
-        {originalSentence.replace(card.word, '_____')}
+        {originalSentence.replace(card.word, '_'.repeat(card.word.length))}
       </Text>
+
+      <TouchableOpacity 
+        style={styles.showHintsButton}
+        onPress={() => setShowHints(!showHints)}
+      >
+        <Text style={styles.showHintsText}>
+          {showHints ? 'Hide Hints' : 'Show Hints (?)'} 
+        </Text>
+      </TouchableOpacity>
+
+      {showHints && (
+        <View style={styles.hintsContainer}>
+          {hints.map((letter: string, index: number) => (
+            <Text key={index} style={styles.hintLetter}>
+              {letter}
+            </Text>
+          ))}
+        </View>
+      )}
       
       <View style={styles.translationContainer}>
         <Text style={styles.contextText}>

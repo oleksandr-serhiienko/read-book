@@ -1,10 +1,10 @@
 import React, { FC, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet as RNStyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet} from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
 import { renderHighlightedText } from '../shared/helpers';
 
-const localStyles = RNStyleSheet.create({
+const localStyles = StyleSheet.create({
   selectableTextContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',

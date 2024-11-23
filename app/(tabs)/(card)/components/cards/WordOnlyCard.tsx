@@ -1,9 +1,9 @@
 import React, { FC } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet as RNStyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
 
-const localStyles = RNStyleSheet.create({
+const localStyles = StyleSheet.create({
   labelText: {
     fontSize: 18,
     textAlign: 'center',
