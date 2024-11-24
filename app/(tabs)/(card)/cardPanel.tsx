@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, PanResponder, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { Card, Database, HistoryEntry } from '../../../components/db/database';
-import wordGenerator, { getNextFibonacciLike } from '../../../components/db/nextWordToLearn';
+import wordGenerator, { getNextLevel } from '../../../components/db/nextWordToLearn';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Transform } from '@/components/transform';
 import { CardEvents } from './components/CardEvents';
@@ -65,12 +65,8 @@ export default function CardPanel() {
   const onSwipeComplete = async (direction: 'left' | 'right') => {
     if (!card) return;
   
-    // Calculate new level
-    if (direction === 'right') {
-      card.level = getNextFibonacciLike(card.level);
-    } else {
-      card.level = 0;
-    }
+    // Calculate new level using the updated spaced repetition system
+    card.level = getNextLevel(card.level, direction === 'right');
     card.lastRepeat = new Date(Date.now());
     
     let history: HistoryEntry = {

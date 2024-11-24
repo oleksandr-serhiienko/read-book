@@ -1,4 +1,4 @@
-import React, { FC, useState } from 'react';
+import React, { FC, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
@@ -60,8 +60,12 @@ const styles = {
   ...localStyles,
 };
 
+
 const ContextWithBlankOriginal: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
   const [showHints, setShowHints] = useState(false);
+  useEffect(() => {
+    setShowHints(false);
+  }, [card.word]); // Reset when word changes
   
   if (!card.context || !card.context[0]) return null;
 
