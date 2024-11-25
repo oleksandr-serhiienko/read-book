@@ -8,7 +8,11 @@ import { CardEvents } from './components/CardEvents';
 import { useLanguage } from '@/app/languageSelector';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
-const SWIPE_THRESHOLD = 0.25 * SCREEN_WIDTH;
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+const SWIPE_THRESHOLD = {
+  horizontal: 0.25 * SCREEN_WIDTH,
+  vertical: 0.25 * SCREEN_HEIGHT
+};
 
 const renderHighlightedText = (text: string) => {
   const parts = text.split(/(<em>.*?<\/em>)/);
@@ -31,6 +35,7 @@ export default function CardPanel() {
   const position = useRef(new Animated.ValueXY()).current;
   const rightOpacity = useRef(new Animated.Value(0)).current;
   const wrongOpacity = useRef(new Animated.Value(0)).current;
+  const downOpacity = useRef(new Animated.Value(0)).current;
   const { cardId, returnToApproval, contextId } = useLocalSearchParams<{ 
     cardId: string,
     returnToApproval: string,
@@ -62,19 +67,37 @@ export default function CardPanel() {
     }
   };
 
-  const onSwipeComplete = async (direction: 'left' | 'right') => {
+  const onSwipeComplete = async (direction: 'left' | 'right' | 'down') => {
     if (!card) return;
   
+    let success = false;
+    let type: 'card' | 'review' = 'card';
+  
+    switch(direction) {
+      case 'right':
+        success = true;
+        type = 'card';
+        break;
+      case 'left':
+        success = false;
+        type = 'card';
+        break;
+      case 'down':
+        success = true;
+        type = 'review';
+        break;
+    }
+  
     // Calculate new level using the updated spaced repetition system
-    card.level = getNextLevel(card.level, direction === 'right');
+    card.level = await getNextLevel(card.level, success, type);
     card.lastRepeat = new Date(Date.now());
     
     let history: HistoryEntry = {
       date: new Date(),
-      success: direction === 'right',
+      success: success,
       cardId: card.id ?? 0,
-      contextId: selectedContextId, 
-      type: "card"
+      contextId: selectedContextId,
+      type: type
     };
   
     await database.updateHistory(history);
@@ -83,7 +106,7 @@ export default function CardPanel() {
     // Fetch fresh card data to ensure we have all contexts
     const updatedCard = await database.getCardById(card.id ?? 0);
     if (updatedCard) {
-      CardEvents.emit(updatedCard, history.success);
+      CardEvents.emit(updatedCard, success);
     }
   
     if (returnToApproval === 'true') {
@@ -94,36 +117,79 @@ export default function CardPanel() {
   const panResponder = PanResponder.create({
     onStartShouldSetPanResponder: () => true,
     onPanResponderMove: (_, gesture) => {
-      position.setValue({ x: gesture.dx, y: 0 });
-      if (gesture.dx > 0) {
-        Animated.timing(rightOpacity, {
-          toValue: gesture.dx / SCREEN_WIDTH,
+      position.setValue({ x: gesture.dx, y: gesture.dy });
+      
+      // Handle horizontal swipe indicators
+      if (Math.abs(gesture.dy) < Math.abs(gesture.dx)) {
+        // Horizontal movement is dominant
+        if (gesture.dx > 0) {
+          Animated.timing(rightOpacity, {
+            toValue: gesture.dx / SCREEN_WIDTH,
+            duration: 0,
+            useNativeDriver: false,
+          }).start();
+        } else {
+          Animated.timing(wrongOpacity, {
+            toValue: -gesture.dx / SCREEN_WIDTH,
+            duration: 0,
+            useNativeDriver: false,
+          }).start();
+        }
+        // Reset down opacity
+        Animated.timing(downOpacity, {
+          toValue: 0,
           duration: 0,
           useNativeDriver: false,
         }).start();
       } else {
-        Animated.timing(wrongOpacity, {
-          toValue: -gesture.dx / SCREEN_WIDTH,
-          duration: 0,
-          useNativeDriver: false,
-        }).start();
+        // Vertical movement is dominant
+        if (gesture.dy > 0) {
+          Animated.timing(downOpacity, {
+            toValue: gesture.dy / SCREEN_HEIGHT,
+            duration: 0,
+            useNativeDriver: false,
+          }).start();
+          // Reset horizontal opacities
+          Animated.timing(rightOpacity, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: false,
+          }).start();
+          Animated.timing(wrongOpacity, {
+            toValue: 0,
+            duration: 0,
+            useNativeDriver: false,
+          }).start();
+        }
       }
     },
     onPanResponderRelease: (_, gesture) => {
-      if (gesture.dx > SWIPE_THRESHOLD) {
-        forceSwipe('right');
-      } else if (gesture.dx < -SWIPE_THRESHOLD) {
-        forceSwipe('left');
+      if (Math.abs(gesture.dy) < Math.abs(gesture.dx)) {
+        // Horizontal movement is dominant
+        if (gesture.dx > SWIPE_THRESHOLD.horizontal) {
+          forceSwipe('right');
+        } else if (gesture.dx < -SWIPE_THRESHOLD.horizontal) {
+          forceSwipe('left');
+        } else {
+          resetPosition();
+        }
       } else {
-        resetPosition();
+        // Vertical movement is dominant
+        if (gesture.dy > SWIPE_THRESHOLD.vertical) {
+          forceSwipe('down');
+        } else {
+          resetPosition();
+        }
       }
     },
   });
 
-  const forceSwipe = (direction: 'right' | 'left') => {
-    const x = direction === 'right' ? SCREEN_WIDTH : -SCREEN_WIDTH;
+  const forceSwipe = (direction: 'right' | 'left' | 'down') => {
+    const x = direction === 'right' ? SCREEN_WIDTH : direction === 'left' ? -SCREEN_WIDTH : 0;
+    const y = direction === 'down' ? SCREEN_HEIGHT : 0;
+    
     Animated.timing(position, {
-      toValue: { x, y: 0 },
+      toValue: { x, y },
       duration: 250,
       useNativeDriver: false,
     }).start(() => onSwipeComplete(direction));
@@ -145,6 +211,11 @@ export default function CardPanel() {
         duration: 100,
         useNativeDriver: false,
       }),
+      Animated.timing(downOpacity, {
+        toValue: 0,
+        duration: 100,
+        useNativeDriver: false,
+      }),
     ]).start();
   };
 
@@ -156,7 +227,16 @@ export default function CardPanel() {
 
     return {
       ...position.getLayout(),
-      transform: [{ rotate }],
+      transform: [
+        { rotate },
+        {
+          scale: position.y.interpolate({
+            inputRange: [0, SCREEN_HEIGHT],
+            outputRange: [1, 0.5],
+            extrapolate: 'clamp',
+          }),
+        },
+      ],
     };
   };
 
@@ -178,6 +258,9 @@ export default function CardPanel() {
             </Animated.View>
             <Animated.View style={[styles.indicator, styles.wrongIndicator, { opacity: wrongOpacity }]}>
               <Text style={styles.indicatorText}>Wrong</Text>
+            </Animated.View>
+            <Animated.View style={[styles.indicator, styles.downIndicator, { opacity: downOpacity }]}>
+              <Text style={styles.indicatorText}>Review</Text>
             </Animated.View>
           </View>
   
@@ -221,6 +304,16 @@ export default function CardPanel() {
   );
 }
 const styles = StyleSheet.create({
+  downIndicator: {
+    backgroundColor: 'rgba(241, 196, 15, 0.9)',
+    position: 'absolute',
+    bottom: -30,
+    left: '50%',
+    transform: [
+      { translateX: -30 },
+      { rotate: '0deg' }
+    ],
+  },
   container: {
     flex: 1,
     justifyContent: 'center',

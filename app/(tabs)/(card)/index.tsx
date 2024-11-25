@@ -34,15 +34,19 @@ export default function CardDeckScreen() {
   
   
 
+  const loadCards = React.useCallback(async () => {
+    await database.initialize();
+    await getAllCards();
+  }, [sourceLanguage, targetLanguage]); // Add any dependencies your function needs
+
+  // Load on focus
   useFocusEffect(
     React.useCallback(() => {
-      const initialize = async () => {
-        await database.initialize();
-        await getAllCards();
-      };
-      initialize();
-    }, [sourceLanguage, targetLanguage]));
+      loadCards();
+    }, [loadCards])
+  );
   useEffect(() => {
+    loadCards();
     fetchBooks();
   }, []);
 

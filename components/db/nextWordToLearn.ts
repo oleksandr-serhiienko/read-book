@@ -43,19 +43,51 @@ export function getCardTypeForLevel(level: number): number {
   return [2, 3, 5][Math.floor(Math.random() * 3)];
 }
 
-// Calculate next review date based on level
-function getNextReviewDate(lastReviewDate: Date, level: number): Date {
+// Calculate next review date based on level and type
+function getNextReviewDate(lastReviewDate: Date, level: number, type: string = 'card'): Date {
   const nextDate = new Date(lastReviewDate);
-  const interval = INTERVALS[Math.min(level, MAX_LEVEL)] || INTERVALS[MAX_LEVEL];
+  
+  if (type === 'review') {
+    // For review type, always next day
+    nextDate.setDate(nextDate.getDate() + 1);
+    return nextDate;
+  }
+
+  //   // For new words or first success, always next day
+  //   if (level <= 1) {
+  //     nextDate.setDate(nextDate.getDate() + 1);
+  //     return nextDate;
+  //   }
+  
+  // // For new words or first success, always next day
+  // if (level <= 1) {
+  //   nextDate.setDate(nextDate.getDate() + 1);
+  //   return nextDate;
+  // }
+  
+  // Normal interval progression
+  const interval = INTERVALS[level] ?? INTERVALS[MAX_LEVEL];
+  console.log("LEvel: " + level + "interval: " + interval);
   nextDate.setDate(nextDate.getDate() + interval);
   return nextDate;
 }
 
-// Get next level based on current level and success
-export function getNextLevel(currentLevel: number, success: boolean): number {
+// Get next level based on current level, success, and type
+export function getNextLevel(currentLevel: number, success: boolean, type: string = 'card'): number {
+  if (type === 'review') {
+    // For review type, keep the same level
+    return currentLevel;
+  }
+  
+  // For new words (level 0), only advance to level 1
+  // if (currentLevel === 0 && success) {
+  //   return 1;
+  // }
+  
   if (!success) {
     return Math.max(0, currentLevel - FAILURE_SETBACK);
   }
+  
   return Math.min(MAX_LEVEL, currentLevel + 1);
 }
 
@@ -76,10 +108,12 @@ export default function wordGenerator(cards: Card[]): Card[] {
 
     try {
       const lastReviewDate = new Date(card.lastRepeat);
-      const nextReviewDate = getNextReviewDate(lastReviewDate, card.level ?? 0);
+      const lastHistory = card.history?.[0];
+      const type = lastHistory?.type || 'card';
+      const nextReviewDate = getNextReviewDate(lastReviewDate, card.level ?? 0, type);
 
       // For debugging
-      console.log(`Card: ${card.word}, Last review: ${lastReviewDate.toISOString()}, Next review: ${nextReviewDate.toISOString()}, Now: ${now.toISOString()}`);
+      console.log(`Card: ${card.word}, level: ${card.level} Last review: ${lastReviewDate.toISOString()}, Next review: ${nextReviewDate.toISOString()}, Now: ${now.toISOString()}, Type: ${type}`);
 
       // Return true if now is past or equal to the next review date
       return now >= nextReviewDate;

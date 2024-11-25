@@ -11,7 +11,7 @@ export interface Card {
   sourceLanguage: string;
   targetLanguage: string;
   context?: Array<{ sentence: string; translation: string, isBad: boolean }>;
-  history?: Array<{ date: Date; contextId?: number; success: boolean, cardId: number, number: string }>;
+  history?: Array<HistoryEntry>;
 }
 
 export interface Book {
