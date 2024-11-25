@@ -32,7 +32,13 @@ export default function PageScreen() {
   ) => {
     try {
       if (currentLocation && currentLocation.start) {
-        await database.updateBook(bookTitle, sourceLanguage.toLowerCase(), currentLocation.start.cfi)
+        await database.updateBook(bookTitle, sourceLanguage.toLowerCase(), currentLocation.start.cfi);
+        if(totalLocations !== 0){
+          await database.updateBookProgress(bookTitle, sourceLanguage.toLowerCase(), progress);          
+        }
+        //console.log("Progress: " + progress);
+        //console.log("Total location:" + totalLocations);
+        //console.log("Current section: " + currentSection?.label + currentSection?.subitems, + currentSection?.parent);
       }
     } catch (error) {
       console.error('Error saving location:', error);
@@ -44,10 +50,11 @@ export default function PageScreen() {
       const book = await database.getBookByName(bookTitle, sourceLanguage.toLowerCase());
       if (book?.currentLocation !== null) {
         setInitialLocation(book?.currentLocation);
+        console.log(book)
       }
     } catch (error) {
       console.error('Error loading saved location:', error);
-    }
+    }   
   };
 
   const handlePanelClose = () => {

@@ -23,6 +23,7 @@ export interface Book {
   bookUrl: string;
   imageUrl?: string | null;
   currentLocation?: string | null;
+  progress: number;
 }
 
 export interface HistoryEntry {
@@ -55,9 +56,8 @@ export class Database {
 
 
   async createTables(): Promise<void> {
-    
-    
-    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+        
+    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');    
     
     await this.db.execAsync(`
       
@@ -93,16 +93,18 @@ export class Database {
         FOREIGN KEY (contextId) REFERENCES contexts(id)
       );
 
-        CREATE TABLE IF NOT EXISTS books (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          name TEXT NOT NULL,
-          sourceLanguage TEXT NOT NULL,
-          updateDate TEXT NOT NULL,
-          lastreadDate TEXT NOT NULL,
-          bookUrl TEXT NOT NULL,
-          imageUrl TEXT NULL,
-          currentLocation TEXT NULL
-        );
+      CREATE TABLE IF NOT EXISTS books (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        sourceLanguage TEXT NOT NULL,
+        updateDate TEXT NOT NULL,
+        lastreadDate TEXT NOT NULL,
+        bookUrl TEXT NOT NULL,
+        imageUrl TEXT NULL,
+        currentLocation TEXT NULL, 
+        progress INTEGER DEFAULT 0
+      );
+       
     `);   
   }
 
@@ -500,6 +502,7 @@ export class Database {
             bookUrl: string;
             imageUrl: string | null;
             currentLocation: string | null;
+            progress: number;
         }>(
             `SELECT * FROM books WHERE sourceLanguage = ? ORDER BY lastreadDate DESC`,
             [sourceLanguage]
@@ -512,7 +515,8 @@ export class Database {
             lastreadDate: new Date(row.lastreadDate),
             bookUrl: row.bookUrl,
             imageUrl: row.imageUrl,
-            currentLocation: row.currentLocation
+            currentLocation: row.currentLocation,
+            progress: row.progress
         }));
 
         console.log(`Found ${books.length} books for language ${sourceLanguage}`);
@@ -561,13 +565,23 @@ export class Database {
         lastreadDate: new Date(result.lastreadDate),
         bookUrl: result.bookUrl,
         imageUrl: result.imageUrl,
-        currentLocation: result.currentLocation
+        currentLocation: result.currentLocation,
+        progress: result.progress
       };
     } catch (error) {
       console.error("Error getting book by name:", error);
       throw error;
     }
 }
+  async updateBookProgress(name: string, source: string, progress: number): Promise<void> {
+    await this.initialize();
+    if (!this.db) throw new Error('Database not initialized');
+  
+    await this.db.runAsync(
+      `UPDATE books SET progress = ? WHERE name = ? AND sourceLanguage = ?`,
+      [progress, name, source.toLowerCase()]
+    );
+  }
 
   async updateBook(name: string, source: string, currentLocation: string): Promise<void> {
     await this.initialize();
