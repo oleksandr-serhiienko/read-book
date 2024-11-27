@@ -6,6 +6,7 @@ import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Transform } from '@/components/transform';
 import { CardEvents } from './components/CardEvents';
 import { useLanguage } from '@/app/languageSelector';
+import AudioControl from './components/AudioControl';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -248,10 +249,19 @@ export default function CardPanel() {
         </View>
       );
     }
-
+  
     return (
       <Animated.View style={[styles.cardContainer, getCardStyle()]} {...panResponder.panHandlers}>
         <View style={styles.cardContent}>
+          {/* Audio control positioned absolutely in top-right corner */}
+          <View style={styles.audioControlContainer}>
+            <AudioControl 
+              text={card.word} 
+              cardId={card.id || 0} 
+              autoPlay={true}
+            />
+          </View>
+  
           <View style={styles.indicatorsContainer}>
             <Animated.View style={[styles.indicator, styles.rightIndicator, { opacity: rightOpacity }]}>
               <Text style={styles.indicatorText}>Right</Text>
@@ -277,6 +287,7 @@ export default function CardPanel() {
               </Text>
             </View>
           )}
+          
           <Link 
             href={{
               pathname: "/wordInfo",
@@ -304,6 +315,18 @@ export default function CardPanel() {
   );
 }
 const styles = StyleSheet.create({
+  audioControlContainer: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 10,
+  },
+  wordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
   downIndicator: {
     backgroundColor: 'rgba(241, 196, 15, 0.9)',
     position: 'absolute',

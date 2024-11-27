@@ -43,12 +43,9 @@ export default function CardDeckScreen() {
   useFocusEffect(
     React.useCallback(() => {
       loadCards();
+      fetchBooks();
     }, [loadCards])
   );
-  useEffect(() => {
-    loadCards();
-    fetchBooks();
-  }, []);
 
   const fetchBooks = async () => {
     try {      
