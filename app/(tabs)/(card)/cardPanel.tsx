@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, PanResponder, Animated, Dimensions, TouchableOpacity } from 'react-native';
 import { Card, Database, HistoryEntry } from '../../../components/db/database';
-import wordGenerator, { getNextLevel } from '../../../components/db/nextWordToLearn';
+import { getNextLevel } from '../../../components/db/nextWordToLearn';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Transform } from '@/components/transform';
 import { CardEvents } from './components/CardEvents';
