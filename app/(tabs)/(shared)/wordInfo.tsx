@@ -21,6 +21,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   const [isSpeaking, setIsSpeaking] = useState(false);
   const { sourceLanguage, targetLanguage } = useLanguage();
   const languageKey = sourceLanguage.toLowerCase() as keyof typeof languages;
+  const database = new Database();   
 
   const formattedTranslations = parsedContent.Translations.slice(0, 5).map(t =>
     `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
@@ -54,9 +55,14 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
     });
   };
 
-  const handleAddToDictionary = () => {
+  const handleAddToDictionary = async () => {
+    let noWord = await database.WordDoesNotExist(parsedContent.Original)
+    if (!noWord){
+         console.log("Ooops");
+         return;
+      }
     if (!isAdded) {
-      const database = new Database();     
+        
       database.insertCard(Transform.fromWordToCard(parsedContent, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]));
       setIsAdded(true);
     }
@@ -79,9 +85,9 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity 
+      <TouchableOpacity       
         style={[styles.addButton, isAdded && styles.addButtonDisabled]} 
-        onPress={handleAddToDictionary}
+        onPress={handleAddToDictionary}        
         disabled={isAdded}
       >
         <Text style={styles.addButtonText}>
@@ -194,7 +200,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   addButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#007AFF',    
     padding: 15,
     borderRadius: 10,
     alignItems: 'center',

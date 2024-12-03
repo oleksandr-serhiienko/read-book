@@ -5,7 +5,6 @@ import { getNextLevel } from '../../../components/db/nextWordToLearn';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Transform } from '@/components/transform';
 import { CardEvents } from './components/CardEvents';
-import { useLanguage } from '@/app/languageSelector';
 import AudioControl from './components/AudioControl';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;

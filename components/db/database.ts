@@ -108,6 +108,18 @@ export class Database {
     `);   
   }
 
+  async WordDoesNotExist(name: string): Promise<boolean>{
+    await this.initialize();
+    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+
+    const result = await this.db.getFirstAsync<{ name: string }>(
+      'SELECT * FROM cards WHERE word = ?',
+      [name]
+    );
+
+    return result === null;
+  } 
+
   async insertCard(card: Card): Promise<number> {
     
     await this.initialize();
