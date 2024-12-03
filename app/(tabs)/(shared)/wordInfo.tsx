@@ -85,15 +85,17 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
         </TouchableOpacity>
       </View>
 
-      <TouchableOpacity       
-        style={[styles.addButton, isAdded && styles.addButtonDisabled]} 
-        onPress={handleAddToDictionary}        
-        disabled={isAdded}
-      >
-        <Text style={styles.addButtonText}>
-          {isAdded ? 'Added to Dictionary' : 'Add to Dictionary'}
-        </Text>
-      </TouchableOpacity>
+      {!isAdded && (
+        <TouchableOpacity       
+          style={[styles.addButton, isAdded && styles.addButtonDisabled]} 
+          onPress={handleAddToDictionary}        
+          disabled={isAdded}
+        >
+          <Text style={styles.addButtonText}>
+            {isAdded ? 'Added to Dictionary' : 'Add to Dictionary'}
+          </Text>
+        </TouchableOpacity>
+      )}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Translations</Text>
