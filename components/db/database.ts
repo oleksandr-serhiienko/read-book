@@ -10,6 +10,7 @@ export interface Card {
   source: string;
   sourceLanguage: string;
   targetLanguage: string;
+  comment: string;
   context?: Array<{ sentence: string; translation: string, isBad: boolean }>;
   history?: Array<HistoryEntry>;
 }
@@ -69,6 +70,7 @@ export class Database {
         level INTEGER NOT NULL,
         userId TEXT NOT NULL,
         source TEXT NOT NULL,
+        comment TEXT NUT NULL,
         sourceLanguage TEXT NOT NULL,
         targetLanguage TEXT NOT NULL
       );
@@ -104,8 +106,11 @@ export class Database {
         currentLocation TEXT NULL, 
         progress INTEGER DEFAULT 0
       );
+
+      
        
-    `);   
+    `); 
+    //ALTER TABLE cards ADD COLUMN comment TEXT DEFAULT '';  
   }
 
   async WordDoesNotExist(name: string): Promise<boolean>{
@@ -251,6 +256,7 @@ export class Database {
         level: results[0].level,
         userId: results[0].userId,
         source: results[0].source,
+        comment: results[0].comment,
         sourceLanguage: results[0].sourceLanguage,
         targetLanguage: results[0].targetLanguage,
         context: []
@@ -270,6 +276,56 @@ export class Database {
       return card;
     } catch (error) {
       console.error('Error getting card by id:', error);
+      throw error;
+    }
+  }
+
+  async getCardByWord(word: string): Promise<Card | null> {
+    await this.initialize();
+    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+  
+    const query = `
+      SELECT 
+        c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId, 
+        c.source, c.sourceLanguage, c.targetLanguage, c.comment,
+        ctx.id as contextId, ctx.sentence, ctx.translation, ctx.isBad
+      FROM cards c
+      LEFT JOIN contexts ctx ON c.id = ctx.cardId
+      WHERE c.word = ?
+    `;
+  
+    try {
+      const results = await this.db.getAllAsync<any>(query, [word]);
+      
+      if (results.length === 0) return null;
+  
+      const card: Card = {
+        id: results[0].id,
+        word: results[0].word,
+        translations: JSON.parse(results[0].translations),
+        lastRepeat: new Date(results[0].lastRepeat),
+        level: results[0].level,
+        userId: results[0].userId,
+        source: results[0].source,
+        comment: results[0].comment,
+        sourceLanguage: results[0].sourceLanguage,
+        targetLanguage: results[0].targetLanguage,
+        context: []
+      };
+  
+      results.forEach(row => {
+        if (row.contextId) {
+          card.context!.push({
+            sentence: row.sentence,
+            translation: row.translation,
+            isBad: Boolean(row.isBad)
+          });
+        }
+      });
+  
+      return card;
+    } catch (error) {
+      console.error('Error getting card by word:', error);
       throw error;
     }
   }
@@ -307,6 +363,7 @@ export class Database {
             level: row.level,
             userId: row.userId,
             source: row.source,
+            comment: row.comment,
             sourceLanguage: row.sourceLanguage,
             targetLanguage: row.targetLanguage,
             context: []
@@ -360,6 +417,7 @@ export class Database {
           level: row.level,
           userId: row.userId,
           source: row.source,
+          comment: row.comment,
           sourceLanguage: row.sourceLanguage,
           targetLanguage: row.targetLanguage,
           context: []
@@ -388,7 +446,7 @@ export class Database {
     await this.db.runAsync(
       `UPDATE cards SET 
         word = ?, translations = ?, lastRepeat = ?, level = ?, 
-        userId = ?, source = ?, sourceLanguage = ?, targetLanguage = ?
+        userId = ?, source = ?, comment = ?, sourceLanguage = ?, targetLanguage = ?
        WHERE id = ?`,
       [
         card.word,
@@ -397,6 +455,7 @@ export class Database {
         card.level,
         card.userId,
         card.source,
+        card.comment,
         card.sourceLanguage,
         card.targetLanguage,
         card.id ?? 0
