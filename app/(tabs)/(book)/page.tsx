@@ -8,6 +8,7 @@ import { useLocalSearchParams } from 'expo-router';
 import { useLanguage } from '@/app/languageSelector';
 import { database } from '@/components/db/database';
 import ReaderComponent from './components/ReaderComponent';
+import ProgressBar from './components/ProgressBar';
 
 export default function PageScreen() {
   const { bookUrl, bookTitle, imageUrl } = useLocalSearchParams<{ bookUrl: string, bookTitle: string, imageUrl: string }>();
@@ -15,6 +16,7 @@ export default function PageScreen() {
   const [panelContent, setPanelContent] = useState<SentenceTranslation | ResponseTranslation | null>(null);
   const [initialLocation, setInitialLocation] = useState<string | undefined>(undefined);
   const { sourceLanguage } = useLanguage();
+  const [readingProgress, setReadingProgress] = useState(0);
   const annotateRef = useRef<(() => void) | undefined>(undefined);
   const handleAnnotateSentence = () => {
     annotateRef.current?.();
@@ -34,16 +36,15 @@ export default function PageScreen() {
       if (currentLocation && currentLocation.start) {
         await database.updateBook(bookTitle, sourceLanguage.toLowerCase(), currentLocation.start.cfi);
         if(totalLocations !== 0){
-          await database.updateBookProgress(bookTitle, sourceLanguage.toLowerCase(), progress);          
+          await database.updateBookProgress(bookTitle, sourceLanguage.toLowerCase(), progress);
+          setReadingProgress(progress);
         }
-        //console.log("Progress: " + progress);
-        //console.log("Total location:" + totalLocations);
-        //console.log("Current section: " + currentSection?.label + currentSection?.subitems, + currentSection?.parent);
       }
     } catch (error) {
       console.error('Error saving location:', error);
     }
   };
+
 
   const loadSavedLocation = async () => {
     try {
@@ -66,22 +67,23 @@ export default function PageScreen() {
       <ReaderProvider>
         <ReaderComponent
           bookUrl={bookUrl}
-          imageUrl = {imageUrl}
+          imageUrl={imageUrl}
           bookTitle={bookTitle}
           initialLocation={initialLocation}
           onLocationChange={handleLocationChange}
           setPanelContent={setPanelContent}
           setIsPanelVisible={setIsPanelVisible}
           onAnnotateSentenceRef={annotateRef}
-          />
-        </ReaderProvider>
-        <SlidePanel
-          isVisible={isPanelVisible}
-          content={panelContent}
-          onClose={handlePanelClose}
-          onAnnotateSentence={handleAnnotateSentence}
         />
-      </SafeAreaView>
+      </ReaderProvider>
+      <SlidePanel
+        isVisible={isPanelVisible}
+        content={panelContent}
+        onClose={handlePanelClose}
+        onAnnotateSentence={handleAnnotateSentence}
+      />
+      <ProgressBar progress={readingProgress} />
+    </SafeAreaView>
   );
 }
 

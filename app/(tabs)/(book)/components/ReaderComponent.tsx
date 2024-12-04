@@ -152,7 +152,8 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
             sourceLanguage : sourceLanguage.toLowerCase(),
             updateDate : new Date(),
             lastreadDate : new Date(),
-            imageUrl: localImage        
+            imageUrl: localImage,
+            progress: 0        
           }
           database.insertBook(book);
         } 
@@ -232,7 +233,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
           initialLocation={initialLocation}
           onLocationChange={onLocationChange}
           onWebViewMessage={handleWebViewMessage}
-          menuItems={[]}
+          menuItems={[]}      
         />
       </View>
     );
