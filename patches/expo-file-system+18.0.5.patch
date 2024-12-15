@@ -1,0 +1,111 @@
+diff --git a/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/FileSystemModule.kt b/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/FileSystemModule.kt
+index b285dc5..dfb832a 100644
+--- a/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/FileSystemModule.kt
++++ b/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/FileSystemModule.kt
+@@ -450,7 +450,7 @@ open class FileSystemModule : Module() {
+       }
+     }
+ 
+-    AsyncFunction("requestDirectoryPermissionsAsync") { initialFileUrl: String?, promise: Promise ->
++   AsyncFunction("requestDirectoryPermissionsAsync") { initialFileUrl: String?, promise: Promise ->
+       if (dirPermissionsRequest != null) {
+         throw FileSystemPendingPermissionsRequestException()
+       }
+@@ -460,9 +460,9 @@ open class FileSystemModule : Module() {
+           ?.let { Uri.parse(slashifyFilePath(it)) }
+           ?.let { intent.putExtra(DocumentsContract.EXTRA_INITIAL_URI, it) }
+       }
+-
+       dirPermissionsRequest = promise
+-      appContext.throwingActivity.startActivityForResult(intent, DIR_PERMISSIONS_REQUEST_CODE)
++      println("Available exceptions: ${Exceptions::class.java.declaredMethods.joinToString()}")
++      appContext.currentActivity?.startActivityForResult(intent, DIR_PERMISSIONS_REQUEST_CODE) ?: throw Exceptions.MissingActivity()
+     }
+ 
+     AsyncFunction("uploadAsync") { url: String, fileUriString: String, options: FileSystemUploadOptions, promise: Promise ->
+@@ -705,7 +705,7 @@ open class FileSystemModule : Module() {
+               and (Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+             )
+           treeUri?.let {
+-            appContext.throwingActivity.contentResolver.takePersistableUriPermission(it, takeFlags)
++            appContext.currentActivity?.contentResolver?.takePersistableUriPermission(it, takeFlags)
+           }
+           result.putBoolean("granted", true)
+           result.putString("directoryUri", treeUri.toString())
+@@ -859,10 +859,10 @@ open class FileSystemModule : Module() {
+ 
+   private fun contentUriFromFile(file: File): Uri {
+     return FileProvider.getUriForFile(
+-      appContext.throwingActivity.application,
+-      "${appContext.throwingActivity.application.packageName}.FileSystemFileProvider",
+-      file
+-    )
++		appContext.currentActivity?.application ?: context,
++		"${appContext.currentActivity?.application?.packageName ?: context.packageName}.FileSystemFileProvider",
++		file
++	)
+   }
+ 
+   @Throws(IOException::class)
+diff --git a/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/next/FileSystemFileHandle.kt b/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/next/FileSystemFileHandle.kt
+index 7b2b332..5787031 100644
+--- a/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/next/FileSystemFileHandle.kt
++++ b/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/next/FileSystemFileHandle.kt
+@@ -13,7 +13,7 @@ class FileSystemFileHandle(file: FileSystemFile) : SharedRef<FileChannel>(Random
+     }
+   }
+ 
+-  override fun sharedObjectDidRelease() {
++  fun sharedObjectDidRelease() {
+     close()
+   }
+ 
+diff --git a/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/next/FileSystemNextModule.kt b/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/next/FileSystemNextModule.kt
+index 16d8861..da1458e 100644
+--- a/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/next/FileSystemNextModule.kt
++++ b/node_modules/expo-file-system/android/src/main/java/expo/modules/filesystem/next/FileSystemNextModule.kt
+@@ -5,7 +5,6 @@ import android.net.Uri
+ import android.webkit.URLUtil
+ import expo.modules.interfaces.filesystem.Permission
+ import expo.modules.kotlin.apifeatures.EitherType
+-import expo.modules.kotlin.devtools.await
+ import expo.modules.kotlin.exception.Exceptions
+ import expo.modules.kotlin.functions.Coroutine
+ import expo.modules.kotlin.modules.Module
+@@ -17,6 +16,10 @@ import okhttp3.Request
+ import java.io.File
+ import java.io.FileOutputStream
+ import java.net.URI
++import okio.Buffer
++import okio.sink
++import okio.buffer
++import okio.source
+ 
+ class FileSystemNextModule : Module() {
+   private val context: Context
+@@ -36,7 +39,7 @@ class FileSystemNextModule : Module() {
+       to.validatePermission(Permission.WRITE)
+       val request = Request.Builder().url(url.toURL()).build()
+       val client = OkHttpClient()
+-      val response = request.await(client)
++      val response = client.newCall(request).execute()
+ 
+       if (!response.isSuccessful) {
+         throw UnableToDownloadException("response has status: ${response.code}")
+@@ -57,11 +60,11 @@ class FileSystemNextModule : Module() {
+       }
+ 
+       val body = response.body ?: throw UnableToDownloadException("response body is null")
+-      body.byteStream().use { input ->
+-        FileOutputStream(destination).use { output ->
+-          input.copyTo(output)
+-        }
+-      }
++       body.source().use { input ->
++			destination.sink().buffer().use { output ->
++				output.writeAll(input)
++			}
++		}
+       return@Coroutine destination.path
+     }
+ 
