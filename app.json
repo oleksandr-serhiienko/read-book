@@ -20,7 +20,21 @@
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "package": "com.oleksandrserhiienko.readbook"
+      "package": "com.oleksandrserhiienko.readbook",
+      "permissions": ["INTERNET"],
+      "usesCleartextTraffic": true,
+      "networkSecurityConfig": {
+        "baseConfig": {
+          "cleartextTrafficPermitted": true
+        },
+        "domainConfigs": {
+          "192.168.1.40": {
+            "cleartextTrafficPermitted": true,
+            "includeSubdomains": true
+          }
+        }
+      },
+      "allowCleartext": true
     },
     "web": {
       "bundler": "metro",

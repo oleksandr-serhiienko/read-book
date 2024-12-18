@@ -18,7 +18,7 @@ const otherBookHeight = 150;
 const BookScreen: React.FC = () => {
   const [myBooks, setMyBooks] = useState<Book[]>([]);
   const [otherBooks, setOtherBooks] = useState<ServerBook[]>([]);
-  const serverUrl = "http://192.168.1.41:3000";
+  const serverUrl = "http://192.168.1.40:3000";
   const { sourceLanguage } = useLanguage();
 
   useEffect(() => {
@@ -27,17 +27,49 @@ const BookScreen: React.FC = () => {
 
   const fetchAllBooks = async () => {
     try {
+      // Log start of fetch process
+      console.log('[BOOKS_FETCH] Starting fetch process');
+      
+      // Fetch local books
+      console.log('[BOOKS_FETCH] Fetching local books');
       const localBooks = await database.getAllBooks(sourceLanguage.toLowerCase());
+      console.log('[BOOKS_FETCH] Local books count:', localBooks.length);
+      console.log('[BOOKS_FETCH] Local books:', JSON.stringify(localBooks, null, 2));
       setMyBooks(localBooks);
-
-      const response = await fetch(`${serverUrl}/books/${sourceLanguage.toLowerCase()}`);
+  
+      // Fetch server books
+      const serverUrl1 = `${serverUrl}/books/${sourceLanguage.toLowerCase()}`;
+      console.log('[BOOKS_FETCH] Fetching server books from:', serverUrl);
+      
+      const response = await fetch(serverUrl1);
+      console.log('[BOOKS_FETCH] Server response status:', response.status);
+      console.log('[BOOKS_FETCH] Server response headers:', JSON.stringify(response, null, 2));
+      
       const serverBooks: ServerBook[] = await response.json();
+      console.log('[BOOKS_FETCH] Server books count:', serverBooks.length);
+      console.log('[BOOKS_FETCH] Server books:', JSON.stringify(serverBooks, null, 2));
+  
+      // Filter books
+      console.log('[BOOKS_FETCH] Filtering unique books');
       const uniqueServerBooks = serverBooks.filter(serverBook => 
         !localBooks.some(localBook => localBook.name === serverBook.title)
       );
+      console.log('[BOOKS_FETCH] Unique server books count:', uniqueServerBooks.length);
+      console.log('[BOOKS_FETCH] Unique server books:', JSON.stringify(uniqueServerBooks, null, 2));
+      
       setOtherBooks(uniqueServerBooks);
     } catch (error) {
-      console.error('Error fetching books:', error);
+      console.error('[BOOKS_FETCH_ERROR] Error type:', typeof error);
+      console.error('[BOOKS_FETCH_ERROR] Error details:', JSON.stringify(error, null, 2));
+      if (error instanceof Error) {
+        console.error('[BOOKS_FETCH_ERROR] Name:', error.name);
+        console.error('[BOOKS_FETCH_ERROR] Message:', error.message);
+        console.error('[BOOKS_FETCH_ERROR] Stack:', error.stack);
+      }
+      if (error instanceof Response) {
+        console.error('[BOOKS_FETCH_ERROR] Response status:', error.status);
+        console.error('[BOOKS_FETCH_ERROR] Response text:', await error.text());
+      }
     }
   };
 
