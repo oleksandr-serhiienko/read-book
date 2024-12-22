@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, StyleSheet, Image, Dimensions, ScrollView } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useFocusEffect } from 'expo-router';
 import { useLanguage } from '@/app/languageSelector';
 import { Book, database } from '@/components/db/database';
 
@@ -18,12 +18,15 @@ const otherBookHeight = 150;
 const BookScreen: React.FC = () => {
   const [myBooks, setMyBooks] = useState<Book[]>([]);
   const [otherBooks, setOtherBooks] = useState<ServerBook[]>([]);
-  const serverUrl = "http://192.168.1.40:3000";
+  const serverUrl = "http://192.168.1.41:3000";
   const { sourceLanguage } = useLanguage();
 
-  useEffect(() => {
-    fetchAllBooks();
-  }, [sourceLanguage]);
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[BOOKS_FETCH] Screen focused, fetching books');
+      fetchAllBooks();
+    }, [sourceLanguage])
+  );
 
   const fetchAllBooks = async () => {
     try {

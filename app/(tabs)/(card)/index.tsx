@@ -30,7 +30,7 @@ export default function CardDeckScreen() {
     'All Cards': { total: 0, learning: 0, reviewed: 0 }
   });
   const [bookCovers, setBookCovers] = useState<{[key: string]: string}>({});
-  const serverUrl = "http://192.168.1.40:3000";
+  const serverUrl = "http://192.168.1.41:3000";
   
   
 
