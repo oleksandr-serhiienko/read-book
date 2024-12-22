@@ -23,7 +23,15 @@ export default function PageScreen() {
   };
 
   React.useEffect(() => {
-    loadSavedLocation();
+    const initializeBook = async () => {
+      await loadSavedLocation();
+      const book = await database.getBookByName(bookTitle, sourceLanguage);
+      if (book?.progress !== undefined) {
+        setReadingProgress(book.progress);
+      }
+    };
+  
+    initializeBook();
   }, []);
 
   const handleLocationChange = async (

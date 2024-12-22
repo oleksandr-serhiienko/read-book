@@ -42,7 +42,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
       setupBook();
       loadFontSize();
     }, [bookUrl]);
-  
+    
     const loadFontSize = async () => {
       try {
         const savedFontSize = await AsyncStorage.getItem('fontSize');
@@ -233,7 +233,8 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
           initialLocation={initialLocation}
           onLocationChange={onLocationChange}
           onWebViewMessage={handleWebViewMessage}
-          menuItems={[]}      
+          menuItems={[]} 
+          onReady={() => changeFontSize(`${currentFontSize}px`)} 
         />
       </View>
     );
