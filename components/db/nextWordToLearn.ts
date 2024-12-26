@@ -121,7 +121,9 @@ export default function wordGenerator(cards: Card[]): Card[] {
         `Last review: ${lastReviewDate.toLocaleDateString()}, ` +
         `Next review: ${nextReviewDate.toLocaleDateString()}, ` +
         `Now: ${now.toLocaleDateString()}, ` +
-        `Type: ${type}`
+        `Type: ${type}, ` +
+        `Status: ${card.info?.status}, ` +
+        `Info: ${card.info?.learningProgress.meaningToWord}`
       );
 
       // Compare dates ignoring time

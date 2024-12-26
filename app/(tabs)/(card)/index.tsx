@@ -18,6 +18,17 @@ interface DeckStats {
 type StatsMap = {
   [key: string]: DeckStats;
 }
+interface ProgressItemProps {
+  label: string;
+  progress: number;
+  total: number;
+}
+interface LearningStats {
+  wordToMeaning: number;
+  meaningToWord: number;
+  context: number;
+  totalWords: number;
+}
 
 
 
@@ -104,6 +115,18 @@ export default function CardDeckScreen() {
     setStats(newStats);
   };
 
+  const calculateLearningStats = (cards: Card[]): LearningStats => {
+    const learningCards = cards.filter(card => card.info?.status === 'learning');
+    return {
+      wordToMeaning: learningCards.length * 2, // Each word needs 2 correct answers
+      meaningToWord: learningCards.length * 2,
+      context: learningCards.length * 2,
+      totalWords: learningCards.length
+    };
+  };
+
+  const learningStats = calculateLearningStats(allCards);
+
   const renderBookDeck = (title: string, cards: Card[], index: number) => {
     const deckStats = stats[title] || { total: 0, learning: 0, reviewed: 0 };
     const coverImage = bookCovers[title] || bookCovers['default'];
@@ -137,8 +160,58 @@ export default function CardDeckScreen() {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.headerTitle}>Card Decks</Text>
-      {/* Book Decks */}
-      <View style={styles.bookDecksSection}>
+      
+      {/* Learning Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Ready to Learn</Text>
+        <Link 
+          href={{
+            pathname: '/learning',
+            params: { mode: 'learning' }
+          }}
+          asChild
+        >
+          <DeckCard
+            theme={{
+              background: '#8B5CF6',
+              accent: '#C4B5FD',
+              title: 'Start Learning',
+              count: `${allCards.filter(card => card.info?.status === 'learning').length} new words`,
+              coverImage: bookCovers['default']
+            }}
+            onPress={() => {}}
+            reviewCount={0}
+          />
+        </Link>
+        
+        {/* Learning Progress Preview */}
+        <View style={styles.progressPreview}>
+          <Text style={styles.progressTitle}>Current Progress</Text>
+          <View style={styles.progressBars}>
+          <ProgressItem 
+              label="Word → Meaning" 
+              progress={0}  // This will come from tracking correct answers
+              total={learningStats.wordToMeaning}
+            />
+            <ProgressItem 
+              label="Meaning → Word" 
+              progress={0}  // This will come from tracking correct answers
+              total={learningStats.meaningToWord}
+            />
+            <ProgressItem 
+              label="Context" 
+              progress={0}  // This will come from tracking correct answers
+              total={learningStats.context}
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Review Decks Section */}
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Review Decks</Text>
+        
+        {/* Keep your existing deck rendering logic */}
         <View style={styles.decksContainer}>
           {stats['All Cards'].learning > 0 && renderBookDeck('All Cards', allCards, 0)}
           {Object.entries(decks)
@@ -155,8 +228,80 @@ export default function CardDeckScreen() {
   );
 }
 
+const ProgressItem: React.FC<ProgressItemProps> = ({ label, progress, total }) => (
+  <View style={styles.progressItem}>
+    <View style={styles.progressHeader}>
+      <Text style={styles.progressLabel}>{label}</Text>
+      <Text style={styles.progressCount}>{progress}/{total}</Text>
+    </View>
+    <View style={styles.progressBarBg}>
+      <View 
+        style={[
+          styles.progressBarFill,
+          { width: `${(progress / total) * 100}%` }
+        ]} 
+      />
+    </View>
+  </View>
+);
+
 
 const styles = StyleSheet.create({
+  section: {
+    marginBottom: 24,
+  },
+  progressPreview: {
+    backgroundColor: 'white',
+    borderRadius: 12,
+    padding: 16,
+    marginTop: 12,
+    marginHorizontal: 4,
+    shadowColor: "#000",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  progressTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 12,
+  },
+  progressBars: {
+    gap: 12,
+  },
+  progressItem: {
+    gap: 4,
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  progressLabel: {
+    fontSize: 14,
+    color: '#666',
+  },
+  progressCount: {
+    fontSize: 14,
+    color: '#8B5CF6',
+    fontWeight: '500',
+  },
+  progressBarBg: {
+    height: 6,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#8B5CF6',
+    borderRadius: 3,
+  },
   decksContainer: {
     width: '100%',
     alignItems: 'center', // Center cards

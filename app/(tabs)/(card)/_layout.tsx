@@ -8,6 +8,7 @@ export default function CardLayout() {
       <Stack.Screen name="cardPanel" />
       <Stack.Screen name="approvalCard"/>
       <Stack.Screen name="wordInfo"/>
+      <Stack.Screen name="learning" />
     </Stack>
   );
 }

@@ -13,6 +13,19 @@ export interface Card {
   comment: string;
   context?: Array<{ sentence: string; translation: string, isBad: boolean }>;
   history?: Array<HistoryEntry>;
+  info?: CardInfo;
+}
+
+interface LearningProgress {
+  wordToMeaning: number;
+  meaningToWord: number;
+  context: number;
+  contextLetters: number;
+}
+
+interface CardInfo {
+  status: 'learning' | 'reviewing';
+  learningProgress: LearningProgress;  // Make this required, not optional
 }
 
 export interface Book {
@@ -72,7 +85,8 @@ export class Database {
         source TEXT NOT NULL,
         comment TEXT NUT NULL,
         sourceLanguage TEXT NOT NULL,
-        targetLanguage TEXT NOT NULL
+        targetLanguage TEXT NOT NULL,
+        info TEXT DEFAULT '{}'
       );
     
       CREATE TABLE IF NOT EXISTS contexts (
@@ -110,7 +124,25 @@ export class Database {
       
        
     `); 
-    //ALTER TABLE cards ADD COLUMN comment TEXT DEFAULT '';  
+    try {
+      const tableInfo = await this.db.getAllAsync(
+        "PRAGMA table_info(cards)"
+      );
+      
+      const hasInfoColumn = tableInfo.some(
+        (column: any) => column.name === 'info'
+      );
+  
+      if (!hasInfoColumn) {
+        await this.db.execAsync(
+          "ALTER TABLE cards ADD COLUMN info TEXT DEFAULT '{}'"
+        );
+        console.log("Added info column to cards table");
+      }
+    } catch (error) {
+      console.error("Error checking/adding info column:", error);
+      throw error;
+    }
   }
 
   async WordDoesNotExist(name: string): Promise<boolean>{
@@ -130,9 +162,21 @@ export class Database {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
     
+    const defaultInfo: CardInfo = {
+      status: 'learning',
+      learningProgress: {
+        wordToMeaning: 0,
+        meaningToWord: 0,
+        context: 0,
+        contextLetters: 0
+      }
+    };
+    const infoString = JSON.stringify(defaultInfo);
+     console.log("Info being inserted:", infoString); // Debug log
+
     const result = await this.db.runAsync(
-      `INSERT INTO cards (word, translations, lastRepeat, level, userId, source, sourceLanguage, targetLanguage)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO cards (word, translations, lastRepeat, level, userId, source, sourceLanguage, targetLanguage, info)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         card.word,
         JSON.stringify(card.translations),
@@ -141,9 +185,12 @@ export class Database {
         card.userId,
         card.source,
         card.sourceLanguage,
-        card.targetLanguage
+        card.targetLanguage,
+        infoString
       ]
     );
+    console.log("Result:");
+    console.log(await this.getCardById(result.lastInsertRowId));
     console.log("First part success")
     if (card.context == null){
       return result.lastInsertRowId;
@@ -229,13 +276,13 @@ export class Database {
   }
 
   async getCardById(id: number): Promise<Card | null> {
-    await this.initialize();
+    await this.initialize();    
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
 
     const query = `
       SELECT 
         c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId, 
-        c.source, c.sourceLanguage, c.targetLanguage,
+        c.source, c.sourceLanguage, c.targetLanguage, c.info, c.comment,
         ctx.id as contextId, ctx.sentence, ctx.translation, ctx.isBad
       FROM cards c
       LEFT JOIN contexts ctx ON c.id = ctx.cardId
@@ -247,6 +294,7 @@ export class Database {
       
       if (results.length === 0) return null;
 
+      console.log("heeey: " + results[0].info);
       // Create the base card from the first result
       const card: Card = {
         id: results[0].id,
@@ -259,7 +307,8 @@ export class Database {
         comment: results[0].comment,
         sourceLanguage: results[0].sourceLanguage,
         targetLanguage: results[0].targetLanguage,
-        context: []
+        context: [],
+        info: ensureCardInfo(JSON.parse(results[0].info || '{}'))
       };
 
       // Add all contexts
@@ -287,7 +336,7 @@ export class Database {
     const query = `
       SELECT 
         c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId, 
-        c.source, c.sourceLanguage, c.targetLanguage, c.comment,
+        c.source, c.sourceLanguage, c.targetLanguage, c.comment, c.info,
         ctx.id as contextId, ctx.sentence, ctx.translation, ctx.isBad
       FROM cards c
       LEFT JOIN contexts ctx ON c.id = ctx.cardId
@@ -310,7 +359,8 @@ export class Database {
         comment: results[0].comment,
         sourceLanguage: results[0].sourceLanguage,
         targetLanguage: results[0].targetLanguage,
-        context: []
+        context: [],
+        info: ensureCardInfo(JSON.parse(results[0].info || '{}'))
       };
   
       results.forEach(row => {
@@ -341,7 +391,7 @@ export class Database {
     const query = `
       SELECT 
         c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId, 
-        c.source, c.sourceLanguage, c.targetLanguage,
+        c.source, c.sourceLanguage, c.targetLanguage, c.comment, c.info
         ctx.id as contextId, ctx.sentence, ctx.translation
       FROM cards c
       LEFT JOIN contexts ctx ON c.id = ctx.cardId
@@ -366,7 +416,8 @@ export class Database {
             comment: row.comment,
             sourceLanguage: row.sourceLanguage,
             targetLanguage: row.targetLanguage,
-            context: []
+            context: [],
+            info: ensureCardInfo(JSON.parse(row.info || '{}'))
           });
         }
   
@@ -396,7 +447,7 @@ export class Database {
     const query = `
       SELECT 
         c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId, 
-        c.source, c.sourceLanguage, c.targetLanguage,
+        c.source, c.sourceLanguage, c.targetLanguage, c.comment, c.info,
         ctx.id as contextId, ctx.sentence, ctx.translation
       FROM cards c
       LEFT JOIN contexts ctx ON c.id = ctx.cardId
@@ -420,7 +471,8 @@ export class Database {
           comment: row.comment,
           sourceLanguage: row.sourceLanguage,
           targetLanguage: row.targetLanguage,
-          context: []
+          context: [],
+          info: ensureCardInfo(JSON.parse(row.info || '{}'))
         });
       }
   
@@ -446,7 +498,8 @@ export class Database {
     await this.db.runAsync(
       `UPDATE cards SET 
         word = ?, translations = ?, lastRepeat = ?, level = ?, 
-        userId = ?, source = ?, comment = ?, sourceLanguage = ?, targetLanguage = ?
+        userId = ?, source = ?, comment = ?, sourceLanguage = ?, targetLanguage = ?,
+        info = ?
        WHERE id = ?`,
       [
         card.word,
@@ -458,6 +511,7 @@ export class Database {
         card.comment,
         card.sourceLanguage,
         card.targetLanguage,
+        JSON.stringify(card.info || {}),
         card.id ?? 0
       ]
     );
@@ -682,3 +736,27 @@ export class Database {
 
 // Export a single instance of the Database class
 export const database = new Database();
+
+function ensureCardInfo(info: any): CardInfo {
+  // First, define default values
+  const DEFAULT_CARD_INFO: CardInfo = {
+    status: 'reviewing', // Existing cards should be in review mode since they're already in the system
+    learningProgress: {
+      wordToMeaning: 2,  // Consider existing cards as "graduated"
+      meaningToWord: 2,
+      context: 2,
+      contextLetters: 2
+    }
+  };
+  if (!info) return DEFAULT_CARD_INFO;
+  
+  return {
+    status: info.status || DEFAULT_CARD_INFO.status,
+    learningProgress: {
+      wordToMeaning: info.learningProgress?.wordToMeaning ?? DEFAULT_CARD_INFO.learningProgress.wordToMeaning,
+      meaningToWord: info.learningProgress?.meaningToWord ?? DEFAULT_CARD_INFO.learningProgress.meaningToWord,
+      context: info.learningProgress?.context ?? DEFAULT_CARD_INFO.learningProgress.context,
+      contextLetters: info.learningProgress?.contextLetters ?? DEFAULT_CARD_INFO.learningProgress.contextLetters
+    }
+  };
+}
