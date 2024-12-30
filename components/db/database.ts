@@ -25,7 +25,8 @@ interface LearningProgress {
 
 interface CardInfo {
   status: 'learning' | 'reviewing';
-  learningProgress: LearningProgress;  // Make this required, not optional
+  learningProgress: LearningProgress;  
+  sentence: string;
 }
 
 export interface Book {
@@ -157,7 +158,7 @@ export class Database {
     return result === null;
   } 
 
-  async insertCard(card: Card): Promise<number> {
+  async insertCard(card: Card, sentence: string): Promise<number> {
     
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
@@ -169,7 +170,8 @@ export class Database {
         meaningToWord: 0,
         context: 0,
         contextLetters: 0
-      }
+      },      
+      sentence: sentence
     };
     const infoString = JSON.stringify(defaultInfo);
      console.log("Info being inserted:", infoString); // Debug log
@@ -746,7 +748,8 @@ function ensureCardInfo(info: any): CardInfo {
       meaningToWord: 2,
       context: 2,
       contextLetters: 2
-    }
+    },
+    sentence: ""
   };
   if (!info) return DEFAULT_CARD_INFO;
   
@@ -757,6 +760,7 @@ function ensureCardInfo(info: any): CardInfo {
       meaningToWord: info.learningProgress?.meaningToWord ?? DEFAULT_CARD_INFO.learningProgress.meaningToWord,
       context: info.learningProgress?.context ?? DEFAULT_CARD_INFO.learningProgress.context,
       contextLetters: info.learningProgress?.contextLetters ?? DEFAULT_CARD_INFO.learningProgress.contextLetters
-    }
+    },
+    sentence: info.sentence
   };
 }

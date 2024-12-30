@@ -18,6 +18,12 @@ const localStyles = StyleSheet.create({
     textAlign: 'center',
     marginVertical: 5,
   },
+  alternateTranslations: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4,
+  }
 });
 
 const styles = {
@@ -25,29 +31,38 @@ const styles = {
   ...localStyles,
 };
 
-const TranslationOnlyCard: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => (
-  <View style={styles.cardContent}>
-    <View>
-      <Text style={styles.labelText}>Original</Text>
-      <Text style={styles.mainText}>
-        {'_'.repeat(Math.max(8, card.word.length))}
-      </Text>
-    </View>
-    
-    <View>
-      <Text style={styles.labelText}>Translation</Text>
-      <Text style={styles.mainText}>{card.translations[0]}</Text>
-    </View>
+const TranslationOnlyCard: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
+  const alternateTranslations = card.translations.slice(1);
+  
+  return (
+    <View style={styles.cardContent}>
+      <View>
+        <Text style={styles.labelText}>Original</Text>
+        <Text style={styles.mainText}>
+          {'_'.repeat(Math.max(8, card.word.length))}
+        </Text>
+      </View>
+      
+      <View>
+        <Text style={styles.labelText}>Translation</Text>
+        <Text style={styles.mainText}>{card.translations[0]}</Text>
+        {alternateTranslations.length > 0 && (
+          <Text style={styles.alternateTranslations}>
+            {alternateTranslations.join(', ')}
+          </Text>
+        )}
+      </View>
 
-    {!isFlipping && onShowAnswer && (
-      <TouchableOpacity 
-        style={styles.showAnswerButton}
-        onPress={onShowAnswer}
-      >
-        <Text style={styles.buttonText}>Show Answer</Text>
-      </TouchableOpacity>
-    )}
-  </View>
-);
+      {!isFlipping && onShowAnswer && (
+        <TouchableOpacity 
+          style={styles.showAnswerButton}
+          onPress={onShowAnswer}
+        >
+          <Text style={styles.buttonText}>Show Answer</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
 
 export default TranslationOnlyCard;

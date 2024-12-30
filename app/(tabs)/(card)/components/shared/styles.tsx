@@ -5,6 +5,36 @@ const cardWidth = width * 0.9;
 const optionWidth = (cardWidth - 40 - 10) / 2; // 40 for padding, 10 for ga
 
 export const cardStyles = StyleSheet.create({
+  additionalInfoContainer: {
+    marginTop: 10,
+    width: '100%',
+    padding: 8,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+  },
+  originalTextLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  originalText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 8,
+  },
+  alternateTranslationsContainer: {
+    marginTop: 8,
+  },
+  alternateTranslationsLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  alternateTranslation: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
   
   container: {
     flex: 1,
@@ -132,6 +162,36 @@ export const cardStyles = StyleSheet.create({
   },
 });
 export const learningStyles = StyleSheet.create({
+  additionalInfoContainer: {
+    marginTop: 10,
+    width: '100%',
+    padding: 8,
+    backgroundColor: '#f5f5f5',
+    borderRadius: 8,
+  },
+  originalTextLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  originalText: {
+    fontSize: 14,
+    color: '#333',
+    marginBottom: 8,
+  },
+  alternateTranslationsContainer: {
+    marginTop: 8,
+  },
+  alternateTranslationsLabel: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+  },
+  alternateTranslation: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 2,
+  },
   optionsContainer: {
     width: '100%',
     flexDirection: 'row',

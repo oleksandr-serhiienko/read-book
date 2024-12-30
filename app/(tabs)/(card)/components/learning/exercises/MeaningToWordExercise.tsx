@@ -1,8 +1,23 @@
-// MeaningToWordExercise.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LearningExerciseProps } from '../LearningFactory';
 import { learningStyles } from '../../shared/styles';
+import ExerciseContainer from '../../shared/exerciseContainer';
+
+const localStyles = StyleSheet.create({
+  alternateTranslations: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 20,
+  }
+});
+
+const styles = {
+  ...learningStyles,
+  ...localStyles,
+};
 
 const MeaningToWordExercise: React.FC<LearningExerciseProps> = ({
   card,
@@ -12,22 +27,20 @@ const MeaningToWordExercise: React.FC<LearningExerciseProps> = ({
 }) => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
-  const [options, setOptions] = useState<string[]>([]); // Add this line
+  const [options, setOptions] = useState<string[]>([]);
+  const alternateTranslations = card.translations.slice(1);
 
-  // Add this useEffect
   useEffect(() => {
-    // Get 3 random words from other cards
     const otherOptions = otherCards
       .filter(c => c.id !== card.id)
       .map(c => c.word)
       .slice(0, 3);
 
-    // Combine with correct answer and shuffle
     const shuffledOptions = [card.word, ...otherOptions]
       .sort(() => Math.random() - 0.5);
       
     setOptions(shuffledOptions);
-  }, [card.id]); // Only regenerate when card changes
+  }, [card.id]);
 
   const handleOptionPress = (option: string) => {
     setSelectedOption(option);
@@ -45,11 +58,18 @@ const MeaningToWordExercise: React.FC<LearningExerciseProps> = ({
   };
 
   return (
-    <View style={learningStyles.container}>
-      <View style={learningStyles.cardContent}>
-        <Text style={learningStyles.word}>{card.translations[0]}</Text>
-        <View style={learningStyles.optionsContainer}>
-          {options.map((option, index) => {    // Changed this line from generateOptions() to options
+    <ExerciseContainer>
+      
+      
+        <Text style={styles.word}>{card.translations[0]}</Text>
+        {alternateTranslations.length > 0 && (
+          <Text style={styles.alternateTranslations}>
+            {alternateTranslations.join(', ')}
+          </Text>
+        )}
+
+        <View style={styles.optionsContainer}>
+          {options.map((option, index) => {
             const isSelected = selectedOption === option;
             const isCorrect = showResult && option === card.word;
             const isWrong = showResult && isSelected && !isCorrect;
@@ -58,22 +78,24 @@ const MeaningToWordExercise: React.FC<LearningExerciseProps> = ({
               <TouchableOpacity
                 key={index}
                 style={[
-                  learningStyles.option,
-                  isCorrect && learningStyles.correctOption,
-                  isWrong && learningStyles.wrongOption,
+                  styles.option,
+                  isCorrect && styles.correctOption,
+                  isWrong && styles.wrongOption,
                 ]}
                 onPress={() => handleOptionPress(option)}
                 disabled={showResult}
               >
-                <Text style={learningStyles.optionText}>
+                <Text style={styles.optionText}>
                   {option}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
-      </View>
-    </View>
+     
+   
+    </ExerciseContainer>
+   
   );
 };
 

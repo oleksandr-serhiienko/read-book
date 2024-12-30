@@ -33,6 +33,7 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
     const [isLoading, setIsLoading] = useState(true);
     const [currentFontSize, setCurrentFontSize] = useState(16); // Default font size
     let reverso = new Reverso();
+    const latestSentence = React.useRef("");
     const [currentAnnotation, setCurrentAnnotation] = useState<Annotation | null>(null);
     const [currentSenteceCfi, setSentenceCurrentCfi] = useState<string>("");
     const [currentSenteceText, setSentenceCurrentText] = useState<string>("");
@@ -106,16 +107,16 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
       try {
         const messageData = event as unknown as SentenceSelectedMessage;
         console.log('WebView message received:', messageData);
-  
+    
         if (messageData.type === 'onSentenceSelected') {
           setSentenceCurrentCfi(messageData.cfiRange);
           setSentenceCurrentText(messageData.text);
-          //handleSentenceSelection(messageData.text, messageData.cfiRange);
+          latestSentence.current = messageData.text; // Update ref immediately
         }
       } catch (error) {
         console.error('Error handling WebView message:', error);
       }
-    }, [handleSentenceSelection]);
+    }, []);
   
   
     
@@ -198,7 +199,8 @@ const ReaderComponent: React.FC<ReaderComponentProps> = ({
           );
           setPanelContent(translation);
         } else {
-          translationsNew.Book = bookTitle;
+          translationsNew.Book = bookTitle;  
+          translationsNew.TextView = latestSentence.current;       
           setPanelContent(translationsNew);
         }
         setIsPanelVisible(true);

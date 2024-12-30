@@ -53,15 +53,60 @@ export default function LearningScreen() {
     if (!currentSession) return;
     
     const currentCard = currentSession.cards[currentSession.currentIndex];
-    if (currentCard.info?.learningProgress) {
+    
+    // Initialize card.info if it doesn't exist
+    if (!currentCard.info) {
+      currentCard.info = {
+        status: 'learning',
+        learningProgress: {
+          wordToMeaning: 0,
+          meaningToWord: 0,
+          context: 0,
+          contextLetters: 0
+        },
+        sentence: currentCard.context?.[0]?.sentence ?? ""
+      };
+    }
+  
+    // Now we can safely update learningProgress
+    if (currentCard.info.learningProgress) {
       currentCard.info.learningProgress[currentSession.type]++;
       await database.updateCard(currentCard);
     }
-
+  
+    // Update status if it's a contextLetters exercise
+    if (currentSession.type === "contextLetters" && currentCard.info.learningProgress.context > 0 
+                                                 && currentCard.info.learningProgress.contextLetters > 0
+                                                 && currentCard.info.learningProgress.meaningToWord > 0
+                                                 && currentCard.info.learningProgress.wordToMeaning > 0) {
+      currentCard.info.status = 'reviewing';
+      await database.updateCard(currentCard);
+    }
+  
     moveToNext();
   };
 
-  const handleFailure = () => {
+  const handleFailure = async () => {
+    if (!currentSession) return;
+    
+    const currentCard = currentSession.cards[currentSession.currentIndex];
+    
+    // Initialize card.info if it doesn't exist
+    currentCard.info = {
+      status: 'learning',
+      learningProgress: {
+        wordToMeaning: 0,
+        meaningToWord: 0,
+        context: 0,
+        contextLetters: 0
+      }, 
+      sentence : currentCard.info?.sentence ?? ""
+    }
+    // Now we can safely update learningProgress
+    if (currentCard.info.learningProgress) {
+      currentCard.info.learningProgress[currentSession.type]++;
+      await database.updateCard(currentCard);
+    }
     moveToNext();
   };
 

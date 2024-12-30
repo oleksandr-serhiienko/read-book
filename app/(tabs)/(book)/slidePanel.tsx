@@ -25,6 +25,7 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
   useEffect(() => {
     // Reset isAdded when content changes
     setIsAdded(false);
+    
   }, [content]);
 
   if (!content || !isVisible) return null;
@@ -38,7 +39,7 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
          return;
       }
     if (!isSentenceTranslation && !isAdded) {
-      database.insertCard(Transform.fromWordToCard(content, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]));
+      database.insertCard(Transform.fromWordToCard(content, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]), content.TextView);
       setIsAdded(true);
     }
   };

@@ -118,12 +118,13 @@ export default function wordGenerator(cards: Card[]): Card[] {
       console.log(
         `Card: ${card.word}, ` +
         `Level: ${card.level}, ` +
-        `Last review: ${lastReviewDate.toLocaleDateString()}, ` +
-        `Next review: ${nextReviewDate.toLocaleDateString()}, ` +
+        //`Last review: ${lastReviewDate.toLocaleDateString()}, ` +
+        //`Next review: ${nextReviewDate.toLocaleDateString()}, ` +
         `Now: ${now.toLocaleDateString()}, ` +
         `Type: ${type}, ` +
         `Status: ${card.info?.status}, ` +
-        `Info: ${card.info?.learningProgress.meaningToWord}`
+        `Info: ${card.info?.learningProgress.meaningToWord}, ` +
+        `Sentence: ${card.info?.sentence}`
       );
 
       // Compare dates ignoring time

@@ -85,7 +85,7 @@ export default class Reverso {
         Original: text,
         Translations: translations,
         Contexts: filteredContexts,
-        TextView: translations.map(t => t.word).join(", "), 
+        TextView: "", 
         Book: ""     
       }
     

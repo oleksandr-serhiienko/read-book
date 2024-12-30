@@ -1,8 +1,23 @@
-// WordToMeaningExercise.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LearningExerciseProps } from '../LearningFactory';
 import { learningStyles } from '../../shared/styles';
+import ExerciseContainer from '../../shared/exerciseContainer';
+
+const localStyles = StyleSheet.create({
+  originalContext: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 20,
+  }
+});
+
+const styles = {
+  ...learningStyles,
+  ...localStyles,
+};
 
 const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
   card,
@@ -31,7 +46,6 @@ const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
     setSelectedOption(option);
     setShowResult(true);
     
-    // Move the success/failure handling inside setTimeout
     setTimeout(() => {
       if (option === card.translations[0]) {
         onSuccess();
@@ -44,10 +58,11 @@ const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
   };
 
   return (
-    <View style={learningStyles.container}>
-      <View style={learningStyles.cardContent}>
-        <Text style={learningStyles.word}>{card.word}</Text>
-        <View style={learningStyles.optionsContainer}>
+    <ExerciseContainer>
+        <Text style={styles.word}>{card.word}</Text>
+        <Text style={styles.originalContext}>{card.info?.sentence}</Text>
+
+        <View style={styles.optionsContainer}>
           {options.map((option, index) => {
             const isSelected = selectedOption === option;
             const isCorrect = showResult && option === card.translations[0];
@@ -57,22 +72,21 @@ const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
               <TouchableOpacity
                 key={index}
                 style={[
-                  learningStyles.option,
-                  isCorrect && learningStyles.correctOption,
-                  isWrong && learningStyles.wrongOption,
+                  styles.option,
+                  isCorrect && styles.correctOption,
+                  isWrong && styles.wrongOption,
                 ]}
                 onPress={() => handleOptionPress(option)}
                 disabled={showResult}
               >
-                <Text style={learningStyles.optionText}>
+                <Text style={styles.optionText}>
                   {option}
                 </Text>
               </TouchableOpacity>
             );
           })}
         </View>
-      </View>
-    </View>
+        </ExerciseContainer>
   );
 };
 

@@ -1,8 +1,9 @@
 // ContextInputExercise.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Keyboard } from 'react-native';
 import { LearningExerciseProps } from '../LearningFactory';
 import { learningStyles } from '../../shared/styles';
+import ExerciseContainer from '../../shared/exerciseContainer';
 
 const ContextInputExercise: React.FC<LearningExerciseProps> = ({
   card,
@@ -16,10 +17,30 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
   const [availableLetters, setAvailableLetters] = useState<string[]>([]);
   const [letterSources, setLetterSources] = useState<number[]>([]);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   useEffect(() => {
     resetExercise();
   }, [card.word]);
+  useEffect(() => {
+    const keyboardDidShowListener = Keyboard.addListener(
+      'keyboardDidShow',
+      () => {
+        setKeyboardVisible(true);
+      }
+    );
+    const keyboardDidHideListener = Keyboard.addListener(
+      'keyboardDidHide',
+      () => {
+        setKeyboardVisible(false);
+      }
+    );
+
+    return () => {
+      keyboardDidShowListener.remove();
+      keyboardDidHideListener.remove();
+    };
+  }, []);
 
   const resetExercise = () => {
     setShowLetterHelp(false);
@@ -28,6 +49,25 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
     setLetterSources([]);
     setShowResult(false);
     setAvailableLetters(card.word.split('').sort(() => Math.random() - 0.5));
+  };
+
+  const handleDeleteLetter = () => {
+    if (selectedLetters.length === 0 || showResult) return;
+    
+    // Get the last letter and its source index
+    const lastLetterIndex = letterSources[letterSources.length - 1];
+    const lastLetter = selectedLetters[selectedLetters.length - 1];
+    
+    // Remove the last letter from selected
+    setSelectedLetters(prev => prev.slice(0, -1));
+    setLetterSources(prev => prev.slice(0, -1));
+    
+    // Put the letter back in its original position
+    setAvailableLetters(prev => {
+      const newLetters = [...prev];
+      newLetters.splice(lastLetterIndex, 0, lastLetter);
+      return newLetters;
+    });
   };
 
   const handleSubmit = () => {
@@ -91,52 +131,54 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
     return card.context[0].translation.replace(/<\/?em>/g, '');
   };
 
-    return (
-      <View style={learningStyles.container}>
-        <View style={learningStyles.cardContent}>
+  return (
+    <ExerciseContainer>
+     
+        {(!keyboardVisible || showLetterHelp) && (
           <ScrollView style={styles.contextScrollView}>
             <Text style={[learningStyles.contextText, styles.centeredText]}>
               {getContextSentence()}
             </Text>
           </ScrollView>
-  
-          {!showLetterHelp ? (
-            // Manual input mode
-            <View style={styles.inputContainer}>
-              <TextInput
+        )}
+
+        {!showLetterHelp ? (
+          // Manual input mode
+          <View style={styles.inputContainer}>
+            <TextInput
+              style={[
+                styles.textInput,
+                showResult && isCorrect !== null && (
+                  isCorrect ? styles.correctInput : styles.wrongInput
+                )
+              ]}
+              value={inputWord}
+              onChangeText={setInputWord}
+              placeholder="Type the word..."
+              autoCapitalize="none"
+              autoCorrect={false}
+              editable={!showResult}
+              onSubmitEditing={handleSubmit}
+            />
+            <View style={styles.buttonRow}>
+              <TouchableOpacity 
                 style={[
-                  styles.textInput,
-                  showResult && isCorrect !== null && (
-                    isCorrect ? styles.correctInput : styles.wrongInput
-                  )
+                  styles.submitButton,
+                  (!inputWord.trim() || showResult) && styles.disabledButton
                 ]}
-                value={inputWord}
-                onChangeText={setInputWord}
-                placeholder="Type the word..."
-                autoCapitalize="none"
-                autoCorrect={false}
-                editable={!showResult}
-                onSubmitEditing={handleSubmit}
-              />
-              <View style={styles.buttonRow}>
-                <TouchableOpacity 
-                  style={[
-                    styles.submitButton,
-                    (!inputWord.trim() || showResult) && styles.disabledButton
-                  ]}
-                  onPress={handleSubmit}
-                  disabled={!inputWord.trim() || showResult}
-                >
-                  <Text style={styles.buttonText}>Check</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                  style={styles.helpButton}
-                  onPress={() => setShowLetterHelp(true)}
-                >
-                  <Text style={styles.buttonText}>Need Help?</Text>
-                </TouchableOpacity>
-              </View>
+                onPress={handleSubmit}
+                disabled={!inputWord.trim() || showResult}
+              >
+                <Text style={styles.buttonText}>Check</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.helpButton}
+                onPress={() => setShowLetterHelp(true)}
+              >
+                <Text style={styles.buttonText}>Need Help?</Text>
+              </TouchableOpacity>
             </View>
+          </View>
         ) : (
           // Letter selection mode
           <View style={styles.letterSelectContainer}>
@@ -155,6 +197,25 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
                 </View>
               ))}
             </View>
+
+            {/* Delete and Reset buttons */}
+            {selectedLetters.length > 0 && !showResult && (
+              <View style={styles.controlButtons}>
+                <TouchableOpacity 
+                  style={styles.controlButton}
+                  onPress={handleDeleteLetter}
+                >
+                  <Text style={styles.controlButtonText}>Delete</Text>
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={styles.controlButton}
+                  onPress={resetExercise}
+                >
+                  <Text style={styles.controlButtonText}>Reset</Text>
+                </TouchableOpacity>
+              </View>
+            )}
+
             <View style={styles.availableLettersContainer}>
               {availableLetters.map((letter, index) => (
                 <TouchableOpacity
@@ -170,17 +231,40 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
           </View>
         )}
 
-        <ScrollView style={styles.translationScrollView}>
-          <Text style={[learningStyles.contextText, styles.centeredText]}>
-            {getContextTranslation()}
-          </Text>
-        </ScrollView>
-      </View>
-    </View>
+        {(!keyboardVisible || showLetterHelp) && (
+          <ScrollView style={styles.translationScrollView}>
+            <Text style={[learningStyles.contextText, styles.centeredText]}>
+              {getContextTranslation()}
+            </Text>
+          </ScrollView>
+        )}
+
+    </ExerciseContainer>
+    
   );
 };
 
 const styles = StyleSheet.create({
+  controlButtons: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 16,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  controlButton: {
+    backgroundColor: '#f0f0f0',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    minWidth: 80,
+  },
+  controlButtonText: {
+    fontSize: 16,
+    color: '#666',
+    fontWeight: '500',
+    textAlign: 'center',
+  },
   correctInput: {
     backgroundColor: 'rgba(46, 204, 113, 0.1)',
     borderColor: '#2ecc71',

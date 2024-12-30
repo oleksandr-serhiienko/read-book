@@ -14,14 +14,15 @@ export class Transform {
             targetLanguage,
             source: word.Book ?? 'Unknown',
             translations: word.Translations.slice(0, 5).map(t => t.word),
-            userId: 'test',
+            userId: 'test', 
+            comment: "",
             word: word.Original,
             context: context.map(c => ({
               sentence: c.original,
               translation: c.translation,
               isBad: false
             })),
-            lastRepeat: new Date()
+            lastRepeat: new Date(),
         };
         return card;
     }
@@ -35,7 +36,7 @@ export class Transform {
                 original: c.sentence,
                 translation: c.translation
             } as TranslationContext)) : [],
-            TextView: card.word
+            TextView: card.info?.sentence ?? ""
         };
         return word;
     }

@@ -21,8 +21,8 @@ export default function ApprovalScreen() {
         source, 
         sourceLanguage.toLowerCase(), 
         targetLanguage.toLowerCase()
-      ) ?? [];
-      const cardsToLearn = wordGenerator(cards);
+      ) ?? []
+      const cardsToLearn = wordGenerator(cards.filter(card => card.info?.status === 'reviewing'));
       setCards(cardsToLearn);
       setCardsToLearn(cardsToLearn.length);
     };

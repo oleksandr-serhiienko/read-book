@@ -84,7 +84,7 @@ export default function CardDeckScreen() {
     const cardsToLearn = wordGenerator(cards);
     return {
       total: cards.length,
-      learning: cardsToLearn.length,
+      learning: cardsToLearn.filter(card => card.info?.status === 'reviewing').length,
       reviewed: cards.filter(card => {
         const lastRepeat = new Date(card.lastRepeat);
         return lastRepeat >= today;

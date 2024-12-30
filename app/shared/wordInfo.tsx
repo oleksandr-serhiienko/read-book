@@ -29,7 +29,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   const formattedTranslations = parsedContent.Translations.slice(0, 5).map(t =>
     `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
   );
-
+  console.log("huuuuuuuuuuuuuuuuuue " + content);
   const context = parsedContent.Contexts.slice(0, 5);
 
   useEffect(() => {
@@ -98,8 +98,9 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
          return;
       }
     if (!isAdded) {
-        
-      database.insertCard(Transform.fromWordToCard(parsedContent, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]));
+      console.log("Huuuuuuuue: " + parsedContent.TextView);
+      
+      database.insertCard(Transform.fromWordToCard(parsedContent, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]), parsedContent.TextView);
       setIsAdded(true);
     }
   };

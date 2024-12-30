@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { LearningExerciseProps } from '../LearningFactory';
 import { learningStyles } from '../../shared/styles';
+import ExerciseContainer from '../../shared/exerciseContainer';
 
 const ContextExercise: React.FC<LearningExerciseProps> = ({
   card,
@@ -62,42 +63,42 @@ const ContextExercise: React.FC<LearningExerciseProps> = ({
   }
 
   return (
-    <View style={learningStyles.container}>
-       <View style={learningStyles.cardContent}>
-        <Text style={learningStyles.contextText}>
-          {getSentenceWithBlank(card.context[0].sentence, card.word)}
-        </Text>
-        <View style={learningStyles.translationContainer}>
+    <ExerciseContainer>    
+      
           <Text style={learningStyles.contextText}>
-            {card.context[0].translation.replace(/<\/?em>/g, '')}
+            {getSentenceWithBlank(card.context[0].sentence, card.word)}
           </Text>
-        </View>
-        <View style={learningStyles.optionsContainer}>
-          {options.map((option, index) => {    // Changed this line from generateOptions() to options
-            const isSelected = selectedOption === option;
-            const isCorrect = showResult && option === card.word;
-            const isWrong = showResult && isSelected && !isCorrect;
+          <View style={learningStyles.translationContainer}>
+            <Text style={learningStyles.contextText}>
+              {card.context[0].translation.replace(/<\/?em>/g, '')}
+            </Text>
+          </View>
+          <View style={learningStyles.optionsContainer}>
+            {options.map((option, index) => {    // Changed this line from generateOptions() to options
+              const isSelected = selectedOption === option;
+              const isCorrect = showResult && option === card.word;
+              const isWrong = showResult && isSelected && !isCorrect;
 
-            return (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  learningStyles.option,
-                  isCorrect && learningStyles.correctOption,
-                  isWrong && learningStyles.wrongOption,
-                ]}
-                onPress={() => handleOptionPress(option)}
-                disabled={showResult}
-              >
-                <Text style={learningStyles.optionText}>
-                  {option}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </View>
-    </View>
+              return (
+                <TouchableOpacity
+                  key={index}
+                  style={[
+                    learningStyles.option,
+                    isCorrect && learningStyles.correctOption,
+                    isWrong && learningStyles.wrongOption,
+                  ]}
+                  onPress={() => handleOptionPress(option)}
+                  disabled={showResult}
+                >
+                  <Text style={learningStyles.optionText}>
+                    {option}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+    </ExerciseContainer>
   );
 };
 
