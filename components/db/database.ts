@@ -296,7 +296,6 @@ export class Database {
       
       if (results.length === 0) return null;
 
-      console.log("heeey: " + results[0].info);
       // Create the base card from the first result
       const card: Card = {
         id: results[0].id,
@@ -500,7 +499,7 @@ export class Database {
     await this.db.runAsync(
       `UPDATE cards SET 
         word = ?, translations = ?, lastRepeat = ?, level = ?, 
-        userId = ?, source = ?, comment = ?, sourceLanguage = ?, targetLanguage = ?,
+        userId = ?, source = ?, sourceLanguage = ?, targetLanguage = ?,
         info = ?
        WHERE id = ?`,
       [
@@ -510,14 +509,13 @@ export class Database {
         card.level,
         card.userId,
         card.source,
-        card.comment,
         card.sourceLanguage,
         card.targetLanguage,
         JSON.stringify(card.info || {}),
         card.id ?? 0
       ]
     );
-  
+    
     // Update contexts if they exist
     if (card.context && card.context.length > 0) {
       // First delete existing contexts
@@ -537,6 +535,21 @@ export class Database {
         );
       }
     }
+  }
+
+  async updateCardComment(card: Card): Promise<void> {
+    await this.initialize();
+    if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+    // Update the card
+    await this.db.runAsync(
+      `UPDATE cards SET 
+       comment = ?
+       WHERE id = ?`,
+      [
+        card.comment, 
+        card.id ?? 0     
+      ]
+    );
   }
   
   async updateHistory(history: HistoryEntry): Promise<void> {

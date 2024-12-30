@@ -99,7 +99,7 @@ export default function CardPanel() {
       contextId: selectedContextId,
       type: type
     };
-  
+    
     await database.updateHistory(history);
     await database.updateCard(card);
     

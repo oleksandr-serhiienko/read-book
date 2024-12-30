@@ -29,7 +29,6 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   const formattedTranslations = parsedContent.Translations.slice(0, 5).map(t =>
     `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
   );
-  console.log("huuuuuuuuuuuuuuuuuue " + content);
   const context = parsedContent.Contexts.slice(0, 5);
 
   useEffect(() => {
@@ -55,7 +54,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
       const card = await database.getCardByWord(parsedContent.Original);
       if (card?.id) {
         card.comment = comment;
-        await database.updateCard(card);
+        await database.updateCardComment(card);
         setIsEditing(false);
       }
     } catch (error) {
@@ -97,9 +96,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
          console.log("Ooops");
          return;
       }
-    if (!isAdded) {
-      console.log("Huuuuuuuue: " + parsedContent.TextView);
-      
+    if (!isAdded) {     
       database.insertCard(Transform.fromWordToCard(parsedContent, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]), parsedContent.TextView);
       setIsAdded(true);
     }
