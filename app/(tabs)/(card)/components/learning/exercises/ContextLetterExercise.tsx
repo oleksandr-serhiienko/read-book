@@ -1,4 +1,3 @@
-// ContextInputExercise.tsx
 import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Keyboard } from 'react-native';
 import { LearningExerciseProps } from '../LearningFactory';
@@ -18,10 +17,12 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
   const [letterSources, setLetterSources] = useState<number[]>([]);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
+  const [showCorrectAnswer, setShowCorrectAnswer] = useState(false);
 
   useEffect(() => {
     resetExercise();
   }, [card.word]);
+
   useEffect(() => {
     const keyboardDidShowListener = Keyboard.addListener(
       'keyboardDidShow',
@@ -48,26 +49,29 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
     setSelectedLetters([]);
     setLetterSources([]);
     setShowResult(false);
+    setShowCorrectAnswer(false);
+    setIsCorrect(null);
     setAvailableLetters(card.word.split('').sort(() => Math.random() - 0.5));
   };
 
-  const handleDeleteLetter = () => {
-    if (selectedLetters.length === 0 || showResult) return;
-    
-    // Get the last letter and its source index
-    const lastLetterIndex = letterSources[letterSources.length - 1];
-    const lastLetter = selectedLetters[selectedLetters.length - 1];
-    
-    // Remove the last letter from selected
-    setSelectedLetters(prev => prev.slice(0, -1));
-    setLetterSources(prev => prev.slice(0, -1));
-    
-    // Put the letter back in its original position
-    setAvailableLetters(prev => {
-      const newLetters = [...prev];
-      newLetters.splice(lastLetterIndex, 0, lastLetter);
-      return newLetters;
-    });
+  const handleSuccess = () => {
+    setShowResult(true);
+    setIsCorrect(true);
+    // Don't show the overlay for correct answers
+    setTimeout(() => {
+      onSuccess();
+      resetExercise();
+    }, 1000);
+  };
+
+  const handleFailure = () => {
+    setShowResult(true);
+    setIsCorrect(false);
+    setShowCorrectAnswer(true); // Only show overlay for wrong answers
+    setTimeout(() => {
+      onFailure();
+      resetExercise();
+    }, 1000);
   };
 
   const handleSubmit = () => {
@@ -75,50 +79,56 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
     
     const isWordCorrect = inputWord.trim().toLowerCase() === card.word.toLowerCase();
     setIsCorrect(isWordCorrect);
-    setShowResult(true);
     
-    setTimeout(() => {
-      if (isWordCorrect) {
-        onSuccess();
-      } else {
-        onFailure();
-        setInputWord(''); // Clear input on wrong answer
-        setShowResult(false);
-        setIsCorrect(null);
-      }
-    }, 1000);
+    if (isWordCorrect) {
+      handleSuccess();
+    } else {
+      handleFailure();
+    }
   };
-
 
   const handleLetterPress = (letter: string, index: number) => {
     if (showResult) return;
 
-    setSelectedLetters(prev => [...prev, letter]);
+    const newSelected = [...selectedLetters, letter];
+    setSelectedLetters(newSelected);
     setLetterSources(prev => [...prev, index]);
     setAvailableLetters(prev => prev.filter((_, i) => i !== index));
 
-    const newSelected = [...selectedLetters, letter];
     if (newSelected.length === card.word.length) {
-      setShowResult(true);
-      setTimeout(() => {
-        if (newSelected.join('') === card.word) {
-          onSuccess();
-        } else {
-          onFailure();
-        }
-      }, 1000);
+      const isWordCorrect = newSelected.join('') === card.word;
+      setIsCorrect(isWordCorrect);
+      if (isWordCorrect) {
+        handleSuccess();
+      } else {
+        handleFailure();
+      }
     }
+  };
+
+  const handleDeleteLetter = () => {
+    if (selectedLetters.length === 0 || showResult) return;
+    
+    const lastLetterIndex = letterSources[letterSources.length - 1];
+    const lastLetter = selectedLetters[selectedLetters.length - 1];
+    
+    setSelectedLetters(prev => prev.slice(0, -1));
+    setLetterSources(prev => prev.slice(0, -1));
+    
+    setAvailableLetters(prev => {
+      const newLetters = [...prev];
+      newLetters.splice(lastLetterIndex, 0, lastLetter);
+      return newLetters;
+    });
   };
 
   const getContextSentence = () => {
     if (!card.context || card.context.length === 0) return '';
     
     const sentence = card.context[0].sentence;
-    // First get the word from between <em> tags
     const matchWord = sentence.match(/<em>(.*?)<\/em>/);
     if (!matchWord) return sentence.replace(/<\/?em>/g, '');
     
-    // Then replace that word with underscores
     const cleanSentence = sentence.replace(/<\/?em>/g, '');
     return cleanSentence.replace(
       new RegExp(`\\b${matchWord[1]}\\b`, 'gi'), 
@@ -132,7 +142,9 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
   };
 
   return (
-    <ExerciseContainer>
+    <ExerciseContainer
+      correctAnswer={card.word}
+      showCorrect={showCorrectAnswer}>
      
         {(!keyboardVisible || showLetterHelp) && (
           <ScrollView style={styles.contextScrollView}>
@@ -143,7 +155,6 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
         )}
 
         {!showLetterHelp ? (
-          // Manual input mode
           <View style={styles.inputContainer}>
             <TextInput
               style={[
@@ -180,7 +191,6 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
             </View>
           </View>
         ) : (
-          // Letter selection mode
           <View style={styles.letterSelectContainer}>
             <View style={styles.selectedLettersContainer}>
               {Array.from({ length: card.word.length }).map((_, index) => (
@@ -198,7 +208,6 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
               ))}
             </View>
 
-            {/* Delete and Reset buttons */}
             {selectedLetters.length > 0 && !showResult && (
               <View style={styles.controlButtons}>
                 <TouchableOpacity 
@@ -240,7 +249,6 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
         )}
 
     </ExerciseContainer>
-    
   );
 };
 

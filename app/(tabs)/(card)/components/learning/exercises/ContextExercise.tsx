@@ -63,41 +63,39 @@ const ContextExercise: React.FC<LearningExerciseProps> = ({
   }
 
   return (
-    <ExerciseContainer>    
-      
-          <Text style={learningStyles.contextText}>
-            {getSentenceWithBlank(card.context[0].sentence, card.word)}
-          </Text>
-          <View style={learningStyles.translationContainer}>
-            <Text style={learningStyles.contextText}>
-              {card.context[0].translation.replace(/<\/?em>/g, '')}
-            </Text>
-          </View>
-          <View style={learningStyles.optionsContainer}>
-            {options.map((option, index) => {    // Changed this line from generateOptions() to options
-              const isSelected = selectedOption === option;
-              const isCorrect = showResult && option === card.word;
-              const isWrong = showResult && isSelected && !isCorrect;
+    <ExerciseContainer>       
+      <Text style={learningStyles.contextText}>
+        {getSentenceWithBlank(card.context[0].sentence, card.word)}
+      </Text>
+      <View style={learningStyles.translationContainer}>
+        <Text style={learningStyles.contextText}>
+          {card.context[0].translation.replace(/<\/?em>/g, '')}
+        </Text>
+      </View>
+      <View style={learningStyles.optionsContainer}>
+        {options.map((option, index) => {
+          const isSelected = selectedOption === option;
+          const isCorrect = showResult && option === card.word;
+          const isWrong = showResult && isSelected && !isCorrect;
 
-              return (
-                <TouchableOpacity
-                  key={index}
-                  style={[
-                    learningStyles.option,
-                    isCorrect && learningStyles.correctOption,
-                    isWrong && learningStyles.wrongOption,
-                  ]}
-                  onPress={() => handleOptionPress(option)}
-                  disabled={showResult}
-                >
-                  <Text style={learningStyles.optionText}>
-                    {option}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
+          return (
+            <TouchableOpacity
+              key={index}
+              style={[
+                learningStyles.option,
+                isCorrect && learningStyles.correctOption,
+                isWrong && learningStyles.wrongOption,
+              ]}
+              onPress={() => handleOptionPress(option)}
+              disabled={showResult}
+            >
+              <Text style={learningStyles.optionText}>
+                {option}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </ExerciseContainer>
   );
 };

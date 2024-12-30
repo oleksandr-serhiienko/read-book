@@ -58,45 +58,40 @@ const MeaningToWordExercise: React.FC<LearningExerciseProps> = ({
   };
 
   return (
-    <ExerciseContainer>
-      
-      
-        <Text style={styles.word}>{card.translations[0]}</Text>
-        {alternateTranslations.length > 0 && (
-          <Text style={styles.alternateTranslations}>
-            {alternateTranslations.join(', ')}
-          </Text>
-        )}
+    <ExerciseContainer>    
+      <Text style={styles.word}>{card.translations[0]}</Text>
+      {alternateTranslations.length > 0 && (
+        <Text style={styles.alternateTranslations}>
+          {alternateTranslations.join(', ')}
+        </Text>
+      )}
 
-        <View style={styles.optionsContainer}>
-          {options.map((option, index) => {
-            const isSelected = selectedOption === option;
-            const isCorrect = showResult && option === card.word;
-            const isWrong = showResult && isSelected && !isCorrect;
+      <View style={styles.optionsContainer}>
+        {options.map((option, index) => {
+          const isSelected = selectedOption === option;
+          const isCorrect = showResult && option === card.word;
+          const isWrong = showResult && isSelected && !isCorrect;
 
-            return (
-              <TouchableOpacity
-                key={index}
-                style={[
-                  styles.option,
-                  isCorrect && styles.correctOption,
-                  isWrong && styles.wrongOption,
-                ]}
-                onPress={() => handleOptionPress(option)}
-                disabled={showResult}
-              >
-                <Text style={styles.optionText}>
-                  {option}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-     
-   
+          return (
+            <TouchableOpacity
+              key={index}
+              style={[
+                styles.option,
+                isCorrect && styles.correctOption,
+                isWrong && styles.wrongOption,
+              ]}
+              onPress={() => handleOptionPress(option)}
+              disabled={showResult}
+            >
+              <Text style={styles.optionText}>
+                {option}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </ExerciseContainer>
-   
-  );
+);
 };
 
 export default MeaningToWordExercise;

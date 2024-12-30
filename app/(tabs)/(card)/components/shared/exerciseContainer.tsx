@@ -1,15 +1,20 @@
-// ExerciseContainer.tsx
 import React from 'react';
-import { View, ScrollView, StyleSheet, Dimensions } from 'react-native';
+import { View, ScrollView, StyleSheet, Dimensions, Text } from 'react-native';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 const MAX_CONTAINER_HEIGHT = SCREEN_HEIGHT * 0.75;
 
 interface ExerciseContainerProps {
   children: React.ReactNode;
+  correctAnswer?: string;
+  showCorrect?: boolean;
 }
 
-const ExerciseContainer: React.FC<ExerciseContainerProps> = ({ children }) => {
+const ExerciseContainer: React.FC<ExerciseContainerProps> = ({ 
+  children, 
+  correctAnswer,
+  showCorrect 
+}) => {
   return (
     <View style={styles.wrapper}>
       <View style={styles.outerContainer}>
@@ -21,6 +26,11 @@ const ExerciseContainer: React.FC<ExerciseContainerProps> = ({ children }) => {
           >
             <View style={styles.container}>
               {children}
+              {showCorrect && correctAnswer && (
+                <View style={styles.correctOverlay}>
+                  <Text style={styles.correctText}>{correctAnswer}</Text>
+                </View>
+              )}
             </View>
           </ScrollView>
         </View>
@@ -65,6 +75,18 @@ const styles = StyleSheet.create({
     shadowRadius: 3.84,
     elevation: 5,
   },
+  correctOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(46, 204, 113, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 10,
+  },
+  correctText: {
+    fontSize: 24,
+    color: '#fff',
+    fontWeight: 'bold',
+  }
 });
 
 export default ExerciseContainer;

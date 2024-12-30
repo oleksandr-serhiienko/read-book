@@ -1,9 +1,3 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { LearningExerciseProps } from '../LearningFactory';
-import { learningStyles } from '../../shared/styles';
-import ExerciseContainer from '../../shared/exerciseContainer';
-
 const localStyles = StyleSheet.create({
   originalContext: {
     fontSize: 14,
@@ -18,6 +12,12 @@ const styles = {
   ...learningStyles,
   ...localStyles,
 };
+
+import React, { useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { LearningExerciseProps } from '../LearningFactory';
+import { learningStyles } from '../../shared/styles';
+import ExerciseContainer from '../../shared/exerciseContainer';
 
 const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
   card,
@@ -86,7 +86,7 @@ const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
             );
           })}
         </View>
-        </ExerciseContainer>
+    </ExerciseContainer>
   );
 };
 
