@@ -1,70 +1,53 @@
-import { TouchableOpacity, View, Text, StyleSheet, Dimensions, ImageBackground } from "react-native";
-import React, { forwardRef } from 'react';
+import { TouchableOpacity, View, Text, StyleSheet, Dimensions, Image } from "react-native";
+import React, { forwardRef, useEffect, useState } from 'react';
 
-// Define the structure of a theme
 interface Theme {
   background: string;
   accent: string;
   title: string;
   count: string;
-  coverImage?: string;
+  imageUrl?: string;
 }
 
-// Define the props that DeckCard component accepts
 interface DeckCardProps {
   theme: Theme;
   onPress: () => void;
-  reviewCount?: number; 
+  reviewCount?: number;
 }
-
-// Define the structure of the themes object
-interface ThemeCollection {
-  [key: string]: Theme;
-}
-
-export const deckThemes: ThemeCollection = {
-  daily: {
-    background: '#4A69BD',
-    accent: '#FED330',    
-    title: 'Daily Conversation',
-    count: '15 phrases'
-  },
-  business: {
-    background: '#45B649',
-    accent: '#DCE35B',    
-    title: 'Business Talk',
-    count: '20 phrases'
-  },
-  travel: {
-    background: '#FF4B2B',
-    accent: '#FF416C',    
-    title: 'Travel Essential',
-    count: '25 phrases'
-  }
-};
 
 const { width } = Dimensions.get('window');
 const cardWidth = width * 0.85;
 
 export const DeckCard = forwardRef<TouchableOpacity, DeckCardProps>(
-    ({ theme, onPress, reviewCount }, ref) => (
+  ({ theme, onPress, reviewCount }, ref) => {
+    const [localImageUrl, setLocalImageUrl] = useState<string | null>(null);
+
+    useEffect(() => {
+      if (theme.imageUrl) {
+        setLocalImageUrl(decodeURIComponent(theme.imageUrl));
+      }
+    }, [theme.imageUrl]);
+
+    return (
       <TouchableOpacity 
         ref={ref}
         style={[styles.card, { backgroundColor: theme.background }]} 
         onPress={onPress}
       >
-        {theme.coverImage && (
-          <ImageBackground 
-            source={{ uri: theme.coverImage }}
-            style={[StyleSheet.absoluteFill, styles.coverImage]}
-          >
-            <View style={styles.overlay} />
-          </ImageBackground>
-        )}
-        
         <View style={[styles.accentCircle, styles.topCircle, { backgroundColor: theme.accent }]} />
         <View style={[styles.accentCircle, styles.bottomCircle, { backgroundColor: theme.accent }]} />
-        <View style={[styles.cornerCurve, { backgroundColor: theme.accent }]} />
+        
+        {localImageUrl ? (
+          <View style={styles.cornerImageContainer}>
+            <Image 
+              source={{ uri: localImageUrl }}
+              style={styles.imageContent}
+              resizeMode="cover"
+            />
+          </View>
+        ) : (
+          <View style={[styles.cornerCurve, { backgroundColor: theme.accent }]} />
+        )}
         
         <View style={styles.content}>
           <Text style={styles.title}>{theme.title}</Text>
@@ -80,39 +63,31 @@ export const DeckCard = forwardRef<TouchableOpacity, DeckCardProps>(
           </View>
         </View>
       </TouchableOpacity>
-    )
-  );
-  
-  
+    );
+  }
+);
 
 const styles = StyleSheet.create({
-    coverImage: {
-        opacity: 0.6,
-      },
-      overlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.3)',
-      },
-      statsContainer: {
-        flexDirection: 'column',
-        gap: 8,
-      },
-      reviewedText: {
-        color: 'white',
-        fontSize: 12,
-        opacity: 0.8,
-      },
-      card: {
-        width: cardWidth,
-        height: 160,
-        borderRadius: 20,
-        marginVertical: 8, // Vertical spacing between cards
-        marginHorizontal: 'auto', // Center cards
-        padding: 16,
-        overflow: 'hidden',
-        position: 'relative',
-        alignSelf: 'center', // Help ensure centering
-      },
+  statsContainer: {
+    flexDirection: 'column',
+    gap: 8,
+  },
+  reviewedText: {
+    color: 'white',
+    fontSize: 12,
+    opacity: 0.8,
+  },
+  card: {
+    width: cardWidth,
+    height: 160,
+    borderRadius: 20,
+    marginVertical: 8,
+    marginHorizontal: 'auto',
+    padding: 16,
+    overflow: 'hidden',
+    position: 'relative',
+    alignSelf: 'center',
+  },
   accentCircle: {
     position: 'absolute',
     width: 12,
@@ -135,6 +110,23 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     opacity: 0.3,
+  },
+  cornerImageContainer: {
+    position: 'absolute',
+    top: -20,
+    right: -20,
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    overflow: 'hidden',
+    opacity: 0.8,
+  },
+  imageContent: {
+    width: '150%',
+    height: '150%',
+    position: 'absolute',
+    top: '-25%',
+    left: '-25%',
   },
   content: {
     flex: 1,

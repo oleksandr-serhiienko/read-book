@@ -81,8 +81,9 @@ const ContextWithBlankTranslation: FC<CardProps> = ({ card, onShowAnswer, isFlip
 
   if (!card.context || !card.context[0]) return null;
 
-  const translationSentence = card.context[0].translation.replace(/<\/?em>/g, '');
-  const wordToReplace = translationSentence.match(/<em>(.*?)<\/em>/)?.[1] ?? card.translations[0];
+  const originalText = card.context[0].translation;
+  const translationSentence = originalText.replace(/<\/?em>/g, '');
+  const wordToReplace = originalText.match(/<em>(.*?)<\/em>/)?.[1] ?? card.translations[0];
   const hints = getWordHints(wordToReplace);
   
   return (

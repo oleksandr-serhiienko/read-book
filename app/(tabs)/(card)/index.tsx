@@ -1,10 +1,10 @@
 import { Card, Database } from '../../../components/db/database';
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ImageBackground } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Link, useFocusEffect } from 'expo-router';
 import wordGenerator from '../../../components/db/nextWordToLearn';
 import { useLanguage } from '@/app/languageSelector';
-import DeckCard, { deckThemes } from './components/Deck'; 
+import DeckCard from './components/Deck';
 
 interface CardDecks {
   [key: string]: Card[];
@@ -15,61 +15,48 @@ interface DeckStats {
   learning: number;
   reviewed: number;
 }
+
 type StatsMap = {
   [key: string]: DeckStats;
 }
-interface ProgressItemProps {
-  label: string;
-  progress: number;
-  total: number;
+
+interface DeckImageMap {
+  [key: string]: string | undefined;
 }
 
-
-
 export default function CardDeckScreen() {
-  const { sourceLanguage, targetLanguage} = useLanguage();
+  const { sourceLanguage, targetLanguage } = useLanguage();
   const [database] = useState(() => new Database());
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [decks, setDecks] = useState<CardDecks>({});
+  const [deckImages, setDeckImages] = useState<DeckImageMap>({});
   const [stats, setStats] = useState<StatsMap>({
     'All Cards': { total: 0, learning: 0, reviewed: 0 }
   });
-  const [bookCovers, setBookCovers] = useState<{[key: string]: string}>({});
-  const serverUrl = "http://192.168.1.41:3000";
-  
-  
 
   const loadCards = React.useCallback(async () => {
     await database.initialize();
     await getAllCards();
-  }, [sourceLanguage, targetLanguage]); // Add any dependencies your function needs
+  }, [sourceLanguage, targetLanguage]);
 
-  // Load on focus
+  const loadDeckImages = async (deckTitles: string[]) => {
+    const imageMap: DeckImageMap = {};
+    for (const title of deckTitles) {
+      console.log(title);
+      const book = await database.getBookByName(title, sourceLanguage);
+      if (book?.imageUrl) {
+        console.log(book.imageUrl);
+        imageMap[title] = book.imageUrl;
+      }
+    }
+    setDeckImages(imageMap);
+  };
+
   useFocusEffect(
     React.useCallback(() => {
       loadCards();
-      fetchBooks();
     }, [loadCards])
   );
-
-  const fetchBooks = async () => {
-    try {      
-      const response = await fetch(`${serverUrl}/books/${sourceLanguage.toLocaleLowerCase()}`);
-      console.log(`${serverUrl}/books/${sourceLanguage.toLocaleLowerCase()}`);
-      const data = await response.json();
-      const coverMap = data.reduce((acc: {[key: string]: string}, book: any) => {
-        if (book.coverImage) {
-          acc[book.title] = `${serverUrl}/covers/${(book.coverImage)}`;
-        }
-        return acc;
-      }, {});
-      // Add default cover for all decks without specific covers
-      coverMap['default'] = `${serverUrl}/covers/default.webp`; // or whatever extension your default image has
-      setBookCovers(coverMap);
-    } catch (error) {
-      console.error('Error fetching books:', error);
-    }
-  };
 
   const calculateStats = (cards: Card[]): DeckStats => {
     const today = new Date();
@@ -87,7 +74,7 @@ export default function CardDeckScreen() {
   };
 
   const getAllCards = async () => {
-    const cards = await database.getAllCards(sourceLanguage.toLocaleLowerCase(), targetLanguage.toLocaleLowerCase());
+    const cards = await database.getAllCards(sourceLanguage.toLowerCase(), targetLanguage.toLowerCase());
     setAllCards(cards);
     
     const allStats = calculateStats(cards);
@@ -107,18 +94,18 @@ export default function CardDeckScreen() {
 
     setDecks(grouped);
     setStats(newStats);
+    await loadDeckImages(Object.keys(grouped));
   };
 
   const renderBookDeck = (title: string, cards: Card[], index: number) => {
     const deckStats = stats[title] || { total: 0, learning: 0, reviewed: 0 };
-    const coverImage = bookCovers[title] || bookCovers['default'];
-    
+    console.log("holaa " + deckImages[title]);
     const bookTheme = {
       background: '#4A69BD',
       accent: '#FED330',    
       title: title,
       count: `${deckStats.learning} words`,
-      coverImage
+      imageUrl: deckImages[title]
     };
 
     return (
@@ -143,7 +130,6 @@ export default function CardDeckScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
       <Text style={styles.headerTitle}>Card Decks</Text>
       
-      {/* Learning Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Ready to Learn</Text>
         <Link 
@@ -158,21 +144,16 @@ export default function CardDeckScreen() {
               background: '#8B5CF6',
               accent: '#C4B5FD',
               title: 'Start Learning',
-              count: `${allCards.filter(card => card.info?.status === 'learning').length} new words`,
-              coverImage: bookCovers['default']
+              count: `${allCards.filter(card => card.info?.status === 'learning').length} new words`
             }}
             onPress={() => {}}
             reviewCount={0}
           />
         </Link>
-      
       </View>
 
-      {/* Review Decks Section */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Review Decks</Text>
-        
-        {/* Keep your existing deck rendering logic */}
         <View style={styles.decksContainer}>
           {stats['All Cards'].learning > 0 && renderBookDeck('All Cards', allCards, 0)}
           {Object.entries(decks)
@@ -188,64 +169,9 @@ export default function CardDeckScreen() {
     </ScrollView>
   );
 }
-
-const ProgressItem: React.FC<ProgressItemProps> = ({ label, progress, total }) => (
-  <View style={styles.progressItem}>
-    <View style={styles.progressHeader}>
-      <Text style={styles.progressLabel}>{label}</Text>
-      <Text style={styles.progressCount}>{progress}/{total}</Text>
-    </View>
-    <View style={styles.progressBarBg}>
-      <View 
-        style={[
-          styles.progressBarFill,
-          { width: `${(progress / total) * 100}%` }
-        ]} 
-      />
-    </View>
-  </View>
-);
-
-
 const styles = StyleSheet.create({
   section: {
     marginBottom: 24,
-  },
-  progressPreview: {
-    backgroundColor: 'white',
-    borderRadius: 12,
-    padding: 16,
-    marginTop: 12,
-    marginHorizontal: 4,
-    shadowColor: "#000",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 3.84,
-    elevation: 5,
-  },
-  progressTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
-  },
-  progressBars: {
-    gap: 12,
-  },
-  progressItem: {
-    gap: 4,
-  },
-  progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  progressLabel: {
-    fontSize: 14,
-    color: '#666',
   },
   progressCount: {
     fontSize: 14,

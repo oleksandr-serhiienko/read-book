@@ -384,26 +384,39 @@ export class Database {
   async getCardToLearnBySource(source: string, sourceLanguage: string, targetLanguage: string): Promise<Card[]> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
-
-    if (source === 'All Cards'){
+    
+    if (source === 'All Cards') {
       return this.getAllCards(sourceLanguage, targetLanguage);
     }
-  
+    
     const query = `
       SELECT 
-        c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId, 
-        c.source, c.sourceLanguage, c.targetLanguage, c.comment, c.info
-        ctx.id as contextId, ctx.sentence, ctx.translation
+        c.id, 
+        c.word, 
+        c.translations, 
+        c.lastRepeat, 
+        c.level, 
+        c.userId,
+        c.source, 
+        c.sourceLanguage, 
+        c.targetLanguage, 
+        c.comment, 
+        c.info,
+        ctx.id as contextId, 
+        ctx.sentence, 
+        ctx.translation
       FROM cards c
       LEFT JOIN contexts ctx ON c.id = ctx.cardId
-      WHERE c.source = ? AND c.sourceLanguage = ? AND c.targetLanguage = ?
+      WHERE c.source = ? 
+        AND c.sourceLanguage = ? 
+        AND c.targetLanguage = ?
       ORDER BY c.lastRepeat DESC
     `;
-  
+    
     try {
       const results = await this.db.getAllAsync<any>(query, [source, sourceLanguage, targetLanguage]);
       const cardMap = new Map<number, Card>();
-
+      
       for (const row of results) {
         if (!cardMap.has(row.id)) {
           cardMap.set(row.id, {
@@ -421,9 +434,9 @@ export class Database {
             info: ensureCardInfo(JSON.parse(row.info || '{}'))
           });
         }
-  
+        
         const card = cardMap.get(row.id)!;
-  
+        
         if (row.contextId) {
           card.context!.push({
             sentence: row.sentence,
@@ -432,14 +445,14 @@ export class Database {
           });
         }
       }
-  
+      
       console.log(`Got ${cardMap.size} cards for source: ${source}`);
       return Array.from(cardMap.values());
     } catch (error) {
       console.error(`Error getting cards for source ${source}:`, error);
       throw error;
     }
-  }
+}
 
   async getAllCards(sourceLanguage: string, targetLanguage: string): Promise<Card[]> {
     await this.initialize();
