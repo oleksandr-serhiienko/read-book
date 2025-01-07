@@ -68,19 +68,28 @@ export default function LearningScreen() {
       };
     }
   
-    // Now we can safely update learningProgress
+    // Update learning progress
     if (currentCard.info.learningProgress) {
       currentCard.info.learningProgress[currentSession.type]++;
       await database.updateCard(currentCard);
     }
   
-    // Update status if it's a contextLetters exercise
-    if (currentSession.type === "contextLetters" && currentCard.info.learningProgress.context > 0 
-                                                 && currentCard.info.learningProgress.contextLetters > 0
-                                                 && currentCard.info.learningProgress.meaningToWord > 0
-                                                 && currentCard.info.learningProgress.wordToMeaning > 0) {
+    // Check if card should move to reviewing status
+    if (currentSession.type === "contextLetters" && 
+        currentCard.info.learningProgress.context > 0 && 
+        currentCard.info.learningProgress.contextLetters > 0 &&
+        currentCard.info.learningProgress.meaningToWord > 0 &&
+        currentCard.info.learningProgress.wordToMeaning > 0) {
       currentCard.info.status = 'reviewing';
       await database.updateCard(currentCard);
+      
+      // Update allCards to reflect the new status
+      setAllCards(prevCards => {
+        const updatedCards = prevCards.filter(card => card.id !== currentCard.id);
+        // If there are still learning cards, add them back to the pool
+        const learningCards = updatedCards.filter(card => card.info?.status === 'learning');
+        return learningCards;
+      });
     }
   
     moveToNext();
@@ -110,34 +119,35 @@ export default function LearningScreen() {
     moveToNext();
   };
 
+
   const moveToNext = () => {
     if (!currentSession) return;
   
     const nextIndex = currentSession.currentIndex + 1;
     
-    // If we've completed all cards in current session
     if (nextIndex >= currentSession.cards.length) {
       const exerciseTypes: LearningType[] = [
         'wordToMeaning',
         'meaningToWord',
         'context',
-        'contextLetters'  // Added new exercise type
+        'contextLetters'
       ];
       const currentTypeIndex = exerciseTypes.indexOf(currentSession.type);
       
-      // If we've completed all exercise types
       if (currentTypeIndex >= exerciseTypes.length - 1) {
-        // Start over with new set of cards
-        const remainingCards = allCards.slice(CARDS_PER_SESSION);
+        // Get remaining learning cards
+        const remainingCards = allCards.filter(card => card.info?.status === 'learning');
         if (remainingCards.length > 0) {
-          setAllCards(remainingCards);
+          // Shuffle remaining cards
+          const shuffledRemaining = [...remainingCards].sort(() => Math.random() - 0.5);
+          setAllCards(shuffledRemaining);
           setCurrentSession({
             type: 'wordToMeaning',
-            cards: remainingCards.slice(0, CARDS_PER_SESSION),
+            cards: shuffledRemaining.slice(0, CARDS_PER_SESSION),
             currentIndex: 0
           });
         } else {
-          setCurrentSession(null); // All done!
+          setCurrentSession(null);
         }
       } else {
         // Move to next exercise type with same cards but shuffled

@@ -23,6 +23,10 @@ const localStyles = StyleSheet.create({
     color: '#666',
     textAlign: 'center',
     marginTop: 4,
+  },
+  highlightedWord: {
+    fontWeight: 'bold',
+    color: '#3498db',
   }
 });
 
@@ -33,12 +37,51 @@ const styles = {
 };
 
 const WordOnlyCard: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
+  const getContextToShow = () => {
+    if (!card.info?.sentence) {
+      if (card.context) {
+        return formatSentence(card.context[0].sentence);
+      }
+      return "";
+    }
+
+    const wordCount = card.info.sentence.split(/\s+/).length;
+    if (wordCount > 20) {
+      if (card.context) {
+        return formatSentence(card.context[0].sentence);
+      }
+      return "";
+    }
+
+    return formatSentence(card.info.sentence);
+  };
+
+  const formatSentence = (sentence: string) => {
+    if (!sentence) return "";
+    
+    if (sentence.includes('<em>')) {
+      return sentence.split(/(<em>.*?<\/em>)/).map((part, index) => {
+        if (part.startsWith('<em>') && part.endsWith('</em>')) {
+          const word = part.replace(/<\/?em>/g, '');
+          return (
+            <Text key={index} style={styles.highlightedWord}>
+              {word}
+            </Text>
+          );
+        }
+        return <Text key={index}>{part}</Text>;
+      });
+    }
+
+    return sentence;
+  };
+
   return (
     <View style={styles.cardContent}>
       <View>
         <Text style={styles.labelText}>Original</Text>
         <Text style={styles.mainText}>{card.word}</Text>
-        <Text style={styles.originalContext}>{card.info?.sentence}</Text>
+        <Text style={styles.originalContext}>{getContextToShow()}</Text>
       </View>
       
       <View>

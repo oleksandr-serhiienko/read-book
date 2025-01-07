@@ -23,12 +23,6 @@ interface ProgressItemProps {
   progress: number;
   total: number;
 }
-interface LearningStats {
-  wordToMeaning: number;
-  meaningToWord: number;
-  context: number;
-  totalWords: number;
-}
 
 
 
@@ -115,18 +109,6 @@ export default function CardDeckScreen() {
     setStats(newStats);
   };
 
-  const calculateLearningStats = (cards: Card[]): LearningStats => {
-    const learningCards = cards.filter(card => card.info?.status === 'learning');
-    return {
-      wordToMeaning: learningCards.length * 2, // Each word needs 2 correct answers
-      meaningToWord: learningCards.length * 2,
-      context: learningCards.length * 2,
-      totalWords: learningCards.length
-    };
-  };
-
-  const learningStats = calculateLearningStats(allCards);
-
   const renderBookDeck = (title: string, cards: Card[], index: number) => {
     const deckStats = stats[title] || { total: 0, learning: 0, reviewed: 0 };
     const coverImage = bookCovers[title] || bookCovers['default'];
@@ -183,28 +165,7 @@ export default function CardDeckScreen() {
             reviewCount={0}
           />
         </Link>
-        
-        {/* Learning Progress Preview */}
-        <View style={styles.progressPreview}>
-          <Text style={styles.progressTitle}>Current Progress</Text>
-          <View style={styles.progressBars}>
-          <ProgressItem 
-              label="Word → Meaning" 
-              progress={0}  // This will come from tracking correct answers
-              total={learningStats.wordToMeaning}
-            />
-            <ProgressItem 
-              label="Meaning → Word" 
-              progress={0}  // This will come from tracking correct answers
-              total={learningStats.meaningToWord}
-            />
-            <ProgressItem 
-              label="Context" 
-              progress={0}  // This will come from tracking correct answers
-              total={learningStats.context}
-            />
-          </View>
-        </View>
+      
       </View>
 
       {/* Review Decks Section */}
