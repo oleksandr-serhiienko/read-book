@@ -1,6 +1,5 @@
 import React from 'react';
 import { View } from 'react-native';
-import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 
 const ProgressBar = ({ progress }: { progress: number }) => {
   const width = Math.max(0, Math.min(100, progress));

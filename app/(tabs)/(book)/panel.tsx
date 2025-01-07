@@ -66,7 +66,6 @@ const WordTranslationPanel = ({
     const { sourceLanguage } = useLanguage();
     const languageKey = sourceLanguage.toLowerCase() as keyof typeof languages;
     const mainTranslation = content.Translations[0]?.word || '';
-    console.log( "toooooooo " + content.TextView);
     const handleSpeak = async () => {
       setIsSpeaking(true);
       try {

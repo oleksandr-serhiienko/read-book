@@ -14,7 +14,7 @@ const localStyles = StyleSheet.create({
   },
   highlightedWord: {
     fontWeight: 'bold',
-    color: '#3498db',
+    color: '#333',
   }
 });
 

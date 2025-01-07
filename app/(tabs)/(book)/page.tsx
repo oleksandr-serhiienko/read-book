@@ -37,8 +37,7 @@ export default function PageScreen() {
   const handleLocationChange = async (
     totalLocations: number,
     currentLocation: Location,
-    progress: number,
-    currentSection: Section | null
+    progress: number
   ) => {
     try {
       if (currentLocation && currentLocation.start) {

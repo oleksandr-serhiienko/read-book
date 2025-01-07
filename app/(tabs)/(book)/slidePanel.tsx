@@ -35,7 +35,6 @@ const SlidePanel: React.FC<SlidePanelProps> = ({
   const handleAddToDictionary = async() => {
     let noWord = await database.WordDoesNotExist(content.Original)
     if (!noWord){
-         console.log("Ooops");
          return;
       }
     if (!isSentenceTranslation && !isAdded) {
