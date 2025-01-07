@@ -3,6 +3,9 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LearningExerciseProps } from '../LearningFactory';
 import { learningStyles } from '../../shared/styles';
 import ExerciseContainer from '../../shared/exerciseContainer';
+import { Link } from 'expo-router';
+import { HelpCircle, Volume2, VolumeX } from 'lucide-react-native';
+import { Transform } from '@/components/transform';
 
 const localStyles = StyleSheet.create({
   originalContext: {
@@ -15,7 +18,37 @@ const localStyles = StyleSheet.create({
   highlightedWord: {
     fontWeight: 'bold',
     color: '#333',
+  },
+  controlsRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    width: '100%',
+    paddingHorizontal: 4,
+    marginBottom: 10,
+  },
+  controlButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+  },
+  speaking: {
+    backgroundColor: '#e0e0e0',
+  },
+  wordContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 10,
+  },
+  word: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
   }
+
 });
 
 const styles = {
@@ -27,7 +60,10 @@ const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
   card,
   onSuccess,
   onFailure,
-  otherCards
+  otherCards,
+  isSpeakerOn = false,
+  onToggleSpeaker = () => {},
+  isSpeaking = false
 }) => {
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
@@ -100,37 +136,70 @@ const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
     return formatSentence(card.info.sentence);
   };
 
-  return (
-    <ExerciseContainer>
-      <Text style={styles.word}>{card.word}</Text>
-      <Text style={styles.originalContext}>{getContextToShow()}</Text>
-
-      <View style={styles.optionsContainer}>
-        {options.map((option, index) => {
-          const isSelected = selectedOption === option;
-          const isCorrect = showResult && option === card.translations[0];
-          const isWrong = showResult && isSelected && !isCorrect;
-
-          return (
-            <TouchableOpacity
-              key={index}
-              style={[
-                styles.option,
-                isCorrect && styles.correctOption,
-                isWrong && styles.wrongOption,
-              ]}
-              onPress={() => handleOptionPress(option)}
-              disabled={showResult}
-            >
-              <Text style={styles.optionText}>
-                {option}
-              </Text>
+    return (
+      <ExerciseContainer>
+        <View style={styles.controlsRow}>
+          <Link
+            href={{
+              pathname: "/wordInfo",
+              params: {
+                content: JSON.stringify(Transform.fromCardToWord(card)),
+                added: 'true'
+              }
+            }}
+            asChild
+          >
+            <TouchableOpacity style={styles.controlButton}>
+              <HelpCircle size={24} color="#666" />
             </TouchableOpacity>
-          );
-        })}
-      </View>
-    </ExerciseContainer>
-  );
+          </Link>
+          <TouchableOpacity 
+            style={[styles.controlButton, isSpeaking && styles.speaking]}
+            onPress={onToggleSpeaker}
+            disabled={isSpeaking}
+          >
+            {isSpeakerOn ? (
+              <Volume2 size={24} color="#666" />
+            ) : (
+              <VolumeX size={24} color="#666" />
+            )}
+          </TouchableOpacity>
+        </View>
+    
+        <View style={styles.wordContainer}>
+          <Text style={styles.word}>{card.word}</Text>
+        </View>
+    
+        <Text style={styles.originalContext}>
+          {getContextToShow()}
+        </Text>
+    
+        <View style={styles.optionsContainer}>
+          {options.map((option, index) => {
+            const isSelected = selectedOption === option;
+            const isCorrect = showResult && option === card.translations[0];
+            const isWrong = showResult && isSelected && !isCorrect;
+    
+            return (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.option,
+                  isCorrect && styles.correctOption,
+                  isWrong && styles.wrongOption,
+                ]}
+                onPress={() => handleOptionPress(option)}
+                disabled={showResult}
+              >
+                <Text style={styles.optionText}>
+                  {option}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </ExerciseContainer>
+    );
 };
 
 export default WordToMeaningExercise;

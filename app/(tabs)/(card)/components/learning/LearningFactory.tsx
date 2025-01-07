@@ -11,7 +11,10 @@ export interface LearningExerciseProps {
   card: Card;
   onSuccess: () => void;
   onFailure: () => void;
-  otherCards: Card[];  
+  otherCards: Card[];
+  isSpeakerOn: boolean;
+  onToggleSpeaker: () => void;
+  isSpeaking: boolean;
 }
 
 type LearningComponentType = React.FC<LearningExerciseProps>;

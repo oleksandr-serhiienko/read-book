@@ -1,11 +1,18 @@
 // learning.tsx
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { Link, useLocalSearchParams } from 'expo-router';
 import { Card, database } from '@/components/db/database';
 import { useLanguage } from '@/app/languageSelector';
 import { LearningType, getLearningComponent } from './components/learning/LearningFactory';
 import { learningStyles } from './components/shared/styles';
+import AudioControl from '../(card)/components/AudioControl';
+import languages from '@/components/reverso/languages/entities/languages';
+import voices from '@/components/reverso/languages/voicesTranslate';
+import * as Speech from 'expo-speech';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { HelpCircle, Volume2, VolumeX } from 'lucide-react-native';
+import { Transform } from '@/components/transform';
 
 type ExerciseSession = {
   type: LearningType;
@@ -18,6 +25,9 @@ export default function LearningScreen() {
   const [allCards, setAllCards] = useState<Card[]>([]);
   const [currentSession, setCurrentSession] = useState<ExerciseSession | null>(null);
   const { sourceLanguage, targetLanguage } = useLanguage();
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isSpeakerOn, setIsSpeakerOn] = useState(true);
+  const languageKey = sourceLanguage.toLowerCase() as keyof typeof languages;
 
   const CARDS_PER_SESSION = 5; // Number of cards to show per exercise type
 
@@ -49,6 +59,66 @@ export default function LearningScreen() {
     loadCards();
   }, [sourceLanguage, targetLanguage]);
 
+  useEffect(() => {
+    const loadSpeakerState = async () => {
+      try {
+        const state = await AsyncStorage.getItem('speaker_state');
+        setIsSpeakerOn(state === null ? true : state === 'true');
+      } catch (error) {
+        console.error('Error loading speaker state:', error);
+      }
+    };
+    
+    loadSpeakerState();
+  }, []);
+  
+  // Add this function to save speaker state
+  const saveSpeakerState = async (state: boolean) => {
+    try {
+      await AsyncStorage.setItem('speaker_state', state.toString());
+    } catch (error) {
+      console.error('Error saving speaker state:', error);
+    }
+  };
+  
+  // Modify the handleSpeak function to check speaker state
+  const handleSpeak = (word: string): Promise<void> => {
+    return new Promise((resolve) => {
+      if (!isSpeakerOn) {
+        resolve();
+        return;
+      }
+      
+      setIsSpeaking(true);
+      try {
+        const options = {
+          language: voices[languageKey as keyof typeof voices] || 'en-US',
+          pitch: 1.0,
+          rate: 0.75,
+          onDone: () => {
+            setIsSpeaking(false);
+            resolve();
+          }
+        };    
+        Speech.speak(word, options);
+      } catch (error) {
+        console.error('Error speaking:', error);
+        setIsSpeaking(false);
+        resolve();
+      }
+    });
+  };
+  
+  // Add this function to toggle speaker
+  const toggleSpeaker = () => {
+    const newState = !isSpeakerOn;
+    setIsSpeakerOn(newState);
+    saveSpeakerState(newState);
+  };
+
+ 
+  
+  // Modify handleSuccess to properly await the speech
   const handleSuccess = async () => {
     if (!currentSession) return;
     
@@ -83,15 +153,15 @@ export default function LearningScreen() {
       currentCard.info.status = 'reviewing';
       await database.updateCard(currentCard);
       
-      // Update allCards to reflect the new status
       setAllCards(prevCards => {
         const updatedCards = prevCards.filter(card => card.id !== currentCard.id);
-        // If there are still learning cards, add them back to the pool
         const learningCards = updatedCards.filter(card => card.info?.status === 'learning');
         return learningCards;
       });
     }
   
+    // Wait for speech to complete before moving to next
+    await handleSpeak(currentCard.word);
     moveToNext();
   };
 
@@ -116,6 +186,7 @@ export default function LearningScreen() {
       currentCard.info.learningProgress[currentSession.type]++;
       await database.updateCard(currentCard);
     }
+    await handleSpeak(currentCard.word);
     moveToNext();
   };
 
@@ -203,13 +274,19 @@ export default function LearningScreen() {
           {currentSession.currentIndex + 1} of {currentSession.cards.length}
         </Text>
       </View>
-
+      <Text style={styles.progressText}>
+        {currentSession.currentIndex + 1} of {currentSession.cards.length}
+      </Text>
+  
       <View style={styles.cardContainer}>
-        <CurrentExercise
+      <CurrentExercise
           card={currentCard}
           onSuccess={handleSuccess}
           onFailure={handleFailure}
           otherCards={getOtherCards(currentCard)}
+          isSpeakerOn={isSpeakerOn}
+          onToggleSpeaker={toggleSpeaker}
+          isSpeaking={isSpeaking}
         />
       </View>
     </View>
@@ -217,17 +294,29 @@ export default function LearningScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f0f0f0',
-    padding: 16,
-  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 10,
     marginTop: 40,
+  },
+  controlButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  controlButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+  },
+  speaking: {
+    backgroundColor: '#e0e0e0',
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#f0f0f0',
+    padding: 16,
   },
   headerText: {
     fontSize: 24,
