@@ -5,17 +5,7 @@ import { cardStyles } from '../shared/styles';
 import { getWordHints } from '../../../../../components/db/nextWordToLearn';
 
 const renderHighlightedText = (text: string) => {
-  const parts = text.split(/(<em>.*?<\/em>)/);
-  return parts.map((part, index) => {
-    if (part.startsWith('<em>') && part.endsWith('</em>')) {
-      return (
-        <Text key={index} style={styles.boldText}>
-          {part.slice(4, -5)}
-        </Text>
-      );
-    }
-    return <Text key={index}>{part}</Text>;
-  });
+  return text.replace(/<\/?em>/g, '');
 };
 
 const localStyles = StyleSheet.create({

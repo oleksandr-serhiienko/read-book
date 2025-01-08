@@ -2,7 +2,6 @@ import React, { FC, useEffect, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
-import { renderHighlightedText } from '../shared/helpers';
 import { getWordHints } from '../../../../../components/db/nextWordToLearn';
 
 const localStyles = StyleSheet.create({
@@ -71,6 +70,11 @@ const ContextWithBlankOriginal: FC<CardProps> = ({ card, onShowAnswer, isFlippin
 
   const originalSentence = card.context[0].sentence.replace(/<\/?em>/g, '');
   const hints = getWordHints(card.word);
+
+  const renderHighlightedText = (text: string) => {
+    return text.replace(/<\/?em>/g, '');
+  };
+  
   
   return (
     <View style={styles.cardContent}>
@@ -99,7 +103,7 @@ const ContextWithBlankOriginal: FC<CardProps> = ({ card, onShowAnswer, isFlippin
       
       <View style={styles.translationContainer}>
         <Text style={styles.contextText}>
-          {renderHighlightedText(card.context[0].translation, styles)}
+          {renderHighlightedText(card.context[0].translation)}
         </Text>
       </View>
 
