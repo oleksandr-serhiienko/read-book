@@ -9,6 +9,7 @@ import { useLanguage } from '@/app/languageSelector';
 import { database } from '@/components/db/database';
 import ReaderComponent from './components/ReaderComponent';
 import ProgressBar from './components/ProgressBar';
+import DBReader from './components/DbReader';
 
 export default function PageScreen() {
   const { bookUrl, bookTitle, imageUrl } = useLocalSearchParams<{ bookUrl: string, bookTitle: string, imageUrl: string }>();
@@ -69,20 +70,26 @@ export default function PageScreen() {
     setIsPanelVisible(false);
   };
 
+  const isDBBook = bookUrl.endsWith('.db');
+
   return (
     <SafeAreaView style={styles.container}>
-      <ReaderProvider>
-        <ReaderComponent
-          bookUrl={bookUrl}
-          imageUrl={imageUrl}
-          bookTitle={bookTitle}
-          initialLocation={initialLocation}
-          onLocationChange={handleLocationChange}
-          setPanelContent={setPanelContent}
-          setIsPanelVisible={setIsPanelVisible}
-          onAnnotateSentenceRef={annotateRef}
-        />
-      </ReaderProvider>
+      {isDBBook ? (
+        <DBReader bookUrl={bookUrl} />
+      ) : (
+        <ReaderProvider>
+          <ReaderComponent
+            bookUrl={bookUrl}
+            imageUrl={imageUrl}
+            bookTitle={bookTitle}
+            initialLocation={initialLocation}
+            onLocationChange={handleLocationChange}
+            setPanelContent={setPanelContent}
+            setIsPanelVisible={setIsPanelVisible}
+            onAnnotateSentenceRef={annotateRef}
+          />
+        </ReaderProvider>
+      )}
       <SlidePanel
         isVisible={isPanelVisible}
         content={panelContent}
