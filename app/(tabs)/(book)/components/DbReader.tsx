@@ -248,20 +248,22 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.contentContainer}>
-        {sentences.map((sentence) => (
-          <React.Fragment key={sentence.sentence_number}>
-            {sentence.original_text === '···' ? (
-              <View style={styles.paragraphBreak} />
-            ) : (
-              <View style={styles.sentenceWrapper}>
-                {renderWords(sentence)}
-                {visibleTranslations.includes(sentence.sentence_number) && sentence.translation && (
-                  renderWords(sentence, true)
-                )}
-              </View>
-            )}
-          </React.Fragment>
-        ))}
+        <View style={styles.textFlow}>
+          {sentences.map((sentence) => (
+            <React.Fragment key={sentence.sentence_number}>
+              {sentence.original_text === '···' ? (
+                <View style={styles.paragraphBreak} />
+              ) : (
+                <View style={styles.sentenceWrapper}>
+                  {renderWords(sentence)}
+                  {visibleTranslations.includes(sentence.sentence_number) && sentence.translation && (
+                    renderWords(sentence, true)
+                  )}
+                </View>
+              )}
+            </React.Fragment>
+          ))}
+        </View>
       </ScrollView>
 
       <SlidePanel
@@ -282,13 +284,20 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 16,
   },
+  textFlow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sentenceWrapper: {
-    marginBottom: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginRight: 4,
   },
   sentenceContainer: {
     flexDirection: 'row',
@@ -303,7 +312,8 @@ const styles = StyleSheet.create({
     lineHeight: 24,
   },
   selectedWord: {
-    backgroundColor: '#e3f2fd',
+    backgroundColor: '#e6f3ff',
+    color: '#2196f3',
     borderRadius: 4,
   },
   translationWord: {
@@ -313,11 +323,13 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   highlightedNumber: {
-    backgroundColor: '#fff9c4',
+    backgroundColor: '#e6f3ff',
+    color: '#2196f3',
     borderRadius: 4,
   },
   highlightedTranslationNumber: {
-    backgroundColor: '#fff9c4',
+    backgroundColor: '#e6f3ff',
+    color: '#2196f3',
     borderRadius: 4,
   },
   paragraphBreak: {
