@@ -6,8 +6,9 @@ import {
   StyleSheet,
   ActivityIndicator,
   TouchableOpacity,
+  PanResponder,
 } from 'react-native';
-import SlidePanel from '../slidePanel'; 
+import SlidePanel from '../slidePanel';
 import { ResponseTranslation } from '@/components/reverso/reverso';
 
 interface DBSentence {
@@ -22,6 +23,11 @@ interface ParsedWord {
   isPunctuation: boolean;
 }
 
+interface Chapter {
+  chapterNumber: number;
+  sentences: DBSentence[];
+}
+
 interface DBReaderProps {
   bookUrl: string;
 }
@@ -33,43 +39,46 @@ interface SelectedWordInfo {
 }
 
 interface WordTranslation {
-    german_word: string;
-    english_translation: string;
+  german_word: string;
+  english_translation: string;
 }
-  
+
+const CHAPTER_MARKER = '[CHAPTER MARKER]';
+const SWIPE_THRESHOLD = 100;
 
 const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
-    const [sentences, setSentences] = useState<DBSentence[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [visibleTranslations, setVisibleTranslations] = useState<number[]>([]);
-    const [selectedWord, setSelectedWord] = useState<SelectedWordInfo | null>(null);
-    const [isPanelVisible, setIsPanelVisible] = useState(false);
-    const [currentWordTranslation, setCurrentWordTranslation] = useState<WordTranslation | null>(null);
-    const [panelContent, setPanelContent] = useState<ResponseTranslation | null>(null);
+  const [sentences, setSentences] = useState<DBSentence[]>([]);
+  const [chapters, setChapters] = useState<Chapter[]>([]);
+  const [currentChapter, setCurrentChapter] = useState(0);
+  const [isChapterLoading, setIsChapterLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [fontSize, setFontSize] = useState(16);
+  const [showControls, setShowControls] = useState(false);
+  const [visibleTranslations, setVisibleTranslations] = useState<number[]>([]);
+  const [selectedWord, setSelectedWord] = useState<SelectedWordInfo | null>(null);
+  const [isPanelVisible, setIsPanelVisible] = useState(false);
+  const [currentWordTranslation, setCurrentWordTranslation] = useState<WordTranslation | null>(null);
+  const [panelContent, setPanelContent] = useState<ResponseTranslation | null>(null);
+
+  useEffect(() => {
+    loadContent();
+  }, [bookUrl]);
+
+  useEffect(() => {
+    processChapters();
+  }, [sentences]);
 
   const parseText = (text: string): ParsedWord[] => {
-    // Split into parts but preserve punctuation
     const regex = /([,.!?])|(\s+)|([^,.!?\s]+\/\d+\/)|([^,.!?\s]+)/g;
     const matches = text.match(regex) || [];
     
     return matches.map(part => {
-      // Check if it's a punctuation mark
       if (/^[,.!?]$/.test(part)) {
-        return {
-          word: part,
-          number: null,
-          isPunctuation: true
-        };
+        return { word: part, number: null, isPunctuation: true };
       }
-      // Check if it's just whitespace
       if (/^\s+$/.test(part)) {
-        return {
-          word: part,
-          number: null,
-          isPunctuation: true
-        };
+        return { word: part, number: null, isPunctuation: true };
       }
-      // Check if it's a numbered word
       const match = part.match(/(.+?)\/(\d+)\//);
       if (match) {
         return {
@@ -78,21 +87,46 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
           isPunctuation: false
         };
       }
-      // Regular word
-      return {
-        word: part,
-        number: null,
-        isPunctuation: false
-      };
+      return { word: part, number: null, isPunctuation: false };
     });
   };
 
-  useEffect(() => {
-    loadContent();
-  }, [bookUrl]);
+  const processChapters = () => {
+    const newChapters: Chapter[] = [];
+    let currentChapterSentences: DBSentence[] = [];
+    let chapterCount = 0;
+
+    sentences.forEach((sentence) => {
+      if (sentence.original_text.includes(CHAPTER_MARKER)) {
+        if (currentChapterSentences.length > 0) {
+          newChapters.push({
+            chapterNumber: chapterCount,
+            sentences: currentChapterSentences,
+          });
+          currentChapterSentences = [];
+        }
+        chapterCount++;
+        const cleanText = sentence.original_text.replace(CHAPTER_MARKER, '').trim();
+        currentChapterSentences.push({
+          ...sentence,
+          original_text: cleanText,
+        });
+      } else {
+        currentChapterSentences.push(sentence);
+      }
+    });
+
+    if (currentChapterSentences.length > 0) {
+      newChapters.push({
+        chapterNumber: chapterCount,
+        sentences: currentChapterSentences,
+      });
+    }
+
+    setChapters(newChapters);
+  };
 
   const loadContent = async () => {
-    console.log('[DBReader] Loading content');
     try {
       setIsLoading(true);
       const dbUrl = bookUrl.replace('/books/', '/db/');
@@ -111,26 +145,19 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
 
   const loadWordTranslation = async (word: string) => {
     try {
-      // Get the filename from the bookUrl
       const urlParts = bookUrl.split('/');
       const fileName = urlParts[urlParts.length - 1];
       const language = urlParts[urlParts.length - 2];
-      
-      // Construct the translation URL using the same database file
       const translationUrl = `${bookUrl.split('/books/')[0]}/translations/${language}/${fileName}/${word}`;
-      console.log('[DBReader] Fetching translation from:', translationUrl);
       
       const response = await fetch(translationUrl);
       if (!response.ok) {
         if (response.status === 404) {
-          console.log('[DBReader] No translation found for:', word);
           return null;
         }
         throw new Error('Failed to fetch translation');
       }
-      const data = await response.json();
-      console.log('[DBReader] Translation received:', data);
-      return data;
+      return await response.json();
     } catch (error) {
       console.error('Error fetching word translation:', error);
       return null;
@@ -143,14 +170,12 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
     number: number | null,
     word: string
   ) => {
-    console.log('[DBReader] Word pressed:', { sentenceNumber, wordIndex, number, word });
     setSelectedWord({ sentenceNumber, wordIndex, number });
 
     const cleanWord = word.toLowerCase().trim();
     if (cleanWord) {
       const translation = await loadWordTranslation(cleanWord);
       if (translation) {
-        // Create a ResponseTranslation object
         const responseTranslation: ResponseTranslation = {
           Original: cleanWord,
           Translations: [{
@@ -171,13 +196,7 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
     }
   };
 
-  const handlePanelClose = () => {
-    setIsPanelVisible(false);
-    setPanelContent(null);
-  };
-
   const handleSentenceLongPress = (sentenceNumber: number) => {
-    console.log('[DBReader] Sentence long pressed:', sentenceNumber);
     setVisibleTranslations(prev => {
       if (prev.includes(sentenceNumber)) {
         return prev.filter(num => num !== sentenceNumber);
@@ -186,9 +205,43 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
     });
   };
 
+  const panResponder = PanResponder.create({
+    onStartShouldSetPanResponder: (_, gestureState) => false,
+    onMoveShouldSetPanResponder: (_, gestureState) => {
+      const dx = Math.abs(gestureState.dx);
+      const dy = Math.abs(gestureState.dy);
+      return dx > dy && dx > 10;
+    },
+    onPanResponderRelease: async (_, gestureState) => {
+      if (Math.abs(gestureState.dx) > SWIPE_THRESHOLD) {
+        setIsChapterLoading(true);
+        if (gestureState.dx > 0 && currentChapter > 0) {
+          setCurrentChapter(prev => prev - 1);
+        } else if (gestureState.dx < 0 && currentChapter < chapters.length - 1) {
+          setCurrentChapter(prev => prev + 1);
+        }
+        // Add a small delay to ensure smooth transition
+        await new Promise(resolve => setTimeout(resolve, 100));
+        setIsChapterLoading(false);
+      }
+    },
+  });
+
+  const increaseFontSize = () => {
+    setFontSize(prevSize => Math.min(prevSize + 2, 32));
+  };
+
+  const decreaseFontSize = () => {
+    setFontSize(prevSize => Math.max(prevSize - 2, 12));
+  };
+
+  const handlePanelClose = () => {
+    setIsPanelVisible(false);
+    setPanelContent(null);
+  };
+
   const renderWords = (sentence: DBSentence, isTranslation: boolean = false) => {
     const parsedWords = parseText(isTranslation ? sentence.translation! : sentence.original_text);
-    const isTranslationVisible = visibleTranslations.includes(sentence.sentence_number);
 
     return (
       <View style={styles.sentenceContainer}>
@@ -203,7 +256,13 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
 
           if (parsed.isPunctuation) {
             return (
-              <Text key={index} style={isTranslation ? styles.translationWord : styles.word}>
+              <Text 
+                key={index} 
+                style={[
+                  isTranslation ? styles.translationWord : styles.word,
+                  { fontSize }
+                ]}
+              >
                 {parsed.word}
               </Text>
             );
@@ -225,6 +284,7 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
             >
               <Text style={[
                 isTranslation ? styles.translationWord : styles.word,
+                { fontSize },
                 isSelectedWord && styles.selectedWord,
                 shouldHighlight && (isTranslation ? styles.highlightedTranslationNumber : styles.highlightedNumber)
               ]}>
@@ -245,43 +305,91 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
     );
   }
 
+  const currentChapterContent = chapters[currentChapter]?.sentences || [];
+
   return (
-    <View style={styles.container}>
-      <ScrollView contentContainerStyle={styles.contentContainer}>
-        <View style={styles.textFlow}>
-          {sentences.map((sentence) => (
-            <React.Fragment key={sentence.sentence_number}>
-              {sentence.original_text === '···' ? (
-                <View style={styles.paragraphBreak} />
-              ) : (
-                <View style={styles.sentenceWrapper}>
-                  {renderWords(sentence)}
-                  {visibleTranslations.includes(sentence.sentence_number) && sentence.translation && (
-                    renderWords(sentence, true)
-                  )}
-                </View>
-              )}
-            </React.Fragment>
-          ))}
+    <View style={styles.mainContainer}>
+      <TouchableOpacity 
+        style={styles.settingsButton}
+        onPress={() => setShowControls(!showControls)}
+      >
+        <Text style={styles.settingsButtonText}>⚙️</Text>
+      </TouchableOpacity>
+      
+      {showControls && (
+        <View style={styles.settingsContainer}>
+          <View style={styles.fontControlsContainer}>
+            <TouchableOpacity
+              onPress={decreaseFontSize}
+              style={styles.fontButton}
+            >
+              <Text style={styles.fontButtonText}>A-</Text>
+            </TouchableOpacity>
+            <Text style={styles.fontSizeText}>{fontSize}</Text>
+            <TouchableOpacity
+              onPress={increaseFontSize}
+              style={styles.fontButton}
+            >
+              <Text style={styles.fontButtonText}>A+</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <View style={styles.chapterIndicator}>
+            <Text style={styles.chapterText}>
+              Chapter {currentChapter + 1} of {chapters.length}
+            </Text>
+          </View>
         </View>
-      </ScrollView>
+      )}
+
+      <View
+        style={styles.contentContainer}
+        {...panResponder.panHandlers}
+      >
+        {isChapterLoading && (
+          <View style={styles.chapterLoadingOverlay}>
+            <ActivityIndicator size="large" color="#0000ff" />
+          </View>
+        )}
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+          <View style={styles.textFlow}>
+            {currentChapterContent.map((sentence) => (
+              <React.Fragment key={sentence.sentence_number}>
+                {sentence.original_text === '···' ? (
+                  <View style={styles.paragraphBreak} />
+                ) : (
+                  <View style={styles.sentenceWrapper}>
+                    {renderWords(sentence)}
+                    {visibleTranslations.includes(sentence.sentence_number) && sentence.translation && (
+                      renderWords(sentence, true)
+                    )}
+                  </View>
+                )}
+              </React.Fragment>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
 
       <SlidePanel
         isVisible={isPanelVisible}
         onClose={handlePanelClose}
         content={panelContent}
-        onAnnotateSentence={()=>{}}
+        onAnnotateSentence={() => {}}
       />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  mainContainer: {
     flex: 1,
     backgroundColor: '#ffffff',
   },
   contentContainer: {
+    flex: 1,
+  },
+  scrollContent: {
     padding: 16,
   },
   textFlow: {
@@ -307,34 +415,100 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   word: {
-    fontSize: 16,
     color: '#333',
     lineHeight: 24,
   },
   selectedWord: {
     backgroundColor: '#e6f3ff',
-    color: '#2196f3',
+    color: '#333',
     borderRadius: 4,
   },
   translationWord: {
-    fontSize: 15,
     color: '#666',
     fontStyle: 'italic',
     lineHeight: 22,
   },
   highlightedNumber: {
     backgroundColor: '#e6f3ff',
-    color: '#2196f3',
+    color: '#333',
     borderRadius: 4,
   },
   highlightedTranslationNumber: {
     backgroundColor: '#e6f3ff',
-    color: '#2196f3',
+    color: '#666',
     borderRadius: 4,
   },
   paragraphBreak: {
     width: '100%',
     height: 24,
+  },
+  settingsButton: {
+    position: 'absolute',
+    top: 10,
+    right: 10,
+    zIndex: 1,
+    padding: 8,
+    backgroundColor: 'rgba(245, 245, 245, 0.9)',
+    borderRadius: 20,
+  },
+  settingsButtonText: {
+    fontSize: 20,
+  },
+  settingsContainer: {
+    backgroundColor: '#f5f5f5',
+    padding: 10,
+  },
+  fontControlsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  fontButton: {
+    padding: 8,
+    backgroundColor: '#007AFF',
+    borderRadius: 4,
+    marginHorizontal: 10,
+  },
+  fontButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  chapterLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  sentenceText: {
+    lineHeight: 24,
+    color: '#333',
+  },
+  paragraphBreakContent: {
+    flex: 1,
+  },
+  fontSizeText: {
+    fontSize: 16,
+    marginHorizontal: 10,
+  },
+  chapterIndicator: {
+    padding: 10,
+    alignItems: 'center',
+    backgroundColor: '#f5f5f5',
+  },
+  chapterText: {
+    fontSize: 14,
+    color: '#666',
   },
 });
 
