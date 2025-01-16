@@ -75,7 +75,7 @@ export default function PageScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {isDBBook ? (
-        <DBReader bookUrl={bookUrl} />
+        <DBReader bookUrl={bookUrl} bookTitle={bookTitle} imageUrl={imageUrl}/>
       ) : (
         <ReaderProvider>
           <ReaderComponent

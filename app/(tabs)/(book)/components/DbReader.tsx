@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,9 @@ import {
 } from 'react-native';
 import SlidePanel from '../slidePanel';
 import { ResponseTranslation } from '@/components/reverso/reverso';
+import { BookDatabase } from '@/components/db/bookDatabase';
+import { database } from '@/components/db/database';
+import { useLanguage } from '@/app/languageSelector';
 
 interface DBSentence {
   sentence_number: number;
@@ -30,6 +33,8 @@ interface Chapter {
 
 interface DBReaderProps {
   bookUrl: string;
+  bookTitle: string;
+  imageUrl: string;
 }
 
 interface SelectedWordInfo {
@@ -46,12 +51,13 @@ interface WordTranslation {
 const CHAPTER_MARKER = '[CHAPTER MARKER]';
 const SWIPE_THRESHOLD = 100;
 
-const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
+const DBReader: React.FC<DBReaderProps> = ({  bookUrl, bookTitle, imageUrl  }) => {
   const [sentences, setSentences] = useState<DBSentence[]>([]);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [currentChapter, setCurrentChapter] = useState(0);
   const [isChapterLoading, setIsChapterLoading] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const { sourceLanguage, targetLanguage } = useLanguage();
   const [fontSize, setFontSize] = useState(16);
   const [showControls, setShowControls] = useState(false);
   const [visibleTranslations, setVisibleTranslations] = useState<number[]>([]);
@@ -59,10 +65,17 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [currentWordTranslation, setCurrentWordTranslation] = useState<WordTranslation | null>(null);
   const [panelContent, setPanelContent] = useState<ResponseTranslation | null>(null);
+  const bookDatabaseRef = useRef<BookDatabase | null>(null);
 
   useEffect(() => {
     loadContent();
-  }, [bookUrl]);
+    return () => {
+      // Cleanup database connection when component unmounts
+      if (bookDatabaseRef.current) {
+        bookDatabaseRef.current.close();
+      }
+    };
+  }, [bookUrl, bookTitle]);
 
   useEffect(() => {
     processChapters();
@@ -129,15 +142,51 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
   const loadContent = async () => {
     try {
       setIsLoading(true);
-      const dbUrl = bookUrl.replace('/books/', '/db/');
-      const response = await fetch(dbUrl);
-      if (!response.ok) {
-        throw new Error('Failed to fetch content');
+      
+      // Initialize database
+      const bookDatabase = new BookDatabase(bookTitle);
+      const dbInitialized = await bookDatabase.initialize();
+      
+      // If database doesn't exist or is corrupted, download it
+      if (!dbInitialized) {
+        console.log("Database needs to be downloaded");
+        await bookDatabase.downloadDatabase(bookUrl);
+        // Try to initialize again after download
+        const initAfterDownload = await bookDatabase.initialize();
+        
+        if (!initAfterDownload) {
+          throw new Error("Failed to initialize database after download");
+        }
       }
-      const data = await response.json();
+      console.log("Test here")
+      let existingBook = await database.getBookByName(bookTitle, sourceLanguage.toLowerCase(),);
+      console.log("Here: " + existingBook);
+      if (!existingBook){
+        console.log("Did I ?" + existingBook);
+        const book = {
+          name: bookTitle,
+          sourceLanguage: sourceLanguage.toLowerCase(),
+          updateDate: new Date(),
+          lastreadDate: new Date(),
+          bookUrl: bookUrl,
+          imageUrl: imageUrl,
+          progress: 0
+        };
+        await database.insertBook(book);
+        let books = await database.getAllBooks(sourceLanguage.toLowerCase());
+        console.log(books.map(b=> b.name));
+      }
+      
+      
+      // Get sentences from local database
+      const data = await bookDatabase.getSentences();
       setSentences(data);
+      
+      // Store database reference
+      bookDatabaseRef.current = bookDatabase;
     } catch (error) {
       console.error('Error loading database content:', error);
+      // You might want to show an error message to the user here
     } finally {
       setIsLoading(false);
     }
@@ -145,25 +194,16 @@ const DBReader: React.FC<DBReaderProps> = ({ bookUrl }) => {
 
   const loadWordTranslation = async (word: string) => {
     try {
-      const urlParts = bookUrl.split('/');
-      const fileName = urlParts[urlParts.length - 1];
-      const language = urlParts[urlParts.length - 2];
-      const translationUrl = `${bookUrl.split('/books/')[0]}/translations/${language}/${fileName}/${word}`;
-      
-      const response = await fetch(translationUrl);
-      if (!response.ok) {
-        if (response.status === 404) {
-          return null;
-        }
-        throw new Error('Failed to fetch translation');
+      if (!bookDatabaseRef.current) {
+        throw new Error('Database not initialized');
       }
-      return await response.json();
+      
+      return await bookDatabaseRef.current.getWordTranslation(word);
     } catch (error) {
       console.error('Error fetching word translation:', error);
       return null;
     }
   };
-
   const handleWordPress = async (
     sentenceNumber: number, 
     wordIndex: number, 
