@@ -10,6 +10,7 @@ import { database } from '@/components/db/database';
 import ReaderComponent from './components/ReaderComponent';
 import ProgressBar from './components/ProgressBar';
 import DBReader from './components/DbReader';
+import SimpleReader from './components/SimpleReader';
 
 export default function PageScreen() {
   const { bookUrl, bookTitle, imageUrl } = useLocalSearchParams<{ bookUrl: string, bookTitle: string, imageUrl: string }>();
@@ -75,7 +76,11 @@ export default function PageScreen() {
   return (
     <SafeAreaView style={styles.container}>
       {isDBBook ? (
-        <DBReader bookUrl={bookUrl} bookTitle={bookTitle} imageUrl={imageUrl}/>
+        <SimpleReader 
+          bookUrl={bookUrl} 
+          bookTitle={bookTitle} 
+          imageUrl={imageUrl}
+        />
       ) : (
         <ReaderProvider>
           <ReaderComponent

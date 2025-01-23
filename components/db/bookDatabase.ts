@@ -3,8 +3,10 @@ import * as FileSystem from 'expo-file-system';
 
 export interface DBSentence {
   sentence_number: number;
+  chapter_id: number;
   original_text: string;
-  translation: string | null;
+  original_parsed_text: string | null;
+  translation_parsed_text: string | null;
 }
 
 export interface WordTranslation {
@@ -185,11 +187,48 @@ export class BookDatabase {
 
     try {
       const result = await this.db.getAllAsync<DBSentence>(
-        'SELECT sentence_number, original_text, translation FROM book_sentences ORDER BY sentence_number'
+        `SELECT sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
+         FROM book_sentences 
+         ORDER BY sentence_number`
       );
       return result;
     } catch (error) {
       console.error('Error fetching sentences:', error);
+      throw error;
+    }
+  }
+
+  async getChapterSentences(chapterNumber: number): Promise<DBSentence[]> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      return await this.db.getAllAsync<DBSentence>(
+        `SELECT sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
+         FROM book_sentences 
+         WHERE chapter_id = ? AND original_text NOT IN ('···', '-')
+         ORDER BY sentence_number`,
+        [chapterNumber]
+      );
+    } catch (error) {
+      console.error('Error fetching chapter sentences:', error);
+      throw error;
+    }
+  }
+
+  async getTotalChapters(): Promise<number> {
+    if (!this.db) {
+      throw new Error('Database not initialized');
+    }
+
+    try {
+      const result = await this.db.getFirstAsync<{ count: number }>(
+        'SELECT COUNT(DISTINCT chapter_id) as count FROM book_sentences'
+      );
+      return result?.count ?? 0;
+    } catch (error) {
+      console.error('Error getting total chapters:', error);
       throw error;
     }
   }

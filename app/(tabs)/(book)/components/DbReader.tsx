@@ -10,15 +10,9 @@ import {
 } from 'react-native';
 import SlidePanel from '../slidePanel';
 import { ResponseTranslation } from '@/components/reverso/reverso';
-import { BookDatabase } from '@/components/db/bookDatabase';
+import { BookDatabase, DBSentence } from '@/components/db/bookDatabase';
 import { database } from '@/components/db/database';
 import { useLanguage } from '@/app/languageSelector';
-
-interface DBSentence {
-  sentence_number: number;
-  original_text: string;
-  translation: string | null;
-}
 
 interface ParsedWord {
   word: string;
@@ -179,7 +173,7 @@ const DBReader: React.FC<DBReaderProps> = ({  bookUrl, bookTitle, imageUrl  }) =
       
       
       // Get sentences from local database
-      const data = await bookDatabase.getSentences();
+      const data = await bookDatabase.getChapterSentences(1);
       setSentences(data);
       
       // Store database reference
@@ -281,7 +275,7 @@ const DBReader: React.FC<DBReaderProps> = ({  bookUrl, bookTitle, imageUrl  }) =
   };
 
   const renderWords = (sentence: DBSentence, isTranslation: boolean = false) => {
-    const parsedWords = parseText(isTranslation ? sentence.translation! : sentence.original_text);
+    const parsedWords = parseText(isTranslation ? sentence.translation_parsed_text! : sentence.original_text);
 
     return (
       <View style={styles.sentenceContainer}>
