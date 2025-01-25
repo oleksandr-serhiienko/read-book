@@ -20,30 +20,33 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
       return { original: [], translation: [] };
     }
 
-    const parseText = (text: string, isSentenceNumber: number): ParsedWord[] => {
+    const parseText = (text: string, sentenceNumber: number): ParsedWord[] => {
       const textParts = text.split(/(\s+)/);
       return textParts.map((part, index) => {
         const isSpace = /^\s+$/.test(part);
         if (isSpace) {
           return {
             word: part,
-            sentenceNumber: isSentenceNumber,
+            sentenceNumber,
             wordIndex: index,
             linkedNumbers: [],
             linkedWordIndices: [],
             isSpace: true
           };
         }
-
+    
+        // More detailed number parsing
         const numberMatches = part.match(/\/(\d+)\//g);
         const linkedNumbers = numberMatches 
           ? numberMatches.map(n => parseInt(n.replace(/\//g, '')))
           : [];
-        const cleanWord = part.replace(/\/\d+\//g, '');
-
+        const cleanWord = part.replace(/\/\d+\//g, '').trim();
+    
+        console.log(`Parsing word: ${cleanWord}, numbers: ${linkedNumbers.join(',')}`);
+    
         return {
           word: cleanWord,
-          sentenceNumber: isSentenceNumber,
+          sentenceNumber,
           wordIndex: index,
           linkedNumbers,
           linkedWordIndices: [],
@@ -62,12 +65,24 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
     const parsed = parseSentenceText(sentence.sentence_number);
     const { original, translation } = parsed;
 
+    // Debug logging
+    console.log("Original sentence parsing:", original.map(w => ({
+      word: w.word,
+      linkedNumbers: w.linkedNumbers
+    })));
+    console.log("Translation parsing:", translation.map(w => ({
+      word: w.word,
+      linkedNumbers: w.linkedNumbers
+    })));
+
+    // Establish bidirectional links between words
     original.forEach((origWord, origIndex) => {
       if (origWord.linkedNumbers.length > 0) {
         translation.forEach((transWord, transIndex) => {
           if (origWord.linkedNumbers.some(n => transWord.linkedNumbers.includes(n))) {
             origWord.linkedWordIndices.push(transIndex);
             transWord.linkedWordIndices.push(origIndex);
+            console.log(`Linked words: ${origWord.word} <-> ${transWord.word}`);
           }
         });
       }

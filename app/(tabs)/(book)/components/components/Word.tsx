@@ -20,31 +20,26 @@ export const Word: React.FC<WordProps> = ({
   onPress,
   onLongPress,
 }) => {
-  const handleWordPress = async () => {
-    console.log("Word: " + word.word);
-    if (word.isSpace) return;
-    
-    try {
-      // Call onPress to ensure sentence is parsed
-      await onPress(word.word, sentence, word.wordIndex);
-      
-      // Always emit panel event after onPress
-      const responseTranslation = {
-        Original: word.word,
-        Translations: [{
-          word: "translation", // Replace with actual translation logic
-          pos: ""
-        }],
-        Contexts: [],
-        Book: "",
-        TextView: ""
-      };
+  if (word.isSpace) {
+    return <Text style={styles.space}> </Text>;
+  }
 
-      console.log("Emitting panel event for word:", word.word);
-      SlidePanelEvents.emit(responseTranslation, true);
-    } catch (error) {
-      console.error('Error handling word press:', error);
-    }
+  const handleWordPress = () => {
+    onPress(word.word, sentence, word.wordIndex);
+    
+    // Emit panel event
+    const responseTranslation = {
+      Original: word.word,
+      Translations: [{
+        word: "translation",
+        pos: ""
+      }],
+      Contexts: [],
+      Book: "",
+      TextView: ""
+    };
+    
+    SlidePanelEvents.emit(responseTranslation, true);
   };
 
   return (
@@ -53,7 +48,6 @@ export const Word: React.FC<WordProps> = ({
       onLongPress={onLongPress}
       style={[
         styles.word,
-        word.isSpace && styles.space,
         isHighlighted && styles.highlightedWord
       ]}
     >

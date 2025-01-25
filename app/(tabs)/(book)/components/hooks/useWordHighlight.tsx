@@ -38,22 +38,25 @@ export const useWordHighlight = (
       parsed = parsedSentences.get(sentence.sentence_number)!;
     }
     
-    // Find the exact word by matching both content and index
-    const parsedWord = parsed.original.find(w => 
+    // Find the word in both original and translation
+    const foundWord = parsed.original.find(w => 
       w.word === word && 
-      !w.isSpace && 
-      w.wordIndex === wordIndex  // Strict index matching
+      w.wordIndex === wordIndex
+    ) || parsed.translation.find(w => 
+      w.word === word && 
+      w.wordIndex === wordIndex
     );
     
-    if (parsedWord) {
-      console.log(`Found parsed word at index ${parsedWord.wordIndex}`);
+    if (foundWord) {
+      console.log(`Found word: ${foundWord.word} with linked numbers: ${foundWord.linkedNumbers}`);
       setHighlightState({
         sentenceNumber: sentence.sentence_number,
-        linkedNumbers: parsedWord.linkedNumbers,
-        wordIndex: wordIndex  // Store the wordIndex in state
+        linkedNumbers: foundWord.linkedNumbers,
+        wordIndex: wordIndex
       });
     }
   }, [parseSentence, parsedSentences, updateParsedSentences]);
+
 
   const handleLongPress = useCallback((sentence: DBSentence) => {
     const sentenceNumber = sentence.sentence_number;
@@ -70,8 +73,13 @@ export const useWordHighlight = (
   }, [parseSentence, parsedSentences, updateParsedSentences]);
 
   const isWordHighlighted = useCallback((word: ParsedWord) => {
-    return highlightState.sentenceNumber === word.sentenceNumber &&
-           word.linkedNumbers.some(n => highlightState.linkedNumbers.includes(n));
+    if (!highlightState.sentenceNumber || !word.linkedNumbers.length) return false;
+    
+    return (
+      highlightState.sentenceNumber === word.sentenceNumber &&
+      // Check if any of the word's linked numbers match the highlighted numbers
+      word.linkedNumbers.some(num => highlightState.linkedNumbers.includes(num))
+    );
   }, [highlightState]);
 
   return {

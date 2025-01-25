@@ -11,57 +11,57 @@ export const Sentence: React.FC<SentenceProps> = ({
   isWordHighlighted
 }) => (
   <View>
-    <Text style={styles.paragraph} onLongPress={onLongPress}>
-      {parsedSentence ? (
-        parsedSentence.original.map((word, index) => (
+  <Text style={styles.paragraph} onLongPress={onLongPress}>
+    {parsedSentence ? (
+      parsedSentence.original.map((word, index) => (
+        <Word
+          key={`original-${index}`}
+          word={word}
+          sentence={sentence}
+          isHighlighted={isWordHighlighted(word)}
+          onPress={onWordPress}
+          onLongPress={onLongPress}
+        />
+      ))
+    ) : (
+      sentence.original_text.split(/(\s+)/).map((word, index) => {
+        const isSpace = /^\s+$/.test(word);
+        const parsedWord: ParsedWord = {
+          word,
+          sentenceNumber: sentence.sentence_number,
+          wordIndex: index,
+          linkedNumbers: [],
+          linkedWordIndices: [],
+          isSpace
+        };
+        return (
           <Word
-            key={index}
-            word={word}
+            key={`unparsed-${index}`}
+            word={parsedWord}
             sentence={sentence}
-            isHighlighted={isWordHighlighted(word)}
+            isHighlighted={false}
             onPress={onWordPress}
             onLongPress={onLongPress}
           />
-        ))
-      ) : (
-        sentence.original_text.split(/(\s+)/).map((word, index) => {
-          const isSpace = /^\s+$/.test(word);
-          const parsedWord: ParsedWord = {
-            word,
-            sentenceNumber: sentence.sentence_number,
-            wordIndex: index,
-            linkedNumbers: [],
-            linkedWordIndices: [],
-            isSpace
-          };
-          return (
-            <Word
-              key={index}
-              word={parsedWord}
-              sentence={sentence}
-              isHighlighted={false}
-              onPress={onWordPress}
-              onLongPress={onLongPress}
-            />
-          );
-        })
-      )}
-    </Text>
-    
-    {isSelected && parsedSentence && (
-      <Text style={styles.translationText}>
-        {parsedSentence.translation.map((word, index) => (
-          <Word
-            key={index}
-            word={word}
-            sentence={sentence}
-            isHighlighted={isWordHighlighted(word)}
-            onPress={onWordPress}
-          />
-        ))}
-      </Text>
+        );
+      })
     )}
-  </View>
+  </Text>
+  
+  {isSelected && parsedSentence && (
+    <Text style={[styles.translationText, { pointerEvents: 'auto' }]}>
+      {parsedSentence.translation.map((word, index) => (
+        <Word
+          key={`translation-${index}`}
+          word={word}
+          sentence={sentence}
+          isHighlighted={isWordHighlighted(word)}
+          onPress={onWordPress}
+        />
+      ))}
+    </Text>
+  )}
+ </View>
 );
   const styles = StyleSheet.create({
     word: {
