@@ -21,7 +21,6 @@ export const Sentence: React.FC<SentenceProps> = ({
             isHighlighted={isWordHighlighted(word)}
             onPress={onWordPress}
             onLongPress={onLongPress}
-            isParsed={true}  // This sentence is parsed
           />
         ))
       ) : (
@@ -43,7 +42,6 @@ export const Sentence: React.FC<SentenceProps> = ({
               isHighlighted={false}
               onPress={onWordPress}
               onLongPress={onLongPress}
-              isParsed={false}  // This sentence is not yet parsed
             />
           );
         })
@@ -59,7 +57,6 @@ export const Sentence: React.FC<SentenceProps> = ({
             sentence={sentence}
             isHighlighted={isWordHighlighted(word)}
             onPress={onWordPress}
-            isParsed={true}  // Translation is always parsed when shown
           />
         ))}
       </Text>
