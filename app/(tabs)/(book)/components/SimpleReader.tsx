@@ -1,5 +1,5 @@
 // SimpleReader.tsx
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { View, ScrollView, ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { useChapterData } from './hooks/useChapterData';
 import { ChapterNavigation } from './components/ChapterNavigation';
@@ -8,6 +8,8 @@ import { useParsedSentences } from './hooks/useParsedSentences';
 import { useWordHighlight } from './hooks/useWordHighlight';
 import { DBSentence } from '@/components/db/bookDatabase';
 import { ParsedSentence } from './types/types';
+import { PanelContent, SlidePanelEvents } from './events/slidePanelEvents';
+import SlidePanel from '../slidePanel';
 
 interface DBReaderProps {
   bookUrl: string;
@@ -28,6 +30,34 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
   } = useChapterData({ bookTitle, bookUrl });
 
   const { parsedSentences, updateParsedSentences, parseSentence } = useParsedSentences(chapterSentences);
+  const [isPanelVisible, setIsPanelVisible] = useState(false);
+  const [panelContent, setPanelContent] = useState<PanelContent>(null);
+
+// Update the useEffect in SimpleReader
+useEffect(() => {
+  console.log('[SimpleReader] Setting up panel event subscription');
+  
+  // Reset the events system on mount
+  SlidePanelEvents.reset();
+  
+  const unsubscribe = SlidePanelEvents.subscribe((content, isVisible) => {
+    console.log('[SimpleReader] Received panel event:', { contentExists: !!content, isVisible });
+    requestAnimationFrame(() => {
+      setPanelContent(content);
+      setIsPanelVisible(isVisible);
+    });
+  });
+
+  // Verify subscription
+  if (!SlidePanelEvents.hasListeners()) {
+    console.error('[SimpleReader] Failed to subscribe to panel events');
+  }
+
+  return () => {
+    console.log('[SimpleReader] Cleaning up panel event subscription');
+    unsubscribe();
+  };
+}, []);
 
   const parsedSentencesState = {
     parsedSentences,
@@ -82,6 +112,12 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
           />
         ))}
       </ScrollView>
+      <SlidePanel
+        isVisible={isPanelVisible}
+        content={panelContent}
+        onClose={() => SlidePanelEvents.emit(null, false)}
+        onAnnotateSentence={() => {}}
+      />
     </View>
   );
 };
