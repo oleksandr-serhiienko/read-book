@@ -1,4 +1,4 @@
-// hooks/useWordHighlight.ts
+// useWordHighlight.ts
 import { useState, useCallback } from 'react';
 import { DBSentence } from '@/components/db/bookDatabase';
 import { ParsedSentence, ParsedWord } from '../types/types';
@@ -6,6 +6,7 @@ import { ParsedSentence, ParsedWord } from '../types/types';
 interface HighlightState {
   sentenceNumber: number | null;
   linkedNumbers: number[];
+  wordIndex: number | null; 
 }
 
 interface ParsedSentencesState {
@@ -21,34 +22,36 @@ export const useWordHighlight = (
 
   const [highlightState, setHighlightState] = useState<HighlightState>({
     sentenceNumber: null,
-    linkedNumbers: []
+    linkedNumbers: [],
+    wordIndex: null  
   });
   const [selectedSentence, setSelectedSentence] = useState<number | null>(null);
 
-  const handleWordPress = useCallback((word: string, sentence: DBSentence) => {
+  const handleWordPress = useCallback((word: string, sentence: DBSentence, wordIndex: number) => {
+    console.log(`Processing word: ${word} at index: ${wordIndex}`);
+    
+    let parsed;
     if (!parsedSentences.has(sentence.sentence_number)) {
-      // Parse and store the sentence if not already parsed
-      const parsed = parseSentence(sentence);
+      parsed = parseSentence(sentence);
       updateParsedSentences(sentence, parsed);
-      
-      // Find and highlight the clicked word
-      const parsedWord = parsed.original.find(w => w.word === word && !w.isSpace);
-      if (parsedWord) {
-        setHighlightState({
-          sentenceNumber: sentence.sentence_number,
-          linkedNumbers: parsedWord.linkedNumbers
-        });
-      }
     } else {
-      // Use existing parsed sentence
-      const parsedSentence = parsedSentences.get(sentence.sentence_number);
-      const parsedWord = parsedSentence?.original.find(w => w.word === word && !w.isSpace);
-      if (parsedWord) {
-        setHighlightState({
-          sentenceNumber: sentence.sentence_number,
-          linkedNumbers: parsedWord.linkedNumbers
-        });
-      }
+      parsed = parsedSentences.get(sentence.sentence_number)!;
+    }
+    
+    // Find the exact word by matching both content and index
+    const parsedWord = parsed.original.find(w => 
+      w.word === word && 
+      !w.isSpace && 
+      w.wordIndex === wordIndex  // Strict index matching
+    );
+    
+    if (parsedWord) {
+      console.log(`Found parsed word at index ${parsedWord.wordIndex}`);
+      setHighlightState({
+        sentenceNumber: sentence.sentence_number,
+        linkedNumbers: parsedWord.linkedNumbers,
+        wordIndex: wordIndex  // Store the wordIndex in state
+      });
     }
   }, [parseSentence, parsedSentences, updateParsedSentences]);
 
@@ -63,7 +66,7 @@ export const useWordHighlight = (
 
     // Toggle sentence selection
     setSelectedSentence(current => current === sentenceNumber ? null : sentenceNumber);
-    setHighlightState({ sentenceNumber: null, linkedNumbers: [] });
+    setHighlightState({ sentenceNumber: null, linkedNumbers: [], wordIndex: null });
   }, [parseSentence, parsedSentences, updateParsedSentences]);
 
   const isWordHighlighted = useCallback((word: ParsedWord) => {

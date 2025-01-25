@@ -1,16 +1,15 @@
-// components/Word.tsx
+// Word.tsx
 import React from 'react';
 import { Text, StyleSheet } from 'react-native';
 import { ParsedWord } from '../types/types';
 import { DBSentence } from '@/components/db/bookDatabase';
 import { SlidePanelEvents } from '../events/slidePanelEvents';
 
-
 interface WordProps {
   word: ParsedWord;
   sentence: DBSentence;
   isHighlighted: boolean;
-  onPress: (word: string, sentence: DBSentence) => void;
+  onPress: (word: string, sentence: DBSentence, wordIndex: number) => void;
   onLongPress?: () => void;
 }
 
@@ -19,13 +18,17 @@ export const Word: React.FC<WordProps> = ({
   sentence,
   isHighlighted,
   onPress,
-  onLongPress
+  onLongPress,
 }) => {
   const handleWordPress = async () => {
     console.log("Word: " + word.word);
     if (word.isSpace) return;
     
     try {
+      // Call onPress to ensure sentence is parsed
+      await onPress(word.word, sentence, word.wordIndex);
+      
+      // Always emit panel event after onPress
       const responseTranslation = {
         Original: word.word,
         Translations: [{
@@ -37,8 +40,8 @@ export const Word: React.FC<WordProps> = ({
         TextView: ""
       };
 
+      console.log("Emitting panel event for word:", word.word);
       SlidePanelEvents.emit(responseTranslation, true);
-      onPress(word.word, sentence);
     } catch (error) {
       console.error('Error handling word press:', error);
     }
@@ -63,7 +66,7 @@ const styles = StyleSheet.create({
   word: {
     fontSize: 16,
     lineHeight: 24,
-    padding: 2, // Add padding to increase touch area
+    padding: 2,
   },
   space: {
     width: 4,

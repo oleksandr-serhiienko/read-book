@@ -18,7 +18,7 @@ export interface ParsedWord {
     sentence: DBSentence;
     parsedSentence?: ParsedSentence;
     isSelected: boolean;
-    onWordPress: (word: string, sentence: DBSentence) => void;
+    onWordPress: (word: string, sentence: DBSentence, index: number) => void;
     onLongPress: () => void;
     isWordHighlighted: (word: ParsedWord) => boolean;
   }
