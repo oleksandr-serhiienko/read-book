@@ -11,84 +11,80 @@ export const Sentence: React.FC<SentenceProps> = ({
   isWordHighlighted
 }) => (
   <View>
-  <Text style={styles.paragraph} onLongPress={onLongPress}>
-    {parsedSentence ? (
-      parsedSentence.original.map((word, index) => (
-        <Word
-          key={`original-${index}`}
-          word={word}
-          sentence={sentence}
-          isHighlighted={isWordHighlighted(word)}
-          onPress={onWordPress}
-          onLongPress={onLongPress}
-        />
-      ))
-    ) : (
-      sentence.original_text.split(/(\s+)/).map((word, index) => {
-        const isSpace = /^\s+$/.test(word);
-        const parsedWord: ParsedWord = {
-          word,
-          sentenceNumber: sentence.sentence_number,
-          wordIndex: index,
-          linkedNumbers: [],
-          linkedWordIndices: [],
-          isSpace
-        };
-        return (
+    {/* Original text rendering */}
+    <Text style={styles.paragraph} onLongPress={onLongPress}>
+      {parsedSentence ? (
+        parsedSentence.original.map((word, index) => (
           <Word
-            key={`unparsed-${index}`}
-            word={parsedWord}
+            key={`original-${index}`}
+            word={word}
             sentence={sentence}
-            isHighlighted={false}
+            isHighlighted={isWordHighlighted(word)}
             onPress={onWordPress}
             onLongPress={onLongPress}
           />
-        );
-      })
-    )}
-  </Text>
-  
-  {isSelected && parsedSentence && (
-    <Text style={[styles.translationText, { pointerEvents: 'auto' }]}>
-      {parsedSentence.translation.map((word, index) => (
-        <Word
-          key={`translation-${index}`}
-          word={word}
-          sentence={sentence}
-          isHighlighted={isWordHighlighted(word)}
-          onPress={onWordPress}
-        />
-      ))}
+        ))
+      ) : (
+        sentence.original_text.split(/(\s+)/).map((word, index) => {
+          const isSpace = /^\s+$/.test(word);
+          const parsedWord: ParsedWord = {
+            word,
+            sentenceNumber: sentence.sentence_number,
+            wordIndex: index,
+            linkedNumbers: [],
+            linkedWordIndices: [],
+            isSpace
+          };
+          return (
+            <Word
+              key={`unparsed-${index}`}
+              word={parsedWord}
+              sentence={sentence}
+              isHighlighted={false}
+              onPress={onWordPress}
+              onLongPress={onLongPress}
+            />
+          );
+        })
+      )}
     </Text>
-  )}
- </View>
+    
+    {/* Translation text rendering - restructured */}
+    {isSelected && parsedSentence && (
+      <View style={styles.translationContainer}>
+        <Text style={styles.translationText}>
+          {parsedSentence.translation.map((word, index) => (
+            <Word
+              key={`translation-${index}`}
+              word={word}
+              sentence={sentence}
+              isHighlighted={isWordHighlighted(word)}
+              onPress={onWordPress}
+            />
+          ))}
+        </Text>
+      </View>
+    )}
+  </View>
 );
-  const styles = StyleSheet.create({
-    word: {
-      fontSize: 16,
-      lineHeight: 24,
-    },
-    space: {
-      width: 4,
-    },
-    highlightedWord: {
-      backgroundColor: '#3498db',
-      color: '#fff',
-    },
-    paragraph: {
-      fontSize: 16,
-      marginBottom: 16,
-      lineHeight: 24,
-    },
-    translationText: {
-      fontSize: 16,
-      lineHeight: 24,
-      color: '#666',
-      fontStyle: 'italic',
-      marginTop: 8,
-      marginBottom: 16,
-      paddingLeft: 16,
-      borderLeftWidth: 2,
-      borderLeftColor: '#ddd'
-    }
-  });
+
+const styles = StyleSheet.create({
+  paragraph: {
+    fontSize: 16,
+    marginBottom: 16,
+    lineHeight: 24,
+  },
+  translationContainer: {
+    borderLeftWidth: 2,
+    borderLeftColor: '#ddd',
+    marginTop: 8,
+    marginBottom: 16,
+    paddingLeft: 16,
+  },
+  translationText: {
+    fontSize: 16,
+    lineHeight: 24,
+    color: '#666',
+    fontStyle: 'italic',
+  },
+});
