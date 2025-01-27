@@ -2,36 +2,40 @@
 import React from 'react';
 import { Text, StyleSheet } from 'react-native';
 import { ParsedWord } from '../types/types';
-import { DBSentence } from '@/components/db/bookDatabase';
+import { BookDatabase, DBSentence } from '@/components/db/bookDatabase';
 import { SlidePanelEvents } from '../events/slidePanelEvents';
 
 interface WordProps {
   word: ParsedWord;
   sentence: DBSentence;
   isHighlighted: boolean;
+  bookTitle: string;
   onPress: (word: string, sentence: DBSentence, wordIndex: number) => void;
   onLongPress?: () => void;
+
 }
 
 export const Word: React.FC<WordProps> = ({
   word,
   sentence,
   isHighlighted,
+  bookTitle,
   onPress,
-  onLongPress,
+  onLongPress
 }) => {
   if (word.isSpace) {
     return <Text style={styles.space}> </Text>;
   }
 
-  const handleWordPress = () => {
+  const handleWordPress = async () => {
     onPress(word.word, sentence, word.wordIndex);
-    
-    // Emit panel event
+    let cleanedWord = word.word.replace(/[.,!?;:]+$/, '');
+    const bookDatabase = new BookDatabase(bookTitle);
+    let translation = await bookDatabase.getWordTranslation(cleanedWord);
     const responseTranslation = {
-      Original: word.word,
+      Original: cleanedWord,
       Translations: [{
-        word: "translation",
+        word: translation?.english_translation ?? "Translation",
         pos: ""
       }],
       Contexts: [],

@@ -14,14 +14,15 @@ export interface WordTranslation {
   english_translation: string;
 }
 
+
 export class BookDatabase {
   private db: SQLite.SQLiteDatabase | null = null;
   private dbName: string;
-  private bookDirectory: string;
+  private dbPath: string;
 
   constructor(bookTitle: string) {
     this.dbName = `${bookTitle}.db`;
-    this.bookDirectory = `${FileSystem.documentDirectory}books/`;
+    this.dbPath = `${FileSystem.documentDirectory}books/${this.dbName}`;
   }
 
   async initialize(): Promise<boolean> {
@@ -30,69 +31,72 @@ export class BookDatabase {
     }
 
     try {
-      // Check if directory exists
-      const dirInfo = await FileSystem.getInfoAsync(this.bookDirectory);
+      // Ensure directory exists
+      const dirPath = `${FileSystem.documentDirectory}books`;
+      const dirInfo = await FileSystem.getInfoAsync(dirPath);
       if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(this.bookDirectory, { intermediates: true });
+        await FileSystem.makeDirectoryAsync(dirPath, { intermediates: true });
       }
 
-      // Check if database file exists
-      const dbPath = this.getLocalPath();
-      const dbInfo = await FileSystem.getInfoAsync(dbPath);
-      
+      // Check if database exists
+      const dbInfo = await FileSystem.getInfoAsync(this.dbPath);
       if (!dbInfo.exists) {
         console.log("Database file does not exist yet");
         return false;
       }
 
-      // Try to open the database
       try {
-        // Instead of using the full file path, use just the filename
-        // SQLite.openDatabaseAsync expects a name, not a full path
-        const dbName = this.dbName;
+        // First, copy the database to SQLite directory
+        const sqliteDir = `${FileSystem.documentDirectory}SQLite`;
+        await FileSystem.makeDirectoryAsync(sqliteDir, { intermediates: true });
         
-        // Check if we need to copy the file to the correct location
-        const dbDir = `${FileSystem.documentDirectory}SQLite`;
-        await FileSystem.makeDirectoryAsync(dbDir, { intermediates: true });
+        const sqlitePath = `${sqliteDir}/${this.dbName}`;
+        await FileSystem.copyAsync({
+          from: this.dbPath,
+          to: sqlitePath
+        });
         
-        const finalDbPath = `${dbDir}/${dbName}`;
-        const finalDbInfo = await FileSystem.getInfoAsync(finalDbPath);
-        
-        if (!finalDbInfo.exists) {
-          // Copy the downloaded file to SQLite directory
-          await FileSystem.copyAsync({
-            from: dbPath,
-            to: finalDbPath
-          });
-        }
+        console.log("Attempting to open database...");
+        this.db = await SQLite.openDatabaseAsync(this.dbName);
+        console.log("Database opened successfully");
 
-        // Open the database using just the name
-        this.db = await SQLite.openDatabaseAsync(dbName);
-        
-        // Verify database structure
-        const tables = await this.db.getFirstAsync(
-          "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('book_sentences', 'word_translations')"
-        );
-        
-        if (!tables) {
+        // Verify tables exist using a simpler approach
+        try {
+          // Try to query both tables
+          await this.db.getFirstAsync<{ count: number }>(
+            'SELECT COUNT(*) as count FROM book_sentences'
+          );
+          await this.db.getFirstAsync<{ count: number }>(
+            'SELECT COUNT(*) as count FROM word_translations'
+          );
+          
+          // If we got here, both tables exist
+          console.log("Database structure verified successfully");
+          
+          // Get some basic stats
+          const sentencesCount = await this.db.getFirstAsync<{ count: number }>(
+            'SELECT COUNT(*) as count FROM book_sentences'
+          );
+          console.log(`Total sentences: ${sentencesCount?.count ?? 0}`);
+          
+          const translationsCount = await this.db.getFirstAsync<{ count: number }>(
+            'SELECT COUNT(*) as count FROM word_translations'
+          );
+          console.log(`Total translations: ${translationsCount?.count ?? 0}`);
+          
+          const chaptersCount = await this.db.getFirstAsync<{ count: number }>(
+            'SELECT COUNT(DISTINCT chapter_id) as count FROM book_sentences'
+          );
+          console.log(`Total chapters: ${chaptersCount?.count ?? 0}`);
+
+          return true;
+        } catch (verifyError) {
+          console.error("Database verification failed:", verifyError);
           throw new Error('Invalid database structure');
         }
-
-        console.log("Book database initialized successfully");
-        return true;
       } catch (dbError) {
-        console.error("Error opening database:", dbError);
-        // If database is corrupted or invalid, delete both copies
-        try {
-          await FileSystem.deleteAsync(dbPath);
-          const finalDbPath = `${FileSystem.documentDirectory}SQLite/${this.dbName}`;
-          const finalDbInfo = await FileSystem.getInfoAsync(finalDbPath);
-          if (finalDbInfo.exists) {
-            await FileSystem.deleteAsync(finalDbPath);
-          }
-        } catch (deleteError) {
-          console.error("Error cleaning up database files:", deleteError);
-        }
+        console.error("Database error:", dbError);
+        //await this.cleanupDatabase();
         return false;
       }
     } catch (error) {
@@ -101,17 +105,37 @@ export class BookDatabase {
     }
   }
 
-  getLocalPath(): string {
-    return `${this.bookDirectory}${this.dbName}`;
+  private async cleanupDatabase(): Promise<void> {
+    try {
+      if (this.db) {
+        await this.db.closeAsync();
+        this.db = null;
+      }
+
+      // Clean up both locations
+      const dbInfo = await FileSystem.getInfoAsync(this.dbPath);
+      if (dbInfo.exists) {
+        await FileSystem.deleteAsync(this.dbPath);
+      }
+
+      const sqlitePath = `${FileSystem.documentDirectory}SQLite/${this.dbName}`;
+      const sqliteInfo = await FileSystem.getInfoAsync(sqlitePath);
+      if (sqliteInfo.exists) {
+        await FileSystem.deleteAsync(sqlitePath);
+      }
+
+      console.log("Cleaned up database files");
+    } catch (error) {
+      console.error("Error cleaning up database:", error);
+    }
   }
 
   async downloadDatabase(bookUrl: string): Promise<void> {
     try {
       const dbUrl = bookUrl.replace('/books/', '/download-db/');
-      const localPath = this.getLocalPath();
       
       // Check if file already exists
-      const fileInfo = await FileSystem.getInfoAsync(localPath);
+      const fileInfo = await FileSystem.getInfoAsync(this.dbPath);
       if (fileInfo.exists) {
         console.log("Database already exists locally");
         return;
@@ -123,12 +147,12 @@ export class BookDatabase {
       }
 
       console.log(`Starting database download from: ${dbUrl}`);
-      console.log(`Saving to: ${localPath}`);
+      console.log(`Saving to: ${this.dbPath}`);
 
       // Download with progress tracking
       const downloadResumable = FileSystem.createDownloadResumable(
         dbUrl,
-        localPath,
+        this.dbPath,
         {},
         (downloadProgress) => {
           const progress = downloadProgress.totalBytesWritten / downloadProgress.totalBytesExpectedToWrite;
@@ -142,14 +166,14 @@ export class BookDatabase {
         throw new Error('Download failed - no result returned');
       }
 
-      // Verify the downloaded file exists and has size
-      const downloadedFileInfo = await FileSystem.getInfoAsync(localPath);
+      // Verify the downloaded file
+      const downloadedFileInfo = await FileSystem.getInfoAsync(this.dbPath);
       if (!downloadedFileInfo.exists || !downloadedFileInfo.size) {
         throw new Error(`Download failed - file ${downloadedFileInfo.exists ? 'is empty' : 'does not exist'}`);
       }
 
-      // Verify file header (SQLite files start with "SQLite format 3\0")
-      const header = await FileSystem.readAsStringAsync(localPath, { 
+      // Verify SQLite header
+      const header = await FileSystem.readAsStringAsync(this.dbPath, { 
         length: 16,
         position: 0,
         encoding: FileSystem.EncodingType.UTF8 
@@ -161,21 +185,8 @@ export class BookDatabase {
 
       console.log(`Database downloaded successfully. File size: ${downloadedFileInfo.size} bytes`);
     } catch (error) {
-      console.error("Download error details:", {
-        error
-      });
-      
-      // Clean up failed download
-      try {
-        const failedFileInfo = await FileSystem.getInfoAsync(this.getLocalPath());
-        if (failedFileInfo.exists) {
-          await FileSystem.deleteAsync(this.getLocalPath());
-          console.log("Cleaned up failed download file");
-        }
-      } catch (cleanupError) {
-        console.error("Error cleaning up failed download:", cleanupError);
-      }
-
+      console.error("Download error:", error);
+      //await this.cleanupDatabase();
       throw new Error(`Failed to download database: ${error}`);
     }
   }

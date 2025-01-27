@@ -14,14 +14,7 @@ export interface ParsedWord {
     translation: ParsedWord[];
   }
   
-  export interface SentenceProps {
-    sentence: DBSentence;
-    parsedSentence?: ParsedSentence;
-    isSelected: boolean;
-    onWordPress: (word: string, sentence: DBSentence, index: number) => void;
-    onLongPress: () => void;
-    isWordHighlighted: (word: ParsedWord) => boolean;
-  }
+
   
 export interface HighlightState {
     sentenceNumber: number | null;

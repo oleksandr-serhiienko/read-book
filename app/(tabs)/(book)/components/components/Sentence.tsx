@@ -1,11 +1,23 @@
 import { Text, View, StyleSheet } from "react-native";
 import { Word } from "./Word";
-import { ParsedWord, SentenceProps } from "../types/types";
+import { ParsedSentence, ParsedWord } from "../types/types";
+import { DBSentence } from "@/components/db/bookDatabase";
+
+export interface SentenceProps {
+  sentence: DBSentence;
+  parsedSentence?: ParsedSentence;
+  isSelected: boolean;
+  bookTitle: string,
+  onWordPress: (word: string, sentence: DBSentence, index: number) => void;
+  onLongPress: () => void;
+  isWordHighlighted: (word: ParsedWord) => boolean;
+}
 
 export const Sentence: React.FC<SentenceProps> = ({
   sentence,
   parsedSentence,
   isSelected,
+  bookTitle,
   onWordPress,
   onLongPress,
   isWordHighlighted
@@ -19,6 +31,7 @@ export const Sentence: React.FC<SentenceProps> = ({
             key={`original-${index}`}
             word={word}
             sentence={sentence}
+            bookTitle={bookTitle}
             isHighlighted={isWordHighlighted(word)}
             onPress={onWordPress}
             onLongPress={onLongPress}
@@ -41,6 +54,7 @@ export const Sentence: React.FC<SentenceProps> = ({
               word={parsedWord}
               sentence={sentence}
               isHighlighted={false}
+              bookTitle={bookTitle}
               onPress={onWordPress}
               onLongPress={onLongPress}
             />
@@ -60,6 +74,7 @@ export const Sentence: React.FC<SentenceProps> = ({
               sentence={sentence}
               isHighlighted={isWordHighlighted(word)}
               onPress={onWordPress}
+              bookTitle={bookTitle}
             />
           ))}
         </Text>

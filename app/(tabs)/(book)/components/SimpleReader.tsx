@@ -106,6 +106,7 @@ useEffect(() => {
             sentence={sentence}
             parsedSentence={parsedSentences.get(sentence.sentence_number)}
             isSelected={selectedSentence === sentence.sentence_number}
+            bookTitle={bookTitle}
             onWordPress={(word, sentence, index) => handleWordPress(word, sentence, index)}
             onLongPress={() => handleLongPress(sentence)}
             isWordHighlighted={isWordHighlighted}
