@@ -1,15 +1,20 @@
 // SimpleReader.tsx
-import React, { useEffect, useCallback, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ScrollView, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useChapterData } from './hooks/useChapterData';
-import { ChapterNavigation } from './components/ChapterNavigation';
 import { Sentence } from './components/Sentence';
 import { useParsedSentences } from './hooks/useParsedSentences';
 import { useWordHighlight } from './hooks/useWordHighlight';
-import { DBSentence } from '@/components/db/bookDatabase';
-import { ParsedSentence } from './types/types';
 import { PanelContent, SlidePanelEvents } from './events/slidePanelEvents';
+import { FontSizeEvents } from './events/fontSizeEvents';
 import SlidePanel from '../slidePanel';
+import ReaderSettings from './components/ReaderSettings';
+import BottomChapterNavigation from './components/BottomChapterNavigation';
+
+const MIN_FONT_SIZE = 12;
+const MAX_FONT_SIZE = 24;
+const DEFAULT_FONT_SIZE = 16;
 
 interface DBReaderProps {
   bookUrl: string;
@@ -18,6 +23,10 @@ interface DBReaderProps {
 }
 
 const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl }) => {
+  const [currentFontSize, setCurrentFontSize] = useState(DEFAULT_FONT_SIZE);
+  const [isPanelVisible, setIsPanelVisible] = useState(false);
+  const [panelContent, setPanelContent] = useState<PanelContent>(null);
+
   const {
     currentChapter,
     chapterSentences,
@@ -30,34 +39,74 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
   } = useChapterData({ bookTitle, bookUrl });
 
   const { parsedSentences, updateParsedSentences, parseSentence } = useParsedSentences(chapterSentences);
-  const [isPanelVisible, setIsPanelVisible] = useState(false);
-  const [panelContent, setPanelContent] = useState<PanelContent>(null);
 
-// Update the useEffect in SimpleReader
-useEffect(() => {
-  console.log('[SimpleReader] Setting up panel event subscription');
-  
-  // Reset the events system on mount
-  SlidePanelEvents.reset();
-  
-  const unsubscribe = SlidePanelEvents.subscribe((content, isVisible) => {
-    console.log('[SimpleReader] Received panel event:', { contentExists: !!content, isVisible });
-    requestAnimationFrame(() => {
-      setPanelContent(content);
-      setIsPanelVisible(isVisible);
+  // Font size management
+  useEffect(() => {
+    loadFontSize();
+    
+    // Reset the events system
+    FontSizeEvents.reset();
+    
+    // Subscribe to font size changes
+    const unsubscribe = FontSizeEvents.subscribe((newSize) => {
+      console.log('Font size updated:', newSize);
+      setCurrentFontSize(newSize);
     });
-  });
 
-  // Verify subscription
-  if (!SlidePanelEvents.hasListeners()) {
-    console.error('[SimpleReader] Failed to subscribe to panel events');
-  }
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
-  return () => {
-    console.log('[SimpleReader] Cleaning up panel event subscription');
-    unsubscribe();
+  const loadFontSize = async () => {
+    try {
+      const savedFontSize = await AsyncStorage.getItem('fontSize');
+      if (savedFontSize) {
+        const newSize = parseInt(savedFontSize);
+        setCurrentFontSize(newSize);
+        FontSizeEvents.emit(newSize);
+      }
+    } catch (error) {
+      console.error('Error loading font size:', error);
+    }
   };
-}, []);
+
+  const increaseFontSize = async () => {
+    if (currentFontSize < MAX_FONT_SIZE) {
+      const newSize = currentFontSize + 1;
+      setCurrentFontSize(newSize);
+      await AsyncStorage.setItem('fontSize', newSize.toString());
+      FontSizeEvents.emit(newSize);
+    }
+  };
+
+  const decreaseFontSize = async () => {
+    if (currentFontSize > MIN_FONT_SIZE) {
+      const newSize = currentFontSize - 1;
+      setCurrentFontSize(newSize);
+      await AsyncStorage.setItem('fontSize', newSize.toString());
+      FontSizeEvents.emit(newSize);
+    }
+  };
+
+  // Panel events subscription
+  useEffect(() => {
+    console.log('[SimpleReader] Setting up panel event subscription');
+    SlidePanelEvents.reset();
+    
+    const unsubscribe = SlidePanelEvents.subscribe((content, isVisible) => {
+      console.log('[SimpleReader] Received panel event:', { contentExists: !!content, isVisible });
+      requestAnimationFrame(() => {
+        setPanelContent(content);
+        setIsPanelVisible(isVisible);
+      });
+    });
+
+    return () => {
+      console.log('[SimpleReader] Cleaning up panel event subscription');
+      unsubscribe();
+    };
+  }, []);
 
   const parsedSentencesState = {
     parsedSentences,
@@ -93,12 +142,16 @@ useEffect(() => {
 
   return (
     <View style={styles.container}>
-      <ChapterNavigation
+      <ReaderSettings
         currentChapter={currentChapter}
         totalChapters={totalChapters}
         onNext={nextChapter}
         onPrevious={previousChapter}
+        currentFontSize={currentFontSize}
+        onIncreaseFontSize={increaseFontSize}
+        onDecreaseFontSize={decreaseFontSize}
       />
+      
       <ScrollView style={styles.content}>
         {chapterSentences.map((sentence) => (
           <Sentence
@@ -107,12 +160,21 @@ useEffect(() => {
             parsedSentence={parsedSentences.get(sentence.sentence_number)}
             isSelected={selectedSentence === sentence.sentence_number}
             bookTitle={bookTitle}
+            fontSize={currentFontSize}
             onWordPress={(word, sentence, index) => handleWordPress(word, sentence, index)}
             onLongPress={() => handleLongPress(sentence)}
             isWordHighlighted={isWordHighlighted}
           />
         ))}
+        
+        <BottomChapterNavigation
+          currentChapter={currentChapter}
+          totalChapters={totalChapters}
+          onNext={nextChapter}
+          onPrevious={previousChapter}
+        />
       </ScrollView>
+
       <SlidePanel
         isVisible={isPanelVisible}
         content={panelContent}

@@ -10,9 +10,9 @@ interface WordProps {
   sentence: DBSentence;
   isHighlighted: boolean;
   bookTitle: string;
+  fontSize: number;  // Add fontSize prop
   onPress: (word: string, sentence: DBSentence, wordIndex: number) => void;
   onLongPress?: () => void;
-
 }
 
 export const Word: React.FC<WordProps> = ({
@@ -20,6 +20,7 @@ export const Word: React.FC<WordProps> = ({
   sentence,
   isHighlighted,
   bookTitle,
+  fontSize,  // Add fontSize to props
   onPress,
   onLongPress
 }) => {
@@ -27,10 +28,22 @@ export const Word: React.FC<WordProps> = ({
     return <Text style={styles.space}> </Text>;
   }
 
+  const dynamicStyles = StyleSheet.create({
+    word: {
+      fontSize: fontSize,
+      lineHeight: fontSize * 1.5,
+      padding: 2,
+    }
+  });
+
   const handleWordPress = async () => {
     onPress(word.word, sentence, word.wordIndex);
     let cleanedWord = word.word.replace(/[.,!?;:]+$/, '');
     const bookDatabase = new BookDatabase(bookTitle);
+    const dbInitialized = await bookDatabase.initialize();
+    if(!dbInitialized){
+      throw new Error("Database is not initialized");
+    }
     let translation = await bookDatabase.getWordTranslation(cleanedWord);
     const responseTranslation = {
       Original: cleanedWord,
@@ -51,7 +64,7 @@ export const Word: React.FC<WordProps> = ({
       onPress={handleWordPress}
       onLongPress={onLongPress}
       style={[
-        styles.word,
+        dynamicStyles.word,
         isHighlighted && styles.highlightedWord
       ]}
     >
@@ -61,11 +74,6 @@ export const Word: React.FC<WordProps> = ({
 };
 
 const styles = StyleSheet.create({
-  word: {
-    fontSize: 16,
-    lineHeight: 24,
-    padding: 2,
-  },
   space: {
     width: 4,
   },
