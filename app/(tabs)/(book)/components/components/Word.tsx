@@ -1,5 +1,5 @@
 // Word.tsx
-import React from 'react';
+import React, { memo } from 'react';
 import { Text, StyleSheet } from 'react-native';
 import { ParsedWord } from '../types/types';
 import { BookDatabase, DBSentence } from '@/components/db/bookDatabase';
@@ -10,17 +10,28 @@ interface WordProps {
   sentence: DBSentence;
   isHighlighted: boolean;
   bookTitle: string;
-  fontSize: number;  // Add fontSize prop
+  fontSize: number;
   onPress: (word: string, sentence: DBSentence, wordIndex: number) => void;
   onLongPress?: () => void;
 }
 
-export const Word: React.FC<WordProps> = ({
+// Custom comparison function for memo
+const arePropsEqual = (prevProps: WordProps, nextProps: WordProps) => {
+  const isEqual = (
+    prevProps.word.word === nextProps.word.word &&
+    prevProps.isHighlighted === nextProps.isHighlighted &&
+    prevProps.fontSize === nextProps.fontSize
+  );
+
+  return isEqual;
+};
+
+const Word: React.FC<WordProps> = memo(({
   word,
   sentence,
   isHighlighted,
   bookTitle,
-  fontSize,  // Add fontSize to props
+  fontSize,
   onPress,
   onLongPress
 }) => {
@@ -37,13 +48,17 @@ export const Word: React.FC<WordProps> = ({
   });
 
   const handleWordPress = async () => {
+    console.log("Clicked word:", word.word);
     onPress(word.word, sentence, word.wordIndex);
+    
     let cleanedWord = word.word.replace(/[.,!?;:]+$/, '');
     const bookDatabase = new BookDatabase(bookTitle);
     const dbInitialized = await bookDatabase.initialize();
-    if(!dbInitialized){
+    
+    if (!dbInitialized) {
       throw new Error("Database is not initialized");
     }
+    
     let translation = await bookDatabase.getWordTranslation(cleanedWord);
     const responseTranslation = {
       Original: cleanedWord,
@@ -71,7 +86,7 @@ export const Word: React.FC<WordProps> = ({
       {word.word}
     </Text>
   );
-};
+}, arePropsEqual);
 
 const styles = StyleSheet.create({
   space: {
@@ -82,3 +97,5 @@ const styles = StyleSheet.create({
     color: '#fff',
   }
 });
+
+export { Word };

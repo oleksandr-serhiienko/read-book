@@ -1,5 +1,3 @@
-import { DBSentence } from "@/components/db/bookDatabase";
-
 export interface ParsedWord {
     word: string;
     sentenceNumber: number;
