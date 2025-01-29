@@ -49,30 +49,55 @@ const Word: React.FC<WordProps> = memo(({
 
   const handleWordPress = async () => {
     console.log("Clicked word:", word.word);
+    console.log("Words in same group:", word.wordLinkedNumber);
+    console.log("Translation words:", word.wordLinkedWordIndices);
+    
     onPress(word.word, sentence, word.wordIndex);
-    
-    let cleanedWord = word.word.replace(/[.,!?;:]+$/, '');
-    const bookDatabase = new BookDatabase(bookTitle);
-    const dbInitialized = await bookDatabase.initialize();
-    
-    if (!dbInitialized) {
-      throw new Error("Database is not initialized");
+
+    // If the word is part of a linked group
+    if (word.linkedNumbers.length > 0) {
+        // Combine all related words in the same language
+        const currentPhrase = [word.word, ...word.wordLinkedNumber].join(' ');
+        // Get the translation phrase
+        const translationPhrase = word.wordLinkedWordIndices.join(' ');
+
+        const responseTranslation = {
+            Original: word.isTranslation ? translationPhrase : currentPhrase,
+            Translations: [{
+                word: word.isTranslation ? currentPhrase : translationPhrase,
+                pos: ""
+            }],
+            Contexts: [],
+            Book: "",
+            TextView: ""
+        };
+        
+        SlidePanelEvents.emit(responseTranslation, true);
+    } else {
+        // If it's a single word without links, get translation from database
+        let cleanedWord = word.word.replace(/[.,!?;:]+$/, '');
+        const bookDatabase = new BookDatabase(bookTitle);
+        const dbInitialized = await bookDatabase.initialize();
+        
+        if (!dbInitialized) {
+            throw new Error("Database is not initialized");
+        }
+        
+        let translation = await bookDatabase.getWordTranslation(cleanedWord);
+        const responseTranslation = {
+            Original: cleanedWord,
+            Translations: [{
+                word: translation?.english_translation ?? "Translation",
+                pos: ""
+            }],
+            Contexts: [],
+            Book: "",
+            TextView: ""
+        };
+        
+        SlidePanelEvents.emit(responseTranslation, true);
     }
-    
-    let translation = await bookDatabase.getWordTranslation(cleanedWord);
-    const responseTranslation = {
-      Original: cleanedWord,
-      Translations: [{
-        word: translation?.english_translation ?? "Translation",
-        pos: ""
-      }],
-      Contexts: [],
-      Book: "",
-      TextView: ""
-    };
-    
-    SlidePanelEvents.emit(responseTranslation, true);
-  };
+};
 
   return (
     <Text

@@ -20,44 +20,74 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
       return { original: [], translation: [] };
     }
 
-    const parseText = (text: string, sentenceNumber: number): ParsedWord[] => {
+    const parseText = (text: string, sentenceNumber: number, isTranslation: boolean): ParsedWord[] => {
       const textParts = text.split(/(\s+)/);
-      return textParts.map((part, index) => {
+      const words: ParsedWord[] = [];
+
+      // First pass: create basic word objects and collect numbers
+      const numberGroups = new Map<string, string[]>(); // key is sorted numbers, value is words
+
+      textParts.forEach((part, index) => {
         const isSpace = /^\s+$/.test(part);
         if (isSpace) {
-          return {
+          words.push({
             word: part,
             sentenceNumber,
             wordIndex: index,
             linkedNumbers: [],
+            wordLinkedNumber: [],
             linkedWordIndices: [],
-            isSpace: true
-          };
+            wordLinkedWordIndices: [],
+            isSpace: true,
+            isTranslation
+          });
+          return;
         }
-    
-        // More detailed number parsing
+
+        // Parse numbers and word
         const numberMatches = part.match(/\/(\d+)\//g);
-        const linkedNumbers = numberMatches 
+        const linkedNumbers = numberMatches
           ? numberMatches.map(n => parseInt(n.replace(/\//g, '')))
           : [];
         const cleanWord = part.replace(/\/\d+\//g, '').trim();
-    
-        console.log(`Parsing word: ${cleanWord}, numbers: ${linkedNumbers.join(',')}`);
-    
-        return {
+
+        // Create key for number group (sorted numbers joined)
+        if (linkedNumbers.length > 0) {
+          const numbersKey = [...linkedNumbers].sort().join(',');
+          if (!numberGroups.has(numbersKey)) {
+            numberGroups.set(numbersKey, []);
+          }
+          numberGroups.get(numbersKey)!.push(cleanWord);
+        }
+
+        words.push({
           word: cleanWord,
           sentenceNumber,
           wordIndex: index,
           linkedNumbers,
+          wordLinkedNumber: [], // Will fill in second pass
           linkedWordIndices: [],
-          isSpace: false
-        };
+          wordLinkedWordIndices: [],
+          isSpace: false,
+          isTranslation
+        });
       });
+
+      // Second pass: fill in wordLinkedNumber arrays
+      words.forEach(word => {
+        if (!word.isSpace && word.linkedNumbers.length > 0) {
+          const numbersKey = [...word.linkedNumbers].sort().join(',');
+          const groupWords = numberGroups.get(numbersKey) || [];
+          word.wordLinkedNumber = groupWords.filter(w => w !== word.word);
+        }
+      });
+
+      return words;
     };
 
     return {
-      original: parseText(sentence.original_parsed_text, sentenceNumber),
-      translation: parseText(sentence.translation_parsed_text, sentenceNumber)
+      original: parseText(sentence.original_parsed_text, sentenceNumber, false),
+      translation: parseText(sentence.translation_parsed_text, sentenceNumber, true)
     };
   }, [chapterSentences]);
 
@@ -68,21 +98,30 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
     // Debug logging
     console.log("Original sentence parsing:", original.map(w => ({
       word: w.word,
-      linkedNumbers: w.linkedNumbers
+      linkedNumbers: w.linkedNumbers,
+      wordLinkedNumber: w.wordLinkedNumber
     })));
     console.log("Translation parsing:", translation.map(w => ({
       word: w.word,
-      linkedNumbers: w.linkedNumbers
+      linkedNumbers: w.linkedNumbers,
+      wordLinkedNumber: w.wordLinkedNumber
     })));
 
     // Establish bidirectional links between words
     original.forEach((origWord, origIndex) => {
       if (origWord.linkedNumbers.length > 0) {
         translation.forEach((transWord, transIndex) => {
-          if (origWord.linkedNumbers.some(n => transWord.linkedNumbers.includes(n))) {
+          const origNumbers = [...origWord.linkedNumbers].sort().join(',');
+          const transNumbers = [...transWord.linkedNumbers].sort().join(',');
+          
+          if (origNumbers === transNumbers) {
+            // Add indices
             origWord.linkedWordIndices.push(transIndex);
             transWord.linkedWordIndices.push(origIndex);
-            console.log(`Linked words: ${origWord.word} <-> ${transWord.word}`);
+            
+            // Add actual words
+            origWord.wordLinkedWordIndices.push(transWord.word);
+            transWord.wordLinkedWordIndices.push(origWord.word);
           }
         });
       }
@@ -93,7 +132,7 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
 
   return {
     parsedSentences,
-    updateParsedSentences,  // Now returning updateParsedSentences instead of setParsedSentences
+    updateParsedSentences,
     parseSentence
   };
 };

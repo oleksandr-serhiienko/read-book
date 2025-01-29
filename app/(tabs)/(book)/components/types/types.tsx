@@ -2,9 +2,15 @@ export interface ParsedWord {
     word: string;
     sentenceNumber: number;
     wordIndex: number;
+    
     linkedNumbers: number[];
+    wordLinkedNumber: string[];
+
     linkedWordIndices: number[];
+    wordLinkedWordIndices: string[];
+
     isSpace?: boolean;
+    isTranslation: boolean;
   }
   
   export interface ParsedSentence {
