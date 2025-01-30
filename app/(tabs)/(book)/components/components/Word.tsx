@@ -11,7 +11,7 @@ interface WordProps {
   isHighlighted: boolean;
   bookTitle: string;
   fontSize: number;
-  onPress: (word: string, sentence: DBSentence, wordIndex: number) => void;
+  onPress: (word: string, sentence: DBSentence, wordIndex: number) => Promise<ParsedWord>;
   onLongPress?: () => void;
 }
 
@@ -48,23 +48,36 @@ const Word: React.FC<WordProps> = memo(({
   });
 
   const handleWordPress = async () => {
-    console.log("Clicked word:", word.word);
-    console.log("Words in same group:", word.wordLinkedNumber);
-    console.log("Translation words:", word.wordLinkedWordIndices);
+    const cleanedWord = word.word.replace(/[.,!?;:]+$/, '');
+    console.log("Clicked word:", cleanedWord);
     
-    onPress(word.word, sentence, word.wordIndex);
+    // Get updated word data
+    const updatedWord = await onPress(word.word, sentence, word.wordIndex);
+    if (!updatedWord) return;
+    
+    // Initialize database first
+    const bookDatabase = new BookDatabase(bookTitle);
+    const dbInitialized = await bookDatabase.initialize();
+    
+    if (!dbInitialized) {
+        throw new Error("Database is not initialized");
+    }
 
-    // If the word is part of a linked group
-    if (word.linkedNumbers.length > 0) {
-        // Combine all related words in the same language
-        const currentPhrase = [word.word, ...word.wordLinkedNumber].join(' ');
-        // Get the translation phrase
-        const translationPhrase = word.wordLinkedWordIndices.join(' ');
+    // If it's part of a group
+    if (updatedWord.linkedNumbers.length > 0) {
+        let individualTranslation = await bookDatabase.getWordTranslation(cleanedWord);
+        if (individualTranslation) {
+            console.log("Popup: " + individualTranslation.english_translation); 
+        }
 
+        // Prepare group translation for slide panel
+        const currentPhrase = [updatedWord.word, ...updatedWord.wordLinkedNumber].join(' ');
+        const translationPhrase = updatedWord.wordLinkedWordIndices.join(' ');
+        
         const responseTranslation = {
-            Original: word.isTranslation ? translationPhrase : currentPhrase,
+            Original: updatedWord.isTranslation ? translationPhrase : currentPhrase,
             Translations: [{
-                word: word.isTranslation ? currentPhrase : translationPhrase,
+                word: updatedWord.isTranslation ? currentPhrase : translationPhrase,
                 pos: ""
             }],
             Contexts: [],
@@ -74,22 +87,31 @@ const Word: React.FC<WordProps> = memo(({
         
         SlidePanelEvents.emit(responseTranslation, true);
     } else {
-        // If it's a single word without links, get translation from database
-        let cleanedWord = word.word.replace(/[.,!?;:]+$/, '');
-        const bookDatabase = new BookDatabase(bookTitle);
-        const dbInitialized = await bookDatabase.initialize();
+        // Single word case - check both DB and coupled translation
+        let dbTranslation = await bookDatabase.getWordTranslation(cleanedWord);
+        const coupledTranslation = updatedWord.wordLinkedWordIndices[0]; // Get coupled translation if exists
+
+        const translations = [];
         
-        if (!dbInitialized) {
-            throw new Error("Database is not initialized");
+        // Add coupled translation first if it exists and isn't in DB
+        if (coupledTranslation && (!dbTranslation || dbTranslation.english_translation !== coupledTranslation)) {
+            translations.push({
+                word: coupledTranslation,
+                pos: ""
+            });
         }
-        
-        let translation = await bookDatabase.getWordTranslation(cleanedWord);
+
+        // Add DB translation if exists
+        if (dbTranslation) {
+            translations.push({
+                word: dbTranslation.english_translation,
+                pos: ""
+            });
+        }
+
         const responseTranslation = {
             Original: cleanedWord,
-            Translations: [{
-                word: translation?.english_translation ?? "Translation",
-                pos: ""
-            }],
+            Translations: translations.length > 0 ? translations : [{ word: "Translation", pos: "" }],
             Contexts: [],
             Book: "",
             TextView: ""

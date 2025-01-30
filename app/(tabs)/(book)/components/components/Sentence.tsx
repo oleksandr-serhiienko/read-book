@@ -10,7 +10,7 @@ export interface SentenceProps {
   isSelected: boolean;
   bookTitle: string;
   fontSize: number;  // Add fontSize prop
-  onWordPress: (word: string, sentence: DBSentence, index: number) => void;
+  onWordPress: (word: string, sentence: DBSentence, index: number) => Promise<ParsedWord>;
   onLongPress: () => void;
   isWordHighlighted: (word: ParsedWord) => boolean;
 }
@@ -62,10 +62,13 @@ export const Sentence: React.FC<SentenceProps> = ({
             const parsedWord: ParsedWord = {
               word,
               sentenceNumber: sentence.sentence_number,
-              wordIndex: index,
+              wordIndex: index,              
               linkedNumbers: [],
+              wordLinkedNumber: [],
               linkedWordIndices: [],
-              isSpace
+              wordLinkedWordIndices: [],
+              isSpace,
+              isTranslation: false
             };
             return (
               <Word

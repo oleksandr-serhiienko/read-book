@@ -27,7 +27,7 @@ export const useWordHighlight = (
   });
   const [selectedSentence, setSelectedSentence] = useState<number | null>(null);
 
-  const handleWordPress = useCallback((word: string, sentence: DBSentence, wordIndex: number) => {
+  const handleWordPress = useCallback(async (word: string, sentence: DBSentence, wordIndex: number): Promise<ParsedWord | null> => {
     console.log(`Processing word: ${word} at index: ${wordIndex}`);
     
     let parsed;
@@ -54,8 +54,10 @@ export const useWordHighlight = (
         linkedNumbers: foundWord.linkedNumbers,
         wordIndex: wordIndex
       });
+      return foundWord;
     }
-  }, [parseSentence, parsedSentences, updateParsedSentences]);
+    return null;
+}, [parseSentence, parsedSentences, updateParsedSentences]);
 
 
   const handleLongPress = useCallback((sentence: DBSentence) => {
