@@ -23,10 +23,10 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
     const parseText = (text: string, sentenceNumber: number, isTranslation: boolean): ParsedWord[] => {
       const textParts = text.split(/(\s+)/);
       const words: ParsedWord[] = [];
-
+    
       // First pass: create basic word objects and collect numbers
-      const numberGroups = new Map<string, string[]>(); // key is sorted numbers, value is words
-
+      const numberToIndicesMap = new Map<number, number[]>(); // key is number (33), value is array of indices
+    
       textParts.forEach((part, index) => {
         const isSpace = /^\s+$/.test(part);
         if (isSpace) {
@@ -34,7 +34,8 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
             word: part,
             sentenceNumber,
             wordIndex: index,
-            linkedNumbers: [],
+            linkedNumber: -1,
+            groupIndices: [],
             wordLinkedNumber: [],
             linkedWordIndices: [],
             wordLinkedWordIndices: [],
@@ -43,45 +44,46 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
           });
           return;
         }
-
-        // Parse numbers and word
-        const numberMatches = part.match(/\/(\d+)\//g);
-        const linkedNumbers = numberMatches
-          ? numberMatches.map(n => parseInt(n.replace(/\//g, '')))
-          : [];
+    
+        // Parse number and word
+        const numberMatch = part.match(/\/(\d+)\//);
+        const linkedNumber = numberMatch ? parseInt(numberMatch[1]) : -1;
         const cleanWord = part.replace(/\/\d+\//g, '').trim();
-
-        // Create key for number group (sorted numbers joined)
-        if (linkedNumbers.length > 0) {
-          const numbersKey = [...linkedNumbers].sort().join(',');
-          if (!numberGroups.has(numbersKey)) {
-            numberGroups.set(numbersKey, []);
+    
+        // Track word indices by their number
+        if (linkedNumber !== -1) {
+          if (!numberToIndicesMap.has(linkedNumber)) {
+            numberToIndicesMap.set(linkedNumber, []);
           }
-          numberGroups.get(numbersKey)!.push(cleanWord);
+          numberToIndicesMap.get(linkedNumber)!.push(index);
         }
-
+    
         words.push({
           word: cleanWord,
           sentenceNumber,
           wordIndex: index,
-          linkedNumbers,
-          wordLinkedNumber: [], // Will fill in second pass
+          linkedNumber,
+          groupIndices: [],
+          wordLinkedNumber: [],
           linkedWordIndices: [],
           wordLinkedWordIndices: [],
           isSpace: false,
           isTranslation
         });
       });
-
-      // Second pass: fill in wordLinkedNumber arrays
-      words.forEach(word => {
-        if (!word.isSpace && word.linkedNumbers.length > 0) {
-          const numbersKey = [...word.linkedNumbers].sort().join(',');
-          const groupWords = numberGroups.get(numbersKey) || [];
-          word.wordLinkedNumber = groupWords.filter(w => w !== word.word);
+    
+      // Second pass: fill in group indices and words
+      words.forEach((word, wordIndex) => {
+        if (!word.isSpace && word.linkedNumber !== -1) {
+          // Get all indices for this number
+          const groupIndices = numberToIndicesMap.get(word.linkedNumber) || [];
+          // Filter out own index
+          word.groupIndices = groupIndices.filter(idx => idx !== wordIndex);
+          // Get words for these indices
+          word.wordLinkedNumber = word.groupIndices.map(idx => words[idx].word);
         }
       });
-
+    
       return words;
     };
 
@@ -95,26 +97,11 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
     const parsed = parseSentenceText(sentence.sentence_number);
     const { original, translation } = parsed;
 
-    // Debug logging
-    console.log("Original sentence parsing:", original.map(w => ({
-      word: w.word,
-      linkedNumbers: w.linkedNumbers,
-      wordLinkedNumber: w.wordLinkedNumber
-    })));
-    console.log("Translation parsing:", translation.map(w => ({
-      word: w.word,
-      linkedNumbers: w.linkedNumbers,
-      wordLinkedNumber: w.wordLinkedNumber
-    })));
-
     // Establish bidirectional links between words
     original.forEach((origWord, origIndex) => {
-      if (origWord.linkedNumbers.length > 0) {
+      if (origWord.linkedNumber !== -1) {
         translation.forEach((transWord, transIndex) => {
-          const origNumbers = [...origWord.linkedNumbers].sort().join(',');
-          const transNumbers = [...transWord.linkedNumbers].sort().join(',');
-          
-          if (origNumbers === transNumbers) {
+          if (origWord.linkedNumber === transWord.linkedNumber) {
             // Add indices
             origWord.linkedWordIndices.push(transIndex);
             transWord.linkedWordIndices.push(origIndex);

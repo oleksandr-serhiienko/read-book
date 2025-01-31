@@ -1,9 +1,10 @@
 // Word.tsx
-import React, { memo } from 'react';
-import { Text, StyleSheet } from 'react-native';
+import React, { memo, useEffect, useState } from 'react';
+import { Text, StyleSheet, View } from 'react-native';
 import { ParsedWord } from '../types/types';
 import { BookDatabase, DBSentence } from '@/components/db/bookDatabase';
 import { SlidePanelEvents } from '../events/slidePanelEvents';
+import WordPopup from './WordPopup';
 
 interface WordProps {
   word: ParsedWord;
@@ -35,6 +36,9 @@ const Word: React.FC<WordProps> = memo(({
   onPress,
   onLongPress
 }) => {
+  const [showPopup, setShowPopup] = useState(false);
+  const [popupTranslation, setPopupTranslation] = useState('');
+  
   if (word.isSpace) {
     return <Text style={styles.space}> </Text>;
   }
@@ -64,15 +68,40 @@ const Word: React.FC<WordProps> = memo(({
     }
 
     // If it's part of a group
-    if (updatedWord.linkedNumbers.length > 0) {
+    console.log("me: " + updatedWord.wordIndex);
+    console.log("linked number: " + updatedWord.groupIndices);
+    console.log("linked word: " + updatedWord.wordLinkedNumber);
+
+    console.log("linked indices: " + updatedWord.linkedWordIndices);
+    console.log("linked indices word: " + updatedWord.wordLinkedWordIndices);
+    if (updatedWord.groupIndices.length > 0) {        
         let individualTranslation = await bookDatabase.getWordTranslation(cleanedWord);
         if (individualTranslation) {
-            console.log("Popup: " + individualTranslation.english_translation); 
+          console.log("HEEEEEY: " + individualTranslation.english_translation);
+          setPopupTranslation(individualTranslation.english_translation);
+          setShowPopup(true);
         }
 
-        // Prepare group translation for slide panel
-        const currentPhrase = [updatedWord.word, ...updatedWord.wordLinkedNumber].join(' ');
-        const translationPhrase = updatedWord.wordLinkedWordIndices.join(' ');
+        const allGroupWords = [
+          { index: updatedWord.wordIndex, word: updatedWord.word },
+          ...updatedWord.wordLinkedNumber.map((word, i) => ({
+              index: updatedWord.groupIndices[i],
+              word: word
+          }))
+      ].sort((a, b) => a.index - b.index)
+       .map(item => item.word);
+  
+      // Get translations sorted by index
+      const sortedTranslations = updatedWord.linkedWordIndices
+          .map((index, i) => ({
+              index,
+              word: updatedWord.wordLinkedWordIndices[i]
+          }))
+          .sort((a, b) => a.index - b.index)
+          .map(item => item.word);
+  
+      const currentPhrase = allGroupWords.join(' ');
+      const translationPhrase = sortedTranslations.join(' ');
         
         const responseTranslation = {
             Original: updatedWord.isTranslation ? translationPhrase : currentPhrase,
@@ -87,51 +116,67 @@ const Word: React.FC<WordProps> = memo(({
         
         SlidePanelEvents.emit(responseTranslation, true);
     } else {
-        // Single word case - check both DB and coupled translation
-        let dbTranslation = await bookDatabase.getWordTranslation(cleanedWord);
-        const coupledTranslation = updatedWord.wordLinkedWordIndices[0]; // Get coupled translation if exists
-
-        const translations = [];
-        
-        // Add coupled translation first if it exists and isn't in DB
-        if (coupledTranslation && (!dbTranslation || dbTranslation.english_translation !== coupledTranslation)) {
-            translations.push({
-                word: coupledTranslation,
-                pos: ""
-            });
-        }
-
-        // Add DB translation if exists
-        if (dbTranslation) {
-            translations.push({
-                word: dbTranslation.english_translation,
-                pos: ""
-            });
-        }
-
-        const responseTranslation = {
-            Original: cleanedWord,
-            Translations: translations.length > 0 ? translations : [{ word: "Translation", pos: "" }],
-            Contexts: [],
-            Book: "",
-            TextView: ""
-        };
-        
-        SlidePanelEvents.emit(responseTranslation, true);
-    }
+      // Single word case - check both DB and coupled translation
+      let dbTranslation = await bookDatabase.getWordTranslation(cleanedWord);
+      
+      // Combine all coupled translations into one word in order
+      const coupledTranslation = updatedWord.linkedWordIndices
+          .map((index, i) => ({
+              index,
+              word: updatedWord.wordLinkedWordIndices[i].replace(/[.,!?;:]+$/, '')
+          }))
+          .sort((a, b) => a.index - b.index)
+          .map(item => item.word)
+          .join(' '); // Join all words with space
+  
+      const translations = [];
+      
+      // Add coupled translation first if it exists and isn't in DB
+      if (coupledTranslation && (!dbTranslation || dbTranslation.english_translation !== coupledTranslation)) {
+          translations.push({
+              word: coupledTranslation,
+              pos: ""
+          });
+      }
+  
+      // Add DB translation if exists
+      if (dbTranslation) {
+          translations.push({
+              word: dbTranslation.english_translation,
+              pos: ""
+          });
+      }
+  
+      const responseTranslation = {
+          Original: cleanedWord,
+          Translations: translations.length > 0 ? translations : [{ word: "Translation", pos: "" }],
+          Contexts: [],
+          Book: "",
+          TextView: ""
+      };
+      
+      SlidePanelEvents.emit(responseTranslation, true);
+  }
 };
 
   return (
-    <Text
-      onPress={handleWordPress}
-      onLongPress={onLongPress}
-      style={[
-        dynamicStyles.word,
-        isHighlighted && styles.highlightedWord
-      ]}
-    >
-      {word.word}
-    </Text>
+    <View>
+      <Text
+        onPress={handleWordPress}
+        onLongPress={onLongPress}
+        style={[
+          dynamicStyles.word,
+          isHighlighted && styles.highlightedWord
+        ]}
+      >
+        {word.word}
+      </Text>
+      <WordPopup 
+        translation={popupTranslation}
+        visible={showPopup}
+        onHide={() => setShowPopup(false)}
+      />
+    </View>
   );
 }, arePropsEqual);
 

@@ -5,7 +5,7 @@ import { ParsedSentence, ParsedWord } from '../types/types';
 
 interface HighlightState {
   sentenceNumber: number | null;
-  linkedNumbers: number[];
+  linkedNumber: number;
   wordIndex: number | null; 
 }
 
@@ -22,7 +22,7 @@ export const useWordHighlight = (
 
   const [highlightState, setHighlightState] = useState<HighlightState>({
     sentenceNumber: null,
-    linkedNumbers: [],
+    linkedNumber: 0,
     wordIndex: null  
   });
   const [selectedSentence, setSelectedSentence] = useState<number | null>(null);
@@ -48,10 +48,10 @@ export const useWordHighlight = (
     );
     
     if (foundWord) {
-      console.log(`Found word: ${foundWord.word} with linked numbers: ${foundWord.linkedNumbers}`);
+      console.log(`Found word: ${foundWord.word} with linked numbers: ${foundWord.linkedNumber}`);
       setHighlightState({
         sentenceNumber: sentence.sentence_number,
-        linkedNumbers: foundWord.linkedNumbers,
+        linkedNumber: foundWord.linkedNumber,
         wordIndex: wordIndex
       });
       return foundWord;
@@ -71,16 +71,16 @@ export const useWordHighlight = (
 
     // Toggle sentence selection
     setSelectedSentence(current => current === sentenceNumber ? null : sentenceNumber);
-    setHighlightState({ sentenceNumber: null, linkedNumbers: [], wordIndex: null });
+    setHighlightState({ sentenceNumber: null, linkedNumber: 0, wordIndex: null });
   }, [parseSentence, parsedSentences, updateParsedSentences]);
 
   const isWordHighlighted = useCallback((word: ParsedWord) => {
-    if (!highlightState.sentenceNumber || !word.linkedNumbers.length) return false;
+    if (!highlightState.sentenceNumber || !word.linkedNumber) return false;
     
     return (
       highlightState.sentenceNumber === word.sentenceNumber &&
       // Check if any of the word's linked numbers match the highlighted numbers
-      word.linkedNumbers.some(num => highlightState.linkedNumbers.includes(num))
+      highlightState.linkedNumber === word.linkedNumber
     );
   }, [highlightState]);
 
