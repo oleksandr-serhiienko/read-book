@@ -5,7 +5,7 @@ import { ParsedSentence, ParsedWord } from '../types/types';
 
 interface HighlightState {
   sentenceNumber: number | null;
-  linkedNumber: number;
+  groupNumber: number;
   wordIndex: number | null; 
 }
 
@@ -22,7 +22,7 @@ export const useWordHighlight = (
 
   const [highlightState, setHighlightState] = useState<HighlightState>({
     sentenceNumber: null,
-    linkedNumber: 0,
+    groupNumber: 0,
     wordIndex: null  
   });
   const [selectedSentence, setSelectedSentence] = useState<number | null>(null);
@@ -48,10 +48,10 @@ export const useWordHighlight = (
     );
     
     if (foundWord) {
-      console.log(`Found word: ${foundWord.word} with linked numbers: ${foundWord.linkedNumber}`);
+      console.log(`Found word: ${foundWord.word} with linked numbers: ${foundWord.groupNumber}`);
       setHighlightState({
         sentenceNumber: sentence.sentence_number,
-        linkedNumber: foundWord.linkedNumber,
+        groupNumber: foundWord.groupNumber,
         wordIndex: wordIndex
       });
       return foundWord;
@@ -71,16 +71,16 @@ export const useWordHighlight = (
 
     // Toggle sentence selection
     setSelectedSentence(current => current === sentenceNumber ? null : sentenceNumber);
-    setHighlightState({ sentenceNumber: null, linkedNumber: 0, wordIndex: null });
+    setHighlightState({ sentenceNumber: null, groupNumber: 0, wordIndex: null });
   }, [parseSentence, parsedSentences, updateParsedSentences]);
 
   const isWordHighlighted = useCallback((word: ParsedWord) => {
-    if (!highlightState.sentenceNumber || !word.linkedNumber) return false;
+    if (!highlightState.sentenceNumber || !word.groupNumber) return false;
     
     return (
       highlightState.sentenceNumber === word.sentenceNumber &&
       // Check if any of the word's linked numbers match the highlighted numbers
-      highlightState.linkedNumber === word.linkedNumber
+      highlightState.groupNumber === word.groupNumber
     );
   }, [highlightState]);
 

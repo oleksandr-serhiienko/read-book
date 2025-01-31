@@ -34,11 +34,11 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
             word: part,
             sentenceNumber,
             wordIndex: index,
-            linkedNumber: -1,
-            groupIndices: [],
+            groupNumber: -1,
+            linkeNumber: [],
             wordLinkedNumber: [],
-            linkedWordIndices: [],
-            wordLinkedWordIndices: [],
+            linkedWordMirror: [],
+            wordLinkedWordMirror: [],
             isSpace: true,
             isTranslation
           });
@@ -47,26 +47,26 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
     
         // Parse number and word
         const numberMatch = part.match(/\/(\d+)\//);
-        const linkedNumber = numberMatch ? parseInt(numberMatch[1]) : -1;
+        const groupNumber = numberMatch ? parseInt(numberMatch[1]) : -1;
         const cleanWord = part.replace(/\/\d+\//g, '').trim();
     
         // Track word indices by their number
-        if (linkedNumber !== -1) {
-          if (!numberToIndicesMap.has(linkedNumber)) {
-            numberToIndicesMap.set(linkedNumber, []);
+        if (groupNumber !== -1) {
+          if (!numberToIndicesMap.has(groupNumber)) {
+            numberToIndicesMap.set(groupNumber, []);
           }
-          numberToIndicesMap.get(linkedNumber)!.push(index);
+          numberToIndicesMap.get(groupNumber)!.push(index);
         }
     
         words.push({
           word: cleanWord,
           sentenceNumber,
           wordIndex: index,
-          linkedNumber,
-          groupIndices: [],
+          groupNumber,
+          linkeNumber: [],
           wordLinkedNumber: [],
-          linkedWordIndices: [],
-          wordLinkedWordIndices: [],
+          linkedWordMirror: [],
+          wordLinkedWordMirror: [],
           isSpace: false,
           isTranslation
         });
@@ -74,13 +74,13 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
     
       // Second pass: fill in group indices and words
       words.forEach((word, wordIndex) => {
-        if (!word.isSpace && word.linkedNumber !== -1) {
+        if (!word.isSpace && word.groupNumber !== -1) {
           // Get all indices for this number
-          const groupIndices = numberToIndicesMap.get(word.linkedNumber) || [];
+          const groupIndices = numberToIndicesMap.get(word.groupNumber) || [];
           // Filter out own index
-          word.groupIndices = groupIndices.filter(idx => idx !== wordIndex);
+          word.linkeNumber = groupIndices.filter(idx => idx !== wordIndex);
           // Get words for these indices
-          word.wordLinkedNumber = word.groupIndices.map(idx => words[idx].word);
+          word.wordLinkedNumber = word.linkeNumber.map(idx => words[idx].word);
         }
       });
     
@@ -99,16 +99,16 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
 
     // Establish bidirectional links between words
     original.forEach((origWord, origIndex) => {
-      if (origWord.linkedNumber !== -1) {
+      if (origWord.groupNumber !== -1) {
         translation.forEach((transWord, transIndex) => {
-          if (origWord.linkedNumber === transWord.linkedNumber) {
+          if (origWord.groupNumber === transWord.groupNumber) {
             // Add indices
-            origWord.linkedWordIndices.push(transIndex);
-            transWord.linkedWordIndices.push(origIndex);
+            origWord.linkedWordMirror.push(transIndex);
+            transWord.linkedWordMirror.push(origIndex);
             
             // Add actual words
-            origWord.wordLinkedWordIndices.push(transWord.word);
-            transWord.wordLinkedWordIndices.push(origWord.word);
+            origWord.wordLinkedWordMirror.push(transWord.word);
+            transWord.wordLinkedWordMirror.push(origWord.word);
           }
         });
       }

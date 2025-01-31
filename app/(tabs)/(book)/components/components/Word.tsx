@@ -69,12 +69,12 @@ const Word: React.FC<WordProps> = memo(({
 
     // If it's part of a group
     console.log("me: " + updatedWord.wordIndex);
-    console.log("linked number: " + updatedWord.groupIndices);
+    console.log("linked number: " + updatedWord.linkeNumber);
     console.log("linked word: " + updatedWord.wordLinkedNumber);
 
-    console.log("linked indices: " + updatedWord.linkedWordIndices);
-    console.log("linked indices word: " + updatedWord.wordLinkedWordIndices);
-    if (updatedWord.groupIndices.length > 0) {        
+    console.log("linked indices: " + updatedWord.linkedWordMirror);
+    console.log("linked indices word: " + updatedWord.wordLinkedWordMirror);
+    if (updatedWord.linkeNumber.length > 0) {        
         let individualTranslation = await bookDatabase.getWordTranslation(cleanedWord);
         if (individualTranslation) {
           console.log("HEEEEEY: " + individualTranslation.english_translation);
@@ -85,17 +85,17 @@ const Word: React.FC<WordProps> = memo(({
         const allGroupWords = [
           { index: updatedWord.wordIndex, word: updatedWord.word },
           ...updatedWord.wordLinkedNumber.map((word, i) => ({
-              index: updatedWord.groupIndices[i],
+              index: updatedWord.linkeNumber[i],
               word: word
           }))
       ].sort((a, b) => a.index - b.index)
        .map(item => item.word);
   
       // Get translations sorted by index
-      const sortedTranslations = updatedWord.linkedWordIndices
+      const sortedTranslations = updatedWord.linkedWordMirror
           .map((index, i) => ({
               index,
-              word: updatedWord.wordLinkedWordIndices[i]
+              word: updatedWord.wordLinkedWordMirror[i]
           }))
           .sort((a, b) => a.index - b.index)
           .map(item => item.word);
@@ -120,10 +120,10 @@ const Word: React.FC<WordProps> = memo(({
       let dbTranslation = await bookDatabase.getWordTranslation(cleanedWord);
       
       // Combine all coupled translations into one word in order
-      const coupledTranslation = updatedWord.linkedWordIndices
+      const coupledTranslation = updatedWord.linkedWordMirror
           .map((index, i) => ({
               index,
-              word: updatedWord.wordLinkedWordIndices[i].replace(/[.,!?;:]+$/, '')
+              word: updatedWord.wordLinkedWordMirror[i].replace(/[.,!?;:]+$/, '')
           }))
           .sort((a, b) => a.index - b.index)
           .map(item => item.word)
