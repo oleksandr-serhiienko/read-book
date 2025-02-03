@@ -63,7 +63,6 @@ const Word: React.FC<WordProps> = memo(({
     if (updatedWord.linkeNumber.length > 0) {        
         let individualTranslation = await database.getWordTranslation(cleanedWord);
         if (individualTranslation) {
-          console.log("HEEEEEY: " + individualTranslation.english_translation);
           setPopupTranslation(individualTranslation.english_translation);
           setShowPopup(true);
         }
@@ -102,6 +101,8 @@ const Word: React.FC<WordProps> = memo(({
         
         SlidePanelEvents.emit(responseTranslation, true);
     } else {
+
+      let cleanedWord = updatedWord.isTranslation ? updatedWord.wordLinkedWordMirror[0].replace(/[.,!?;:]+$/, '') : updatedWord.word.replace(/[.,!?;:]+$/, '');
       // Single word case - check both DB and coupled translation
       let dbTranslation = await database.getWordTranslation(cleanedWord);
       
@@ -118,7 +119,8 @@ const Word: React.FC<WordProps> = memo(({
       const translations = [];
       
       // Add coupled translation first if it exists and isn't in DB
-      if (coupledTranslation && (!dbTranslation || dbTranslation.english_translation !== coupledTranslation)) {
+      if (coupledTranslation && (!dbTranslation || dbTranslation.english_translation !== coupledTranslation)  && !updatedWord.isTranslation) {
+          console.log("Am I here? " + coupledTranslation);
           translations.push({
               word: coupledTranslation,
               pos: ""
