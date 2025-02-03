@@ -53,9 +53,14 @@ useEffect(() => {
   const unsubscribe = FontSizeEvents.subscribe((newSize) => {
     setCurrentFontSize(newSize);
   });
-  loadChapter(0);
   return () => unsubscribe();
 }, [bookTitle, bookUrl]);
+
+useEffect(() => {
+  if (db) {
+    loadChapter(0);
+  }
+}, [db]);
 
   const {
     currentChapter,
