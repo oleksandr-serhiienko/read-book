@@ -3,11 +3,10 @@ import { useState } from 'react';
 import { BookDatabase, DBSentence } from '@/components/db/bookDatabase';
 
 interface UseChapterDataProps {
-  bookTitle: string;
-  bookUrl: string;
+  db: BookDatabase | null;
 }
 
-export const useChapterData = ({ bookTitle, bookUrl }: UseChapterDataProps) => {
+export const useChapterData = ({ db }: UseChapterDataProps) => {
   const [currentChapter, setCurrentChapter] = useState<number>(0);
   const [chapterSentences, setChapterSentences] = useState<DBSentence[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -18,24 +17,19 @@ export const useChapterData = ({ bookTitle, bookUrl }: UseChapterDataProps) => {
     try {
       setIsLoading(true);
       setError(null);
-
-      const bookDatabase = new BookDatabase(bookTitle);
-      const dbInitialized = await bookDatabase.initialize();
       
-      if (!dbInitialized) {
-        await bookDatabase.downloadDatabase(bookUrl);
-        if (!await bookDatabase.initialize()) {
-          throw new Error("Failed to initialize database");
-        }
+      if (db === null){
+        console.log("SHIIISH");
+        return;
       }
-
       // Get sentences for specific chapter
-      const sentences = await bookDatabase.getChapterSentences(chapterNumber);
+      const sentences = await db.getChapterSentences(chapterNumber);
+      console.log(sentences);
       setChapterSentences(sentences);
       
       // Get total chapters count if not already set
       if (totalChapters === 0) {
-        const count = await bookDatabase.getTotalChapters();
+        const count = await db.getTotalChapters();
         setTotalChapters(count);
       }
     } catch (err) {

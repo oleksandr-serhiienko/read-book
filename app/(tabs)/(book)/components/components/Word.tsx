@@ -10,8 +10,8 @@ interface WordProps {
   word: ParsedWord;
   sentence: DBSentence;
   isHighlighted: boolean;
-  bookTitle: string;
   fontSize: number;
+  database: BookDatabase; // Add database instance as a prop
   onPress: (word: string, sentence: DBSentence, wordIndex: number) => Promise<ParsedWord>;
   onLongPress?: () => void;
 }
@@ -31,8 +31,8 @@ const Word: React.FC<WordProps> = memo(({
   word,
   sentence,
   isHighlighted,
-  bookTitle,
   fontSize,
+  database,
   onPress,
   onLongPress
 }) => {
@@ -53,29 +53,15 @@ const Word: React.FC<WordProps> = memo(({
 
   const handleWordPress = async () => {
     const cleanedWord = word.word.replace(/[.,!?;:]+$/, '');
-    console.log("Clicked word:", cleanedWord);
     
     // Get updated word data
     const updatedWord = await onPress(word.word, sentence, word.wordIndex);
     if (!updatedWord) return;
-    
-    // Initialize database first
-    const bookDatabase = new BookDatabase(bookTitle);
-    const dbInitialized = await bookDatabase.initialize();
-    
-    if (!dbInitialized) {
-        throw new Error("Database is not initialized");
-    }
+  
 
     // If it's part of a group
-    console.log("me: " + updatedWord.wordIndex);
-    console.log("linked number: " + updatedWord.linkeNumber);
-    console.log("linked word: " + updatedWord.wordLinkedNumber);
-
-    console.log("linked indices: " + updatedWord.linkedWordMirror);
-    console.log("linked indices word: " + updatedWord.wordLinkedWordMirror);
     if (updatedWord.linkeNumber.length > 0) {        
-        let individualTranslation = await bookDatabase.getWordTranslation(cleanedWord);
+        let individualTranslation = await database.getWordTranslation(cleanedWord);
         if (individualTranslation) {
           console.log("HEEEEEY: " + individualTranslation.english_translation);
           setPopupTranslation(individualTranslation.english_translation);
@@ -117,7 +103,7 @@ const Word: React.FC<WordProps> = memo(({
         SlidePanelEvents.emit(responseTranslation, true);
     } else {
       // Single word case - check both DB and coupled translation
-      let dbTranslation = await bookDatabase.getWordTranslation(cleanedWord);
+      let dbTranslation = await database.getWordTranslation(cleanedWord);
       
       // Combine all coupled translations into one word in order
       const coupledTranslation = updatedWord.linkedWordMirror

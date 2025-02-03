@@ -11,6 +11,8 @@ import { FontSizeEvents } from './events/fontSizeEvents';
 import SlidePanel from '../slidePanel';
 import ReaderSettings from './components/ReaderSettings';
 import BottomChapterNavigation from './components/BottomChapterNavigation';
+import { ParsedWord } from './types/types';
+import { BookDatabase } from '@/components/db/bookDatabase';
 
 const MIN_FONT_SIZE = 12;
 const MAX_FONT_SIZE = 24;
@@ -26,6 +28,34 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
   const [currentFontSize, setCurrentFontSize] = useState(DEFAULT_FONT_SIZE);
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [panelContent, setPanelContent] = useState<PanelContent>(null);
+  const [db, setDb] = useState<BookDatabase | null>(null);
+
+useEffect(() => {
+  const initializeDb = async () => {
+    const bookDatabase = new BookDatabase(bookTitle);
+    const dbInitialized = await bookDatabase.initialize();
+    
+    if (!dbInitialized) {
+      await bookDatabase.downloadDatabase(bookUrl);
+      if (!await bookDatabase.initialize()) {
+        throw new Error("Failed to initialize database");
+      }
+    }
+    console.log("INIIITIALIZED");
+    setDb(bookDatabase);
+    
+  };
+
+  initializeDb().catch(console.error);
+  loadFontSize();
+  FontSizeEvents.reset();
+  
+  const unsubscribe = FontSizeEvents.subscribe((newSize) => {
+    setCurrentFontSize(newSize);
+  });
+  loadChapter(0);
+  return () => unsubscribe();
+}, [bookTitle, bookUrl]);
 
   const {
     currentChapter,
@@ -36,14 +66,13 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     loadChapter,
     nextChapter,
     previousChapter
-  } = useChapterData({ bookTitle, bookUrl });
+  } = useChapterData({ db });
 
   const { parsedSentences, updateParsedSentences, parseSentence } = useParsedSentences(chapterSentences);
 
   // Font size management
   useEffect(() => {
     loadFontSize();
-    
     // Reset the events system
     FontSizeEvents.reset();
     
@@ -120,10 +149,6 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     isWordHighlighted 
   } = useWordHighlight(parseSentence, parsedSentencesState);
 
-  useEffect(() => {
-    loadChapter(0);
-  }, [bookUrl]);
-
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -136,6 +161,13 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>Error: {error.message}</Text>
+      </View>
+    );
+  }
+  if (!db) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#0000ff" />
       </View>
     );
   }
@@ -161,9 +193,10 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
             isSelected={selectedSentence === sentence.sentence_number}
             bookTitle={bookTitle}
             fontSize={currentFontSize}
-            onWordPress={(word, sentence, index) => handleWordPress(word, sentence, index)}
+            onWordPress={(word, sentence, index) => handleWordPress(word, sentence, index) as Promise<ParsedWord>}
             onLongPress={() => handleLongPress(sentence)}
             isWordHighlighted={isWordHighlighted}
+            database={db}
           />
         ))}
         

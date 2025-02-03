@@ -2,7 +2,8 @@
 import { Text, View, StyleSheet } from "react-native";
 import { Word } from "./Word";
 import { ParsedSentence, ParsedWord } from "../types/types";
-import { DBSentence } from "@/components/db/bookDatabase";
+import { BookDatabase, DBSentence } from "@/components/db/bookDatabase";
+import { database } from "@/components/db/database";
 
 export interface SentenceProps {
   sentence: DBSentence;
@@ -13,6 +14,7 @@ export interface SentenceProps {
   onWordPress: (word: string, sentence: DBSentence, index: number) => Promise<ParsedWord>;
   onLongPress: () => void;
   isWordHighlighted: (word: ParsedWord) => boolean;
+  database: BookDatabase
 }
 
 export const Sentence: React.FC<SentenceProps> = ({
@@ -23,7 +25,8 @@ export const Sentence: React.FC<SentenceProps> = ({
   fontSize,  // Add fontSize to props
   onWordPress,
   onLongPress,
-  isWordHighlighted
+  isWordHighlighted, 
+  database
 }) => {
   const dynamicStyles = StyleSheet.create({
     paragraph: {
@@ -49,11 +52,11 @@ export const Sentence: React.FC<SentenceProps> = ({
               key={`original-${index}`}
               word={word}
               sentence={sentence}
-              bookTitle={bookTitle}
               fontSize={fontSize}  // Pass fontSize to Word
               isHighlighted={isWordHighlighted(word)}
               onPress={onWordPress}
               onLongPress={onLongPress}
+              database={database}
             />
           ))
         ) : (
@@ -62,11 +65,12 @@ export const Sentence: React.FC<SentenceProps> = ({
             const parsedWord: ParsedWord = {
               word,
               sentenceNumber: sentence.sentence_number,
-              wordIndex: index,              
-              linkedNumbers: [],
+              wordIndex: index, 
+              groupNumber: 0,             
+              linkeNumber: [],
               wordLinkedNumber: [],
-              linkedWordIndices: [],
-              wordLinkedWordIndices: [],
+              linkedWordMirror: [],
+              wordLinkedWordMirror: [],
               isSpace,
               isTranslation: false
             };
@@ -77,9 +81,9 @@ export const Sentence: React.FC<SentenceProps> = ({
                 sentence={sentence}
                 isHighlighted={false}
                 fontSize={fontSize}  // Pass fontSize to Word
-                bookTitle={bookTitle}
                 onPress={onWordPress}
                 onLongPress={onLongPress}
+                database={database}
               />
             );
           })
@@ -98,7 +102,7 @@ export const Sentence: React.FC<SentenceProps> = ({
                 isHighlighted={isWordHighlighted(word)}
                 fontSize={fontSize}  // Pass fontSize to Word
                 onPress={onWordPress}
-                bookTitle={bookTitle}
+                database={database}
               />
             ))}
           </Text>
