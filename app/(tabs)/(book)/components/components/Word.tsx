@@ -40,14 +40,18 @@ const Word: React.FC<WordProps> = memo(({
   const [popupTranslation, setPopupTranslation] = useState('');
   
   if (word.isSpace) {
-    return <Text style={styles.space}> </Text>;
+    return <Text>{' '}</Text>;  
   }
 
   const dynamicStyles = StyleSheet.create({
+    container: {
+      flexDirection: 'row',
+      alignItems: 'baseline',  // Important for text alignment
+    },
     word: {
       fontSize: fontSize,
       lineHeight: fontSize * 1.5,
-      padding: 2,
+      marginHorizontal: 1,    // Instead of padding
     }
   });
 
@@ -147,25 +151,25 @@ const Word: React.FC<WordProps> = memo(({
   }
 };
 
-  return (
-    <View>
-      <Text
-        onPress={handleWordPress}
-        onLongPress={onLongPress}
-        style={[
-          dynamicStyles.word,
-          isHighlighted && styles.highlightedWord
-        ]}
-      >
-        {word.word}
-      </Text>
-      <WordPopup 
-        translation={popupTranslation}
-        visible={showPopup}
-        onHide={() => setShowPopup(false)}
-      />
-    </View>
-  );
+return (
+  <View style={dynamicStyles.container}>
+    <Text
+      onPress={handleWordPress}
+      onLongPress={onLongPress}
+      style={[
+        dynamicStyles.word,
+        isHighlighted && styles.highlightedWord
+      ]}
+    >
+      {word.word}
+    </Text>
+    <WordPopup 
+      translation={popupTranslation}
+      visible={showPopup}
+      onHide={() => setShowPopup(false)}
+    />
+  </View>
+);
 }, arePropsEqual);
 
 const styles = StyleSheet.create({

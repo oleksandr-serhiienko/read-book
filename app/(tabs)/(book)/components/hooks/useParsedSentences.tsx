@@ -1,10 +1,20 @@
 // useParsedSentences.ts
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { DBSentence } from '@/components/db/bookDatabase';
 import { ParsedSentence, ParsedWord } from '../types/types';
 
 export const useParsedSentences = (chapterSentences: DBSentence[]) => {
   const [parsedSentences, setParsedSentences] = useState<Map<number, ParsedSentence>>(new Map());
+
+  useEffect(() => {
+    // Parse all sentences when chapter sentences change
+    const newParsedSentences = new Map();
+    chapterSentences.forEach(sentence => {
+      const parsed = parseSentence(sentence);
+      newParsedSentences.set(sentence.sentence_number, parsed);
+    });
+    setParsedSentences(newParsedSentences);
+  }, [chapterSentences]);
 
   const updateParsedSentences = useCallback((sentence: DBSentence, parsed: ParsedSentence) => {
     setParsedSentences(prev => {
