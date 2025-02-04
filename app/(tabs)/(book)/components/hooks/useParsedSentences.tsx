@@ -26,9 +26,27 @@ export const useParsedSentences = (chapterSentences: DBSentence[]) => {
 
   const parseSentenceText = useCallback((sentenceNumber: number): ParsedSentence => {
     const sentence = chapterSentences.find(s => s.sentence_number === sentenceNumber);
-    if (!sentence || !sentence.original_parsed_text || !sentence.translation_parsed_text) {
-      return { original: [], translation: [] };
+    if (!sentence ) {
+      return { original: [], translation: [] };      
     }
+        // If it's a special character or unparsed text
+        if (!sentence.original_parsed_text || !sentence.translation_parsed_text) {
+          return {
+              original: [{
+                  word: sentence.original_text === "···" ? "" : sentence.original_text,
+                  sentenceNumber,
+                  wordIndex: 0,
+                  groupNumber: -1,
+                  linkeNumber: [],
+                  wordLinkedNumber: [],
+                  linkedWordMirror: [],
+                  wordLinkedWordMirror: [],
+                  isSpace: false,
+                  isTranslation: false
+              }],
+              translation: []
+          };
+      }
 
     const parseText = (text: string, sentenceNumber: number, isTranslation: boolean): ParsedWord[] => {
       const textParts = text.split(/(\s+)/);

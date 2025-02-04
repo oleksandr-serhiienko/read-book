@@ -218,7 +218,7 @@ export class BookDatabase {
       return await this.db.getAllAsync<DBSentence>(
         `SELECT sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
          FROM book_sentences 
-         WHERE chapter_id = ? AND original_text NOT IN ('···', '-')
+         WHERE chapter_id = ?
          ORDER BY sentence_number`,
         [chapterNumber]
       );

@@ -18,13 +18,12 @@ export const useChapterData = ({ db }: UseChapterDataProps) => {
       setIsLoading(true);
       setError(null);
       
-      if (db === null){
-        console.log("SHIIISH");
+      if (db === null) {
+        console.log("Database not initialized");
         return;
       }
       // Get sentences for specific chapter
       const sentences = await db.getChapterSentences(chapterNumber);
-      console.log(sentences);
       setChapterSentences(sentences);
       
       // Get total chapters count if not already set

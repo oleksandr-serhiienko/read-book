@@ -12,6 +12,7 @@ interface WordProps {
   isHighlighted: boolean;
   fontSize: number;
   database: BookDatabase; // Add database instance as a prop
+  isTranslation: boolean;
   onPress: (word: string, sentence: DBSentence, wordIndex: number) => Promise<ParsedWord>;
   onLongPress?: () => void;
 }
@@ -33,6 +34,7 @@ const Word: React.FC<WordProps> = memo(({
   isHighlighted,
   fontSize,
   database,
+  isTranslation,
   onPress,
   onLongPress
 }) => {
@@ -51,7 +53,10 @@ const Word: React.FC<WordProps> = memo(({
     word: {
       fontSize: fontSize,
       lineHeight: fontSize * 1.5,
-      marginHorizontal: 1,    // Instead of padding
+      ...(isTranslation && {
+        color: '#666',
+        fontStyle: 'italic',
+      })
     }
   });
 

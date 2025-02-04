@@ -31,14 +31,13 @@ export const Sentence: React.FC<SentenceProps> = ({
   const dynamicStyles = StyleSheet.create({
     paragraph: {
       fontSize: fontSize,
-      marginBottom: 16,
       lineHeight: fontSize * 1.5,
     },
     translationText: {
       fontSize: fontSize,
       lineHeight: fontSize * 1.5,
-      color: '#666',
-      fontStyle: 'italic',
+      color: '#666',        // Grey color
+      fontStyle: 'italic',  // Italic style
     }
   });
 
@@ -57,6 +56,7 @@ export const Sentence: React.FC<SentenceProps> = ({
               onPress={onWordPress}
               onLongPress={onLongPress}
               database={database}
+              isTranslation={false}
             />
           ))
         ) : (
@@ -84,6 +84,7 @@ export const Sentence: React.FC<SentenceProps> = ({
                 onPress={onWordPress}
                 onLongPress={onLongPress}
                 database={database}
+                isTranslation={false}
               />
             );
           })
@@ -100,9 +101,10 @@ export const Sentence: React.FC<SentenceProps> = ({
                 word={word}
                 sentence={sentence}
                 isHighlighted={isWordHighlighted(word)}
-                fontSize={fontSize}  // Pass fontSize to Word
+                fontSize={fontSize}
                 onPress={onWordPress}
                 database={database}
+                isTranslation={true}
               />
             ))}
           </Text>
