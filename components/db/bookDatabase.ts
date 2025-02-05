@@ -18,9 +18,11 @@ export interface WordTranslation {
 export class BookDatabase {
   private db: SQLite.SQLiteDatabase | null = null;
   private dbName: string;
+  private bookTitle: string;
   private dbPath: string;
 
   constructor(bookTitle: string) {
+    this.bookTitle = bookTitle;
     this.dbName = `${bookTitle}.db`;
     this.dbPath = `${FileSystem.documentDirectory}books/${this.dbName}`;
   }
@@ -105,6 +107,9 @@ export class BookDatabase {
     }
   }
 
+  public getDbName(): string{
+    return this.bookTitle;
+  }
   private async cleanupDatabase(): Promise<void> {
     try {
       if (this.db) {

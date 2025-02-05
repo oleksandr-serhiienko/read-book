@@ -104,7 +104,7 @@ const Word: React.FC<WordProps> = memo(({
                 pos: ""
             }],
             Contexts: [],
-            Book: "",
+            Book: database.getDbName(),
             TextView: ""
         };
         
@@ -148,7 +148,7 @@ const Word: React.FC<WordProps> = memo(({
           Original: cleanedWord,
           Translations: translations.length > 0 ? translations : [{ word: "Translation", pos: "" }],
           Contexts: [],
-          Book: "",
+          Book: database.getDbName(),
           TextView: ""
       };
       

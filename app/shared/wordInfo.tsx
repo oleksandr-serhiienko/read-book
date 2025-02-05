@@ -6,13 +6,19 @@ import SupportedLanguages from '@/components/reverso/languages/entities/language
 import { Transform } from '@/components/transform';
 import { useLanguage } from '@/app/languageSelector';
 import * as Speech from 'expo-speech';
-import { Volume2, Volume1, Check, Pencil } from 'lucide-react-native';
+import { Volume2, Volume1, Check, Pencil, ArrowRight } from 'lucide-react-native';
 import languages from '@/components/reverso/languages/entities/languages';
 import voices from '@/components/reverso/languages/voicesTranslate';
+import { BookDatabase } from '@/components/db/bookDatabase';
+import { router } from 'expo-router';
 
 interface WordInfoContentProps {
   content: string;
   initialIsAdded: boolean;
+}
+interface WordInfo {
+  word: string;
+  translation: string;
 }
 
 export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProps) {
@@ -21,10 +27,12 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState('');
+  const [individualWords, setIndividualWords] = useState<WordInfo[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const { sourceLanguage, targetLanguage } = useLanguage();
   const languageKey = sourceLanguage.toLowerCase() as keyof typeof languages;
   const database = new Database();   
+  const [db, setDb] = useState<BookDatabase | null>(null);
 
   const formattedTranslations = parsedContent.Translations.slice(0, 5).map(t =>
     `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
@@ -36,6 +44,43 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
       loadExistingComment();
     }
   }, []);
+
+  useEffect(() => {
+    const setupAndLoadData = async () => {
+      try {
+        // First initialize the database
+        const bookDatabase = new BookDatabase(parsedContent.Book);
+        const dbInitialized = await bookDatabase.initialize();
+        
+        if (!dbInitialized) { 
+          throw new Error("Failed to initialize database");  
+        }
+        setDb(bookDatabase);
+  
+        // Only after database is initialized, load the translations
+        const originalText = parsedContent?.Original;
+        if (originalText && typeof originalText === 'string') {
+          const words = originalText.split(' ').filter(word => word.trim().length > 0);
+          
+          const wordsWithTranslations = await Promise.all(
+            words.map(async (word) => {
+              const translation = await bookDatabase.getWordTranslation(word.trim());
+              return {
+                word: word.trim(),
+                translation: translation?.english_translation || '',
+              };
+            })
+          );
+          
+          setIndividualWords(wordsWithTranslations);
+        }
+      } catch (error) {
+        console.error('Error in setup and load:', error);
+      }
+    };
+  
+    setupAndLoadData();
+  }, [content]);
 
   const loadExistingComment = async () => {
     try {
@@ -61,6 +106,34 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
       console.error('Error adding comment:', error);
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleWordPress = async (word: string) => {
+    try {
+      const translation = await db?.getWordTranslation(word);
+      if (translation) {
+        const wordContent = {
+          Original: word,
+          Translations: [{
+            word: translation.english_translation,
+            pos: ""
+          }],
+          Contexts: [],
+          Book: db?.getDbName(),
+          TextView: ""
+        };
+
+        router.push({
+          pathname: "/wordInfo",
+          params: { 
+            content: JSON.stringify(wordContent),
+            added: "false"
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching word translation:', error);
     }
   };
 
@@ -141,6 +214,30 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
     );
   };
 
+  const renderWordButtons = () => {
+    if (!parsedContent.Original || !parsedContent.Original.includes(' ')) {
+      return null;
+    }
+
+    return (
+      <View style={styles.wordButtonsContainer}>
+        {individualWords.map((wordInfo, index) => (
+          <TouchableOpacity 
+            key={index} 
+            style={styles.wordButton}
+            onPress={() => handleWordPress(wordInfo.word)}
+          >
+            <View style={styles.wordContent}>
+              <Text style={styles.wordButtonText}>{wordInfo.word}</Text>
+              <Text style={styles.translationText}> • {wordInfo.translation}</Text>
+            </View>
+            <ArrowRight size={20} color="#666" />
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
   return (
     <ScrollView style={styles.container}>
       <View style={styles.headerSection}>
@@ -157,6 +254,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
           )}
         </TouchableOpacity>
       </View>
+      {renderWordButtons()}
 
       {!isAdded && (
         <TouchableOpacity       
@@ -170,6 +268,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
         </TouchableOpacity>
       )}
        {renderComment()}
+      
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Translations</Text>
@@ -196,6 +295,42 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
 }
 
 const styles = StyleSheet.create({
+  wordButtonsContainer: {
+    marginVertical: 16,
+  },
+  wordButton: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  wordContent: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  wordButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  translationText: {
+    fontSize: 14,
+    color: '#666',
+    fontStyle: 'italic',
+  },
   commentContainer: {
     marginVertical: 5,
     padding: 10,
