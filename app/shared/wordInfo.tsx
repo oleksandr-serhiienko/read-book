@@ -11,6 +11,7 @@ import languages from '@/components/reverso/languages/entities/languages';
 import voices from '@/components/reverso/languages/voicesTranslate';
 import { BookDatabase } from '@/components/db/bookDatabase';
 import { router } from 'expo-router';
+import TranslationContext from '@/components/reverso/languages/entities/translationContext';
 
 interface WordInfoContentProps {
   content: string;
@@ -67,7 +68,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
               const translation = await bookDatabase.getWordTranslation(word.trim());
               return {
                 word: word.trim(),
-                translation: translation?.english_translation || '',
+                translation: translation?.translations[0] || '',
               };
             })
           );
@@ -111,22 +112,30 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
 
   const handleWordPress = async (word: string) => {
     try {
-      const translation = await db?.getWordTranslation(word);
-      if (translation) {
+      const wordTranslation = await db?.getWordTranslation(word);
+      
+      if (wordTranslation) {
+        // Map the contexts from the database result to TranslationContext objects
+        const contexts: TranslationContext[] = wordTranslation.contexts.map(context => ({
+          original: context.original_text,
+          translation: context.translated_text
+        }));
+        
+        // Create the word content object with the translations and contexts
         const wordContent = {
           Original: word,
-          Translations: [{
-            word: translation.english_translation,
+          Translations: wordTranslation.translations.map(translation => ({
+            word: translation,
             pos: ""
-          }],
-          Contexts: [],
+          })),
+          Contexts: contexts.map(context => context.original),
           Book: db?.getDbName(),
           TextView: ""
         };
-
+        
         router.push({
           pathname: "/wordInfo",
-          params: { 
+          params: {
             content: JSON.stringify(wordContent),
             added: "false"
           }

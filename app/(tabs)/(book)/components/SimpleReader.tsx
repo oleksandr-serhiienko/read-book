@@ -58,7 +58,7 @@ useEffect(() => {
 
 useEffect(() => {
   if (db) {
-    loadChapter(0);
+    loadChapter(1);
   }
 }, [db]);
 

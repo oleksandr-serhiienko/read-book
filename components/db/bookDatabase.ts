@@ -2,17 +2,26 @@ import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
 
 export interface DBSentence {
+  id: number;
   sentence_number: number;
   chapter_id: number;
   original_text: string;
   original_parsed_text: string | null;
   translation_parsed_text: string | null;
+  created_at: string;
 }
 
-export interface WordTranslation {
-  german_word: string;
-  english_translation: string;
+export interface WordTranslationWithContext {
+  translations: string[];
+  contexts: TranslationContext[];
+  info?: string;
 }
+
+export interface TranslationContext {
+  original_text: string;
+  translated_text: string;
+}
+
 
 
 export class BookDatabase {
@@ -200,7 +209,7 @@ export class BookDatabase {
     if (!this.db) {
       throw new Error('Database not initialized');
     }
-
+    console.log("getting setences");
     try {
       const result = await this.db.getAllAsync<DBSentence>(
         `SELECT sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
@@ -218,13 +227,20 @@ export class BookDatabase {
     if (!this.db) {
       throw new Error('Database not initialized');
     }
-
+    console.log("tesssst");
     try {
       return await this.db.getAllAsync<DBSentence>(
-        `SELECT sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
-         FROM book_sentences 
-         WHERE chapter_id = ?
-         ORDER BY sentence_number`,
+        `SELECT 
+          id,
+          sentence_number,
+          chapter_id,
+          original_text,
+          original_parsed_text,
+          translation_parsed_text,
+          created_at
+        FROM book_sentences 
+        WHERE chapter_id = ? 
+        ORDER BY sentence_number`,
         [chapterNumber]
       );
     } catch (error) {
@@ -232,6 +248,7 @@ export class BookDatabase {
       throw error;
     }
   }
+
 
   async getTotalChapters(): Promise<number> {
     if (!this.db) {
@@ -249,17 +266,46 @@ export class BookDatabase {
     }
   }
 
-  async getWordTranslation(word: string): Promise<WordTranslation | null> {
+  async getWordTranslation(word: string): Promise<WordTranslationWithContext | null> {
     if (!this.db) {
       throw new Error('Database not initialized');
     }
 
     try {
-      const result = await this.db.getFirstAsync<WordTranslation>(
-        'SELECT german_word, english_translation FROM word_translations WHERE german_word = ? COLLATE NOCASE',
+      // First get the word ID and translations
+      const wordQuery = await this.db.getFirstAsync<{ id: number, translations: string }>(
+        'SELECT id, translations FROM word_translations WHERE id = ?',
         [word]
       );
-      return result;
+
+      if (!wordQuery) {
+        return null;
+      }
+
+      // Split translations string into array
+      const translations = wordQuery.translations
+        .split(',')
+        .map(t => t.trim());
+
+      // Get contexts for the word
+      const contexts = await this.db.getAllAsync<TranslationContext>(
+        `SELECT original_text, translated_text 
+         FROM word_contexts 
+         WHERE word_id = ?`,
+        [wordQuery.id]
+      );
+
+      // Get additional word info if available
+      const wordInfo = await this.db.getFirstAsync<{ info: string }>(
+        'SELECT info FROM word_info WHERE word_id = ?',
+        [wordQuery.id]
+      );
+
+      return {
+        translations,
+        contexts: contexts || [],
+        info: wordInfo?.info
+      };
     } catch (error) {
       console.error('Error fetching word translation:', error);
       throw error;

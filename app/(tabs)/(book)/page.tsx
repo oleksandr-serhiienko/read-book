@@ -9,7 +9,6 @@ import { useLanguage } from '@/app/languageSelector';
 import { database } from '@/components/db/database';
 import ReaderComponent from './components/ReaderComponent';
 import ProgressBar from './components/ProgressBar';
-import DBReader from './components/DbReader';
 import SimpleReader from './components/SimpleReader';
 
 export default function PageScreen() {

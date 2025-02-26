@@ -72,7 +72,7 @@ const Word: React.FC<WordProps> = memo(({
     if (updatedWord.linkeNumber.length > 0) {        
         let individualTranslation = await database.getWordTranslation(cleanedWord);
         if (individualTranslation) {
-          setPopupTranslation(individualTranslation.english_translation);
+          setPopupTranslation(individualTranslation.translations[0]);
           setShowPopup(true);
         }
 
@@ -128,7 +128,7 @@ const Word: React.FC<WordProps> = memo(({
       const translations = [];
       
       // Add coupled translation first if it exists and isn't in DB
-      if (coupledTranslation && (!dbTranslation || dbTranslation.english_translation !== coupledTranslation)  && !updatedWord.isTranslation) {
+      if (coupledTranslation && (!dbTranslation || !dbTranslation.translations.includes(coupledTranslation))  && !updatedWord.isTranslation) {
           console.log("Am I here? " + coupledTranslation);
           translations.push({
               word: coupledTranslation,
@@ -138,10 +138,13 @@ const Word: React.FC<WordProps> = memo(({
   
       // Add DB translation if exists
       if (dbTranslation) {
+        dbTranslation.translations.forEach(translation => {
           translations.push({
-              word: dbTranslation.english_translation,
-              pos: ""
-          });
+            word: translation,
+            pos: ""
+        });
+        });
+          
       }
   
       const responseTranslation = {
