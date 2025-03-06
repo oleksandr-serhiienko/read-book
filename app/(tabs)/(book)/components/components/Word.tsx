@@ -113,7 +113,7 @@ const Word: React.FC<WordProps> = memo(({
 
       let cleanedWord = updatedWord.isTranslation ? updatedWord.wordLinkedWordMirror[0].replace(/[.,!?;:]+$/, '') : updatedWord.word.replace(/[.,!?;:]+$/, '');
       // Single word case - check both DB and coupled translation
-      let dbTranslation = await database.getWordTranslation(cleanedWord);
+      let dbTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
       
       // Combine all coupled translations into one word in order
       const coupledTranslation = updatedWord.linkedWordMirror
@@ -146,11 +146,19 @@ const Word: React.FC<WordProps> = memo(({
         });
           
       }
-  
+      console.log("HERE" + cleanedWord);
+      console.log("HEREE" + dbTranslation?.translations[0]);
+      const convertedContexts = dbTranslation?.contexts?.map(context => {
+        return {
+          original: context.original_text || "",
+          translation: context.translated_text || ""
+        } 
+      }) || [];
+      
       const responseTranslation = {
           Original: cleanedWord,
           Translations: translations.length > 0 ? translations : [{ word: "Translation", pos: "" }],
-          Contexts: [],
+          Contexts: convertedContexts,
           Book: database.getDbName(),
           TextView: ""
       };

@@ -1,10 +1,10 @@
 import * as React from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
-import { ReaderProvider, Section, Location} from '@/components/epub';
+import { SafeAreaView, StyleSheet, BackHandler } from 'react-native';
+import { ReaderProvider, Location } from '@/components/epub';
 import { useState, useEffect, useRef } from 'react';
 import { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
 import SlidePanel from './slidePanel';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useLanguage } from '@/app/languageSelector';
 import { database } from '@/components/db/database';
 import ReaderComponent from './components/ReaderComponent';
@@ -12,18 +12,27 @@ import ProgressBar from './components/ProgressBar';
 import SimpleReader from './components/SimpleReader';
 
 export default function PageScreen() {
-  const { bookUrl, bookTitle, imageUrl } = useLocalSearchParams<{ bookUrl: string, bookTitle: string, imageUrl: string }>();
+  const { bookUrl, bookTitle, imageUrl } = useLocalSearchParams<{ 
+    bookUrl: string, 
+    bookTitle: string, 
+    imageUrl: string 
+  }>();
+  
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [panelContent, setPanelContent] = useState<SentenceTranslation | ResponseTranslation | null>(null);
   const [initialLocation, setInitialLocation] = useState<string | undefined>(undefined);
   const { sourceLanguage } = useLanguage();
   const [readingProgress, setReadingProgress] = useState(0);
   const annotateRef = useRef<(() => void) | undefined>(undefined);
+  const router = useRouter();
+  const isDBBookRef = useRef<boolean>(bookUrl.endsWith('.db'));
+
   const handleAnnotateSentence = () => {
     annotateRef.current?.();
   };
 
-  React.useEffect(() => {
+  // Initialize book data
+  useEffect(() => {
     const initializeBook = async () => {
       await loadSavedLocation();
       const book = await database.getBookByName(bookTitle, sourceLanguage);
@@ -31,9 +40,25 @@ export default function PageScreen() {
         setReadingProgress(book.progress);
       }
     };
-  
+    
     initializeBook();
+    
+    // Add back handler to properly clean up resources
+    const backHandler = BackHandler.addEventListener(
+      'hardwareBackPress',
+      handleBackPress
+    );
+    
+    return () => {
+      backHandler.remove();
+    };
   }, []);
+
+  // Clean up resources when navigating away
+  const handleBackPress = () => {
+    // Let the default back navigation happen
+    return false;
+  };
 
   const handleLocationChange = async (
     totalLocations: number,
@@ -43,7 +68,7 @@ export default function PageScreen() {
     try {
       if (currentLocation && currentLocation.start) {
         await database.updateBook(bookTitle, sourceLanguage.toLowerCase(), currentLocation.start.cfi);
-        if(totalLocations !== 0){
+        if (totalLocations !== 0) {
           await database.updateBookProgress(bookTitle, sourceLanguage.toLowerCase(), progress);
           setReadingProgress(progress);
         }
@@ -52,36 +77,36 @@ export default function PageScreen() {
       console.error('Error saving location:', error);
     }
   };
-
-
+  
   const loadSavedLocation = async () => {
     try {
       const book = await database.getBookByName(bookTitle, sourceLanguage.toLowerCase());
       if (book?.currentLocation !== null) {
         setInitialLocation(book?.currentLocation);
-        console.log(book)
+        console.log("Loaded saved location:", book?.currentLocation);
       }
     } catch (error) {
       console.error('Error loading saved location:', error);
-    }   
+    }
   };
 
   const handlePanelClose = () => {
     setIsPanelVisible(false);
   };
 
-  const isDBBook = bookUrl.endsWith('.db');
+  // Prevent component from re-rendering with different book type
+  const isDBBook = isDBBookRef.current;
 
   return (
     <SafeAreaView style={styles.container}>
       {isDBBook ? (
-        <SimpleReader 
-          bookUrl={bookUrl} 
-          bookTitle={bookTitle} 
+        <SimpleReader
+          bookUrl={bookUrl}
+          bookTitle={bookTitle}
           imageUrl={imageUrl}
         />
       ) : (
-        <ReaderProvider>
+        <ReaderProvider key={`reader-${bookTitle}`}>
           <ReaderComponent
             bookUrl={bookUrl}
             imageUrl={imageUrl}

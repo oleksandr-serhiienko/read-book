@@ -1,3 +1,4 @@
+// Enhanced BookDatabase.ts with improved connection handling
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
 
@@ -22,103 +23,104 @@ export interface TranslationContext {
   translated_text: string;
 }
 
-
-
 export class BookDatabase {
   private db: SQLite.SQLiteDatabase | null = null;
   private dbName: string;
   private bookTitle: string;
   private dbPath: string;
-
+  private isConnecting: boolean = false;
+  
   constructor(bookTitle: string) {
     this.bookTitle = bookTitle;
     this.dbName = `${bookTitle}.db`;
-    this.dbPath = `${FileSystem.documentDirectory}books/${this.dbName}`;
+    // Store directly in the SQLite directory
+    this.dbPath = `${FileSystem.documentDirectory}SQLite/${this.dbName}`;
   }
 
   async initialize(): Promise<boolean> {
+    // If we're already connecting, wait for that to finish
+    if (this.isConnecting) {
+      let attempts = 0;
+      while (this.isConnecting && attempts < 10) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        attempts++;
+      }
+      
+      if (this.db !== null) {
+        return true;
+      }
+    }
+    
+    // If we already have a db instance, verify it's still valid by running a simple query
     if (this.db !== null) {
-      return true;
+      try {
+        // Test query to verify database is still valid
+        await this.db.getFirstAsync('SELECT 1');
+        console.log("Verified existing database connection is valid");
+        return true;
+      } catch (error) {
+        console.warn("Database connection test failed, reopening:", error);
+        this.db = null; // Clear the invalid connection
+      }
     }
 
+    this.isConnecting = true;
+
     try {
-      // Ensure directory exists
-      const dirPath = `${FileSystem.documentDirectory}books`;
-      const dirInfo = await FileSystem.getInfoAsync(dirPath);
+      // Ensure SQLite directory exists
+      const sqliteDir = `${FileSystem.documentDirectory}SQLite`;
+      const dirInfo = await FileSystem.getInfoAsync(sqliteDir);
       if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(dirPath, { intermediates: true });
+        await FileSystem.makeDirectoryAsync(sqliteDir, { intermediates: true });
       }
 
       // Check if database exists
       const dbInfo = await FileSystem.getInfoAsync(this.dbPath);
       if (!dbInfo.exists) {
         console.log("Database file does not exist yet");
+        this.isConnecting = false;
         return false;
       }
 
       try {
-        // First, copy the database to SQLite directory
-        const sqliteDir = `${FileSystem.documentDirectory}SQLite`;
-        await FileSystem.makeDirectoryAsync(sqliteDir, { intermediates: true });
-        
-        const sqlitePath = `${sqliteDir}/${this.dbName}`;
-        await FileSystem.copyAsync({
-          from: this.dbPath,
-          to: sqlitePath
-        });
-        
         console.log("Attempting to open database...");
+        
+        // Close existing connection explicitly if it exists
+        if (this.db) {
+          try {
+            //await this.db.closeAsync();
+            this.db = null;
+          } catch (closeError) {
+            console.warn("Error closing previous connection:", closeError);
+            // Continue with opening a new connection
+          }
+        }
+        
+        // Open fresh connection
         this.db = await SQLite.openDatabaseAsync(this.dbName);
         console.log("Database opened successfully");
-
-        // Verify tables exist using a simpler approach
-        try {
-          // Try to query both tables
-          await this.db.getFirstAsync<{ count: number }>(
-            'SELECT COUNT(*) as count FROM book_sentences'
-          );
-          await this.db.getFirstAsync<{ count: number }>(
-            'SELECT COUNT(*) as count FROM word_translations'
-          );
-          
-          // If we got here, both tables exist
-          console.log("Database structure verified successfully");
-          
-          // Get some basic stats
-          const sentencesCount = await this.db.getFirstAsync<{ count: number }>(
-            'SELECT COUNT(*) as count FROM book_sentences'
-          );
-          console.log(`Total sentences: ${sentencesCount?.count ?? 0}`);
-          
-          const translationsCount = await this.db.getFirstAsync<{ count: number }>(
-            'SELECT COUNT(*) as count FROM word_translations'
-          );
-          console.log(`Total translations: ${translationsCount?.count ?? 0}`);
-          
-          const chaptersCount = await this.db.getFirstAsync<{ count: number }>(
-            'SELECT COUNT(DISTINCT chapter_id) as count FROM book_sentences'
-          );
-          console.log(`Total chapters: ${chaptersCount?.count ?? 0}`);
-
-          return true;
-        } catch (verifyError) {
-          console.error("Database verification failed:", verifyError);
-          throw new Error('Invalid database structure');
-        }
+        
+        // Verify database is properly setup by running a simple query
+        await this.db.getFirstAsync('SELECT 1');
+        
+        this.isConnecting = false;
+        return true;
       } catch (dbError) {
-        console.error("Database error:", dbError);
-        //await this.cleanupDatabase();
+        console.error("Database open error:", dbError);
+        this.isConnecting = false;
         return false;
       }
     } catch (error) {
       console.error("Error initializing book database:", error);
+      this.isConnecting = false;
       throw error;
     }
   }
 
-  public getDbName(): string{
+  public getDbName(): string {
     return this.bookTitle;
   }
+  
   private async cleanupDatabase(): Promise<void> {
     try {
       if (this.db) {
@@ -161,9 +163,9 @@ export class BookDatabase {
       }
 
       console.log(`Starting database download from: ${dbUrl}`);
-      console.log(`Saving to: ${this.dbPath}`);
+      console.log(`Saving directly to SQLite directory: ${this.dbPath}`);
 
-      // Download with progress tracking
+      // Download directly to the SQLite directory
       const downloadResumable = FileSystem.createDownloadResumable(
         dbUrl,
         this.dbPath,
@@ -174,61 +176,80 @@ export class BookDatabase {
         }
       );
 
-      const downloadResult = await downloadResumable.downloadAsync();
-      
-      if (!downloadResult) {
-        throw new Error('Download failed - no result returned');
-      }
-
-      // Verify the downloaded file
-      const downloadedFileInfo = await FileSystem.getInfoAsync(this.dbPath);
-      if (!downloadedFileInfo.exists || !downloadedFileInfo.size) {
-        throw new Error(`Download failed - file ${downloadedFileInfo.exists ? 'is empty' : 'does not exist'}`);
-      }
-
-      // Verify SQLite header
-      const header = await FileSystem.readAsStringAsync(this.dbPath, { 
-        length: 16,
-        position: 0,
-        encoding: FileSystem.EncodingType.UTF8 
-      });
-      
-      if (!header.startsWith('SQLite format 3')) {
-        throw new Error('Downloaded file is not a valid SQLite database');
-      }
-
-      console.log(`Database downloaded successfully. File size: ${downloadedFileInfo.size} bytes`);
+      await downloadResumable.downloadAsync();
+      console.log(`Database downloaded successfully to SQLite directory.`);
     } catch (error) {
       console.error("Download error:", error);
-      //await this.cleanupDatabase();
       throw new Error(`Failed to download database: ${error}`);
     }
   }
-
-  async getSentences(): Promise<DBSentence[]> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-    console.log("getting setences");
+  
+  // Added retry mechanism for database operations
+  private async withRetry<T>(operation: () => Promise<T>, retries = 1): Promise<T> {
     try {
-      const result = await this.db.getAllAsync<DBSentence>(
-        `SELECT sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
-         FROM book_sentences 
-         ORDER BY sentence_number`
-      );
-      return result;
+      return await operation();
     } catch (error) {
-      console.error('Error fetching sentences:', error);
+      console.warn(`Database operation failed: ${error}`);
+      
+      if (retries > 0) {
+        // Try to reinitialize the connection
+        console.log(`Attempting to reconnect (${retries} retries left)...`);
+        await this.initialize();
+        
+        // Retry the operation
+        return this.withRetry(operation, retries - 1);
+      }
+      
       throw error;
     }
   }
 
+  async rewriteSentence(id: number, originalNew: string, translationNew: string): Promise<boolean> {
+    return this.withRetry(async () => {
+      if (!this.db) {
+        throw new Error('Database is not initialized');
+      }
+      
+      // Find the chapter sentence and update it
+      const chapterQuery = `
+        UPDATE book_sentences 
+        SET original_parsed_text = ?, translation_parsed_text = ? 
+        WHERE sentence_number = ? 
+      `;
+      
+      await this.db.runAsync(chapterQuery, [originalNew, translationNew, id]);
+      return true;
+    });
+  }
+
+  async getSentences(): Promise<DBSentence[]> {
+    return this.withRetry(async () => {
+      if (!this.db) {
+        throw new Error('Database not initialized');
+      }
+      
+      console.log("Getting sentences");
+      
+      return await this.db.getAllAsync<DBSentence>(
+        `SELECT sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
+         FROM book_sentences 
+         ORDER BY sentence_number`
+      );
+    });
+  }
+
   async getChapterSentences(chapterNumber: number): Promise<DBSentence[]> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-    console.log("tesssst");
-    try {
+    return this.withRetry(async () => {
+      if (!this.db) {
+        await this.initialize();
+        if (!this.db) {
+          throw new Error('Database not initialized');
+        }
+      }
+      
+      console.log("Getting chapter sentences for chapter:", chapterNumber);
+      console.log("Book:", this.getDbName());
+      
       return await this.db.getAllAsync<DBSentence>(
         `SELECT 
           id,
@@ -243,38 +264,58 @@ export class BookDatabase {
         ORDER BY sentence_number`,
         [chapterNumber]
       );
-    } catch (error) {
-      console.error('Error fetching chapter sentences:', error);
-      throw error;
-    }
+    });
   }
 
+  async getChapterSentencesBySnd(sentenceNumber: number): Promise<DBSentence[]> {
+    return this.withRetry(async () => {
+      if (!this.db) {
+        throw new Error('Database not initialized');
+      }
+      
+      return await this.db.getAllAsync<DBSentence>(
+        `SELECT 
+          id,
+          sentence_number,
+          chapter_id,
+          original_text,
+          original_parsed_text,
+          translation_parsed_text,
+          created_at
+        FROM book_sentences 
+        WHERE sentence_number = ? 
+        ORDER BY sentence_number`,
+        [sentenceNumber]
+      );
+    });
+  }
 
   async getTotalChapters(): Promise<number> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
-
-    try {
+    return this.withRetry(async () => {
+      if (!this.db) {
+        await this.initialize();
+        if (!this.db) {
+          throw new Error('Database not initialized after retry');
+        }
+      }
+      
       const result = await this.db.getFirstAsync<{ count: number }>(
         'SELECT COUNT(DISTINCT chapter_id) as count FROM book_sentences'
       );
+      
       return result?.count ?? 0;
-    } catch (error) {
-      console.error('Error getting total chapters:', error);
-      throw error;
-    }
+    });
   }
 
   async getWordTranslation(word: string): Promise<WordTranslationWithContext | null> {
-    if (!this.db) {
-      throw new Error('Database not initialized');
-    }
+    return this.withRetry(async () => {
+      if (!this.db) {
+        throw new Error('Database not initialized');
+      }
 
-    try {
       // First get the word ID and translations
       const wordQuery = await this.db.getFirstAsync<{ id: number, translations: string }>(
-        'SELECT id, translations FROM word_translations WHERE id = ?',
+        'SELECT id, translations FROM word_translations WHERE word = ?',
         [word]
       );
 
@@ -306,16 +347,19 @@ export class BookDatabase {
         contexts: contexts || [],
         info: wordInfo?.info
       };
-    } catch (error) {
-      console.error('Error fetching word translation:', error);
-      throw error;
-    }
+    });
   }
 
   async close(): Promise<void> {
     if (this.db) {
-      await this.db.closeAsync();
-      this.db = null;
+      try {
+        console.log("Closing database connection");
+        await this.db.closeAsync();
+      } catch (error) {
+        console.error("Error closing database:", error);
+      } finally {
+        this.db = null;
+      }
     }
   }
 }

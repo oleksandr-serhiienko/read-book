@@ -25,7 +25,6 @@ export const useChapterData = ({ db }: UseChapterDataProps) => {
       // Get sentences for specific chapter
       const sentences = await db.getChapterSentences(chapterNumber);
       console.log("chapt num" + chapterNumber);
-      console.log(sentences);
       setChapterSentences(sentences);
       
       // Get total chapters count if not already set

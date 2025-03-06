@@ -17,7 +17,9 @@ export interface ResponseTranslation{
 
 export interface SentenceTranslation{
   Original: string,
-  Translation: string
+  Translation: string,
+  id?: number,
+  bookTitle?: string
 }
 
 export default class Reverso {
