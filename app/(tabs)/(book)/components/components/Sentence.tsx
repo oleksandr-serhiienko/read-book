@@ -1,5 +1,5 @@
 // Sentence.tsx
-import { Text, View, StyleSheet } from "react-native";
+import { Text, View, StyleSheet, TouchableWithoutFeedback } from "react-native";
 import { Word } from "./Word";
 import { ParsedSentence, ParsedWord } from "../types/types";
 import { BookDatabase, DBSentence } from "@/components/db/bookDatabase";
@@ -10,7 +10,7 @@ export interface SentenceProps {
   parsedSentence?: ParsedSentence;
   isSelected: boolean;
   bookTitle: string;
-  fontSize: number;  // Add fontSize prop
+  fontSize: number;
   onWordPress: (word: string, sentence: DBSentence, index: number) => Promise<ParsedWord>;
   onLongPress: () => void;
   isWordHighlighted: (word: ParsedWord) => boolean;
@@ -22,7 +22,7 @@ export const Sentence: React.FC<SentenceProps> = ({
   parsedSentence,
   isSelected,
   bookTitle,
-  fontSize,  // Add fontSize to props
+  fontSize,
   onWordPress,
   onLongPress,
   isWordHighlighted, 
@@ -36,65 +36,74 @@ export const Sentence: React.FC<SentenceProps> = ({
     translationText: {
       fontSize: fontSize,
       lineHeight: fontSize * 1.5,
-      color: '#666',        // Grey color
-      fontStyle: 'italic',  // Italic style
+      color: '#666',
+      fontStyle: 'italic',
+    },
+    wordContainer: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'baseline',
     }
   });
-
+  
   return (
     <View>
-      {/* Original text rendering */}
-      <Text style={dynamicStyles.paragraph} onLongPress={onLongPress}>
-        {parsedSentence ? (
-          parsedSentence.original.map((word, index) => (
-            <Word
-              key={`original-${index}`}
-              word={word}
-              sentence={sentence}
-              fontSize={fontSize}  // Pass fontSize to Word
-              isHighlighted={isWordHighlighted(word)}
-              onPress={onWordPress}
-              onLongPress={onLongPress}
-              database={database}
-              isTranslation={false}
-            />
-          ))
-        ) : (
-          sentence.original_text.split(/(\s+)/).map((word, index) => {
-            const isSpace = /^\s+$/.test(word);
-            const parsedWord: ParsedWord = {
-              word,
-              sentenceNumber: sentence.sentence_number,
-              wordIndex: index, 
-              groupNumber: 0,             
-              linkeNumber: [],
-              wordLinkedNumber: [],
-              linkedWordMirror: [],
-              wordLinkedWordMirror: [],
-              isSpace,
-              isTranslation: false
-            };
-            return (
+      {/* Original text rendering with improved layout */}
+      <TouchableWithoutFeedback onLongPress={onLongPress}>
+        <View style={dynamicStyles.wordContainer}>
+          {parsedSentence ? 
+            // For parsed sentences, render each word with the Word component
+            parsedSentence.original.map((word, index) => (
               <Word
-                key={`unparsed-${index}`}
-                word={parsedWord}
+                key={`original-${index}`}
+                word={word}
                 sentence={sentence}
-                isHighlighted={false}
-                fontSize={fontSize}  // Pass fontSize to Word
+                fontSize={fontSize}
+                isHighlighted={isWordHighlighted(word)}
                 onPress={onWordPress}
                 onLongPress={onLongPress}
                 database={database}
                 isTranslation={false}
               />
-            );
-          })
-        )}
-      </Text>
+            ))
+            : 
+            // For unparsed text, split and render each word
+            sentence.original_text.split(/(\s+)/).map((word, index) => {
+              const isSpace = /^\s+$/.test(word);
+              const parsedWord: ParsedWord = {
+                word,
+                sentenceNumber: sentence.sentence_number,
+                wordIndex: index, 
+                groupNumber: 0,             
+                linkeNumber: [],
+                wordLinkedNumber: [],
+                linkedWordMirror: [],
+                wordLinkedWordMirror: [],
+                isSpace,
+                isTranslation: false
+              };
+              return (
+                <Word
+                  key={`unparsed-${index}`}
+                  word={parsedWord}
+                  sentence={sentence}
+                  isHighlighted={false}
+                  fontSize={fontSize}
+                  onPress={onWordPress}
+                  onLongPress={onLongPress}
+                  database={database}
+                  isTranslation={false}
+                />
+              );
+            })
+          }
+        </View>
+      </TouchableWithoutFeedback>
       
       {/* Translation text rendering */}
       {isSelected && parsedSentence && (
         <View style={styles.translationContainer}>
-          <Text style={dynamicStyles.translationText}>
+          <View style={dynamicStyles.wordContainer}>
             {parsedSentence.translation.map((word, index) => (
               <Word
                 key={`translation-${index}`}
@@ -107,7 +116,7 @@ export const Sentence: React.FC<SentenceProps> = ({
                 isTranslation={true}
               />
             ))}
-          </Text>
+          </View>
         </View>
       )}
     </View>
@@ -121,5 +130,5 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 16,
     paddingLeft: 16,
-  },
+  }
 });

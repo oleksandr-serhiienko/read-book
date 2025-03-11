@@ -42,17 +42,20 @@ const Word: React.FC<WordProps> = memo(({
   const [popupTranslation, setPopupTranslation] = useState('');
   
   if (word.isSpace) {
-    return <Text>{' '}</Text>;  
+    return <Text style={{ width: fontSize * 0.25 }}>{' '}</Text>;  
   }
 
   const dynamicStyles = StyleSheet.create({
     container: {
       flexDirection: 'row',
       alignItems: 'baseline',  // Important for text alignment
+      alignSelf: 'flex-start',  // Don't stretch the container
     },
     word: {
       fontSize: fontSize,
       lineHeight: fontSize * 1.5,
+      includeFontPadding: false,  // Android specific
+      textAlignVertical: 'center',
       ...(isTranslation && {
         color: '#666',
         fontStyle: 'italic',
@@ -60,8 +63,31 @@ const Word: React.FC<WordProps> = memo(({
     }
   });
 
+  function cleanWord(word: string) {
+    if (!word || typeof word !== 'string') {
+      return '';
+    }
+    
+    return word
+      // Remove trailing punctuation
+      .replace(/[.,!?;:]+$/, '')
+      // Remove leading punctuation
+      .replace(/^[.,!?;:]+/, '')
+      .replace(/[.,!?;:]/g, '')
+      // Remove quotes (single, double, smart quotes, guillemets)
+      .replace(/[«»]/g, '')
+      // Remove brackets and parentheses
+      .replace(/[\[\]()<>{}]/g, '')
+      // Remove angle brackets and HTML-like tags
+      .replace(/[<>]/g, '')
+      // Remove other special characters as needed
+      .replace(/[@#$%^&*_=+|~]/g, '')
+      // Optionally trim whitespace
+      .trim();
+  }
+
   const handleWordPress = async () => {
-    const cleanedWord = word.word.replace(/[.,!?;:]+$/, '');
+    const cleanedWord = cleanWord(word.word);
     
     // Get updated word data
     const updatedWord = await onPress(word.word, sentence, word.wordIndex);
@@ -77,7 +103,7 @@ const Word: React.FC<WordProps> = memo(({
         }
 
         const allGroupWords = [
-          { index: updatedWord.wordIndex, word: updatedWord.word },
+          { index: updatedWord.wordIndex, word: cleanWord(updatedWord.word) },
           ...updatedWord.wordLinkedNumber.map((word, i) => ({
               index: updatedWord.linkeNumber[i],
               word: word
@@ -89,7 +115,7 @@ const Word: React.FC<WordProps> = memo(({
       const sortedTranslations = updatedWord.linkedWordMirror
           .map((index, i) => ({
               index,
-              word: updatedWord.wordLinkedWordMirror[i]
+              word: cleanWord(updatedWord.wordLinkedWordMirror[i])
           }))
           .sort((a, b) => a.index - b.index)
           .map(item => item.word);
@@ -111,7 +137,7 @@ const Word: React.FC<WordProps> = memo(({
         SlidePanelEvents.emit(responseTranslation, true);
     } else {
 
-      let cleanedWord = updatedWord.isTranslation ? updatedWord.wordLinkedWordMirror[0].replace(/[.,!?;:]+$/, '') : updatedWord.word.replace(/[.,!?;:]+$/, '');
+      let cleanedWord = updatedWord.isTranslation ? cleanWord(updatedWord.wordLinkedWordMirror[0]) : cleanWord(updatedWord.word);
       // Single word case - check both DB and coupled translation
       let dbTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
       
@@ -119,7 +145,7 @@ const Word: React.FC<WordProps> = memo(({
       const coupledTranslation = updatedWord.linkedWordMirror
           .map((index, i) => ({
               index,
-              word: updatedWord.wordLinkedWordMirror[i].replace(/[.,!?;:]+$/, '')
+              word: cleanWord(updatedWord.wordLinkedWordMirror[i])
           }))
           .sort((a, b) => a.index - b.index)
           .map(item => item.word)
@@ -168,23 +194,23 @@ const Word: React.FC<WordProps> = memo(({
 };
 
 return (
-  <View style={dynamicStyles.container}>
-    <Text
-      onPress={handleWordPress}
-      onLongPress={onLongPress}
-      style={[
-        dynamicStyles.word,
-        isHighlighted && styles.highlightedWord
-      ]}
-    >
-      {word.word}
-    </Text>
-    <WordPopup 
-      translation={popupTranslation}
-      visible={showPopup}
-      onHide={() => setShowPopup(false)}
-    />
-  </View>
+  <Text
+    onPress={handleWordPress}
+    onLongPress={onLongPress}
+    style={[
+      dynamicStyles.word,
+      isHighlighted && styles.highlightedWord
+    ]}
+  >
+    {word.word}
+    {showPopup && (
+      <WordPopup 
+        translation={popupTranslation}
+        onHide={() => setShowPopup(false)}
+        visible={showPopup}
+      />
+    )}
+  </Text>
 );
 }, arePropsEqual);
 
