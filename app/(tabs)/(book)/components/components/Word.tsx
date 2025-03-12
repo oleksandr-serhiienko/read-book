@@ -96,7 +96,7 @@ const Word: React.FC<WordProps> = memo(({
 
     // If it's part of a group
     if (updatedWord.linkeNumber.length > 0) {        
-        let individualTranslation = await database.getWordTranslation(cleanedWord);
+        let individualTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
         if (individualTranslation) {
           setPopupTranslation(individualTranslation.translations[0]);
           setShowPopup(true);
@@ -194,6 +194,7 @@ const Word: React.FC<WordProps> = memo(({
 };
 
 return (
+  <View style={dynamicStyles.container}>
   <Text
     onPress={handleWordPress}
     onLongPress={onLongPress}
@@ -203,14 +204,13 @@ return (
     ]}
   >
     {word.word}
-    {showPopup && (
-      <WordPopup 
-        translation={popupTranslation}
-        onHide={() => setShowPopup(false)}
-        visible={showPopup}
-      />
-    )}
   </Text>
+  <WordPopup 
+    translation={popupTranslation}
+    visible={showPopup}
+    onHide={() => setShowPopup(false)}
+  />
+</View>
 );
 }, arePropsEqual);
 

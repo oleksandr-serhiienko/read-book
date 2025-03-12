@@ -65,7 +65,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
           
           const wordsWithTranslations = await Promise.all(
             words.map(async (word) => {
-              const translation = await bookDatabase.getWordTranslation(word.trim());
+              const translation = await bookDatabase.getWordTranslation(word.trim().toLowerCase());
               return {
                 word: word.trim(),
                 translation: translation?.translations[0] || '',
@@ -112,7 +112,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
 
   const handleWordPress = async (word: string) => {
     try {
-      const wordTranslation = await db?.getWordTranslation(word);
+      const wordTranslation = await db?.getWordTranslation(word.toLowerCase());
       
       if (wordTranslation) {
         // Map the contexts from the database result to TranslationContext objects

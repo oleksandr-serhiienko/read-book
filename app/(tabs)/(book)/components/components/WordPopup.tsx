@@ -45,20 +45,21 @@ const styles = StyleSheet.create({
   popup: {
     position: 'absolute',
     top: -30,  // Position above the word
-    left: 0,
+    left: 0,   // Align with the left edge of the word
     backgroundColor: '#3498db',
     padding: 8,
     borderRadius: 8,
     elevation: 5,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    // Make sure the popup is above other content
+    zIndex: 1000,
+    // Add min width to ensure readability
+    minWidth: 60,
+    // Center the text
+    alignItems: 'center',
   },
   text: {
     color: 'white',
     fontSize: 14,
   },
 });
-
 export default WordPopup;
