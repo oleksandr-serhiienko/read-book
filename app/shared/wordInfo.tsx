@@ -155,8 +155,6 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
           Book: db?.getDbName(),
           TextView: ""
         };
-        console.log("INFOOOOO");
-        console.log(JSON.stringify(wordContent));
   
         router.push({
           pathname: "/wordInfo",

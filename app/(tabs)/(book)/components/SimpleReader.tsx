@@ -16,6 +16,7 @@ import { BookDatabase } from '@/components/db/bookDatabase';
 import { SentenceTranslation } from '@/components/reverso/reverso';
 import { Book, database } from "@/components/db/database";
 import { useLanguage } from '@/app/languageSelector';
+import FileManager from './FileManager';
 
 const MIN_FONT_SIZE = 12;
 const MAX_FONT_SIZE = 24;
@@ -70,6 +71,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
       
       // Update book record in main database
       const bookExist = await database.getBookByName(bookTitle, sourceLanguage.toLowerCase());
+      let localImage = await FileManager.checkImage(imageUrl);    
       if (bookExist === null) {
         const book: Book = {
           bookUrl: bookUrl,
@@ -77,7 +79,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
           sourceLanguage: sourceLanguage.toLowerCase(),
           updateDate: new Date(),
           lastreadDate: new Date(),
-          imageUrl: imageUrl,
+          imageUrl: localImage,
           progress: 0
         };
         await database.insertBook(book);
