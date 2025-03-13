@@ -49,19 +49,32 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   useEffect(() => {
     const setupAndLoadData = async () => {
       try {
-        // First initialize the database
+        // First validate that parsedContent exists and has necessary properties
+        if (!parsedContent || !parsedContent.Book) {
+          console.log("Invalid content format");
+          return;
+        }
+  
+        // Initialize the database
+        console.log("init");
         const bookDatabase = new BookDatabase(parsedContent.Book);
         const dbInitialized = await bookDatabase.initialize();
-        
         if (!dbInitialized) { 
           throw new Error("Failed to initialize database");  
         }
         setDb(bookDatabase);
-  
+    
         // Only after database is initialized, load the translations
         const originalText = parsedContent?.Original;
-        if (originalText && typeof originalText === 'string') {
-          const words = originalText.split(' ').filter(word => word.trim().length > 0);
+        if (!originalText || typeof originalText !== 'string') {
+          setIndividualWords([]);
+          return;
+        }
+        
+        // Check if this is a phrase (contains spaces)
+        if (originalText.includes(' ')) {
+          const words = originalText.split(' ')
+            .filter(word => word.trim().length > 0);
           
           const wordsWithTranslations = await Promise.all(
             words.map(async (word) => {
@@ -74,9 +87,15 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
           );
           
           setIndividualWords(wordsWithTranslations);
+        } else {
+          // Single word - no need for individual word buttons
+          console.log("Single word detected - no word buttons needed");
+          setIndividualWords([]);
         }
       } catch (error) {
         console.error('Error in setup and load:', error);
+        // Set empty array to prevent rendering errors
+        setIndividualWords([]);
       }
     };
   
@@ -128,11 +147,17 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
             word: translation,
             pos: ""
           })),
-          Contexts: contexts.map(context => context.original),
+          // Properly format contexts with both original and translation properties
+          Contexts: contexts.map(context => ({
+            original: context.original,
+            translation: context.translation
+          })),
           Book: db?.getDbName(),
           TextView: ""
         };
-        
+        console.log("INFOOOOO");
+        console.log(JSON.stringify(wordContent));
+  
         router.push({
           pathname: "/wordInfo",
           params: {

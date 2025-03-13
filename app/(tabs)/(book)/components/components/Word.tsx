@@ -88,7 +88,6 @@ const Word: React.FC<WordProps> = memo(({
 
   const handleWordPress = async () => {
     const cleanedWord = cleanWord(word.word);
-    
     // Get updated word data
     const updatedWord = await onPress(word.word, sentence, word.wordIndex);
     if (!updatedWord) return;
@@ -106,7 +105,7 @@ const Word: React.FC<WordProps> = memo(({
           { index: updatedWord.wordIndex, word: cleanWord(updatedWord.word) },
           ...updatedWord.wordLinkedNumber.map((word, i) => ({
               index: updatedWord.linkeNumber[i],
-              word: word
+              word: cleanWord(word)
           }))
       ].sort((a, b) => a.index - b.index)
        .map(item => item.word);
@@ -137,7 +136,7 @@ const Word: React.FC<WordProps> = memo(({
         SlidePanelEvents.emit(responseTranslation, true);
     } else {
 
-      let cleanedWord = updatedWord.isTranslation ? cleanWord(updatedWord.wordLinkedWordMirror[0]) : cleanWord(updatedWord.word);
+      let cleanedWord = updatedWord.isTranslation ? cleanWord(updatedWord.wordLinkedWordMirror.join(' ')) : cleanWord(updatedWord.word);
       // Single word case - check both DB and coupled translation
       let dbTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
       
@@ -150,7 +149,7 @@ const Word: React.FC<WordProps> = memo(({
           .sort((a, b) => a.index - b.index)
           .map(item => item.word)
           .join(' '); // Join all words with space
-  
+     
       const translations = [];
       
       // Add coupled translation first if it exists and isn't in DB
@@ -172,23 +171,21 @@ const Word: React.FC<WordProps> = memo(({
         });
           
       }
-      console.log("HERE" + cleanedWord);
-      console.log("HEREE" + dbTranslation?.translations[0]);
+ 
       const convertedContexts = dbTranslation?.contexts?.map(context => {
         return {
           original: context.original_text || "",
           translation: context.translated_text || ""
         } 
       }) || [];
-      
+
       const responseTranslation = {
           Original: cleanedWord,
-          Translations: translations.length > 0 ? translations : [{ word: "Translation", pos: "" }],
+          Translations: translations.length > 0 ? translations : [{ word: updatedWord.isTranslation ? cleanWord(updatedWord.word) : "none", pos: "" }],
           Contexts: convertedContexts,
           Book: database.getDbName(),
           TextView: ""
       };
-      
       SlidePanelEvents.emit(responseTranslation, true);
   }
 };
