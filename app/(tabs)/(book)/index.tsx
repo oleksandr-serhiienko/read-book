@@ -19,7 +19,7 @@ const otherBookHeight = 150;
 const BookScreen: React.FC = () => {
   const [myBooks, setMyBooks] = useState<Book[]>([]);
   const [otherBooks, setOtherBooks] = useState<ServerBook[]>([]);
-  const serverUrl = "http://192.168.1.40:3000";
+  const serverUrl = "http://192.168.1.41:3000";
   const { sourceLanguage } = useLanguage();
 
   useFocusEffect(
