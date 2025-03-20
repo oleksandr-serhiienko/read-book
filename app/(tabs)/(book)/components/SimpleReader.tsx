@@ -1,6 +1,6 @@
 // SimpleReader.tsx with database lifecycle fixes
 import React, { useEffect, useState, useRef } from 'react';
-import { View, ScrollView, ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { View, ScrollView, ActivityIndicator, StyleSheet, Text, FlatList } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useChapterData } from './hooks/useChapterData';
 import { Sentence } from './components/Sentence';
@@ -304,30 +304,38 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
         onDecreaseFontSize={decreaseFontSize}
       />
       
-      <ScrollView style={styles.content}>
-        {chapterSentences.map((sentence) => (
+      <FlatList
+        data={chapterSentences}
+        keyExtractor={(item) => item.sentence_number.toString()}
+        renderItem={({ item }) => (
           <Sentence
-            key={sentence.sentence_number}
-            sentence={sentence}
-            parsedSentence={parsedSentences.get(sentence.sentence_number)}
-            isSelected={selectedSentence === sentence.sentence_number}
+            sentence={item}
+            parsedSentence={parsedSentences.get(item.sentence_number)}
+            isSelected={selectedSentence === item.sentence_number}
             bookTitle={bookTitle}
             fontSize={currentFontSize}
             onWordPress={(word, sentence, index) => handleWordPress(word, sentence, index) as Promise<ParsedWord>}
-            onLongPress={() => handleLongPress(sentence)}
+            onLongPress={() => handleLongPress(item)}
             isWordHighlighted={isWordHighlighted}
             database={db}
           />
-        ))}
-        
-        <BottomChapterNavigation
-          currentChapter={currentChapter}
-          totalChapters={totalChapters}
-          onNext={nextChapter}
-          onPrevious={previousChapter}
-        />
-      </ScrollView>
-
+        )}
+        windowSize={5}
+        maxToRenderPerBatch={5}
+        initialNumToRender={10}
+        removeClippedSubviews={true}
+        style={{ flex: 1 }}
+        contentContainerStyle={styles.content}
+        ListFooterComponent={
+          <BottomChapterNavigation
+            currentChapter={currentChapter}
+            totalChapters={totalChapters}
+            onNext={nextChapter}
+            onPrevious={previousChapter}
+          />
+        }
+      />
+  
       <SlidePanel
         isVisible={isPanelVisible}
         content={panelContent}
@@ -349,8 +357,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   content: {
-    flex: 1,
     padding: 16,
+    // Remove paddingBottom if it's causing issues
+  },
+  // Add this new style
+  flatListContainer: {
+    flexGrow: 1, // This ensures the content can grow and be scrollable
   },
   errorText: {
     color: 'red',

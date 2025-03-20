@@ -43,6 +43,10 @@ export const Sentence: React.FC<SentenceProps> = ({
       flexDirection: 'row',
       flexWrap: 'wrap',
       alignItems: 'baseline',
+    },
+    paragraphIndent: {
+      width: fontSize * 1.5, // Paragraph indentation - approximately 1.5 characters wide
+      height: 1,
     }
   });
   
@@ -51,6 +55,9 @@ export const Sentence: React.FC<SentenceProps> = ({
       {/* Original text rendering with improved layout */}
       <TouchableWithoutFeedback onLongPress={onLongPress}>
         <View style={dynamicStyles.wordContainer}>
+          {/* Add paragraph indentation spacer at the beginning */}
+          <View style={dynamicStyles.paragraphIndent} />
+          
           {parsedSentence ? 
             // For parsed sentences, render each word with the Word component
             parsedSentence.original.map((word, index) => (
@@ -104,6 +111,9 @@ export const Sentence: React.FC<SentenceProps> = ({
       {isSelected && parsedSentence && (
         <View style={styles.translationContainer}>
           <View style={dynamicStyles.wordContainer}>
+            {/* Add paragraph indentation spacer for the translation as well */}
+            <View style={dynamicStyles.paragraphIndent} />
+            
             {parsedSentence.translation.map((word, index) => (
               <Word
                 key={`translation-${index}`}
@@ -122,7 +132,6 @@ export const Sentence: React.FC<SentenceProps> = ({
     </View>
   );
 };
-
 const styles = StyleSheet.create({
   translationContainer: {
     borderLeftWidth: 2,
