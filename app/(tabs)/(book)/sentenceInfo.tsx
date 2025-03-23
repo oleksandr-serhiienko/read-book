@@ -56,10 +56,9 @@ export default function SentenceInfo() {
   
   // Re-parse when text changes in edit mode
   useEffect(() => {
-    if (!isEditing) {
-      parseSentence();
-    }
-  }, [originalText, translationText, isEditing]);
+    // Parse sentence whenever text changes, regardless of edit mode
+    parseSentence();
+  }, [originalText, translationText]);
   
   const parseSentence = () => {
     const parsed = parseSentenceText();
@@ -177,65 +176,52 @@ export default function SentenceInfo() {
   };
 
   
-  const applyGroupToWord = (word: ParsedWord, newGroupNumber: number) => {
+  const applyGroupToWord = useCallback((word: ParsedWord, newGroupNumber: number) => {
     const isTranslation = word.isTranslation;
-    const wordText = word.word;
     const wordIndex = word.wordIndex;
-    let newText = '';
-    console.log("WORD: " + word.word + " " + word.wordIndex)
+    
     if (isTranslation) {
       // For translation text
-
-      const textParts = translationText.split(/(\s+)/);
-      let currentIndex = 0;
-      
-      for (let i = 0; i < textParts.length; i++) {
-        const part = textParts[i];
-        if (/^\s+$/.test(part)) {
-          // If it's a space, keep it as is
-          newText += part;
-        } else {
-          // If we've found our word at the correct index
-          if (i === wordIndex) {
+      setTranslationText(prevText => {
+        const textParts = prevText.split(/(\s+)/);
+        let newText = '';
+        
+        for (let i = 0; i < textParts.length; i++) {
+          const part = textParts[i];
+          if (/^\s+$/.test(part)) {
+            newText += part;
+          } else if (i === wordIndex) {
             const cleanWord = part.replace(/\/\d+\//g, '');
             newText += `${cleanWord}/${newGroupNumber}/`;
           } else {
             newText += part;
           }
-          currentIndex += 1;
         }
-      }
-      
-      setTranslationText(newText);
-      console.log("TEXT1: " + newText)
+        
+        return newText;
+      });
     } else {
       // For original text
-      const textParts = originalText.split(/(\s+)/);
-      let currentIndex = 0;
-      
-      for (let i = 0; i < textParts.length; i++) {
-        const part = textParts[i];
-        if (/^\s+$/.test(part)) {
-          // If it's a space, keep it as is
-          newText += part;
-        } else {
-          // If we've found our word at the correct index
-          if (i === wordIndex) {
+      setOriginalText(prevText => {
+        const textParts = prevText.split(/(\s+)/);
+        let newText = '';
+        
+        for (let i = 0; i < textParts.length; i++) {
+          const part = textParts[i];
+          if (/^\s+$/.test(part)) {
+            newText += part;
+          } else if (i === wordIndex) {
             const cleanWord = part.replace(/\/\d+\//g, '');
             newText += `${cleanWord}/${newGroupNumber}/`;
           } else {
             newText += part;
           }
-          currentIndex += 1;
         }
-      }
-      console.log("TEXT2: " + newText)
-      setOriginalText(newText);
+        
+        return newText;
+      });
     }
-    
-    // Re-parse the sentence
-    parseSentence();
-  };
+  }, []);
 
   const handleLongPress = useCallback((word: ParsedWord) => {
     if (!isEditing) return;
@@ -292,6 +278,9 @@ export default function SentenceInfo() {
       // Apply the selected group number to this word
       applyGroupToWord(word, selectedWordGroup);
       ToastAndroid.show(`Word linked to group ${selectedWordGroup}`, ToastAndroid.SHORT);
+      setTimeout(() => {
+        parseSentence();
+      }, 0);
       return;
     }
     
@@ -301,6 +290,9 @@ export default function SentenceInfo() {
     if (selectedWordGroup === word.groupNumber) {
       setSelectedWordGroup(null);
       setSelectedWordIndexes([]);
+      setTimeout(() => {
+        parseSentence();
+      }, 0);
       return;
     }
     
@@ -319,8 +311,12 @@ export default function SentenceInfo() {
     
     // Remember the selected indices
     setSelectedWordIndexes(relatedIndices);
+
+    setTimeout(() => {
+      parseSentence();
+    }, 0);
     
-  }, [selectedWordGroup, isEditing, isLongPressed, applyGroupToWord]);
+  }, [selectedWordGroup, isEditing, isLongPressed, applyGroupToWord, parseSentence]);
   
   const isWordHighlighted = useCallback((word: ParsedWord): boolean => {
     if (selectedWordGroup === null) return false;
