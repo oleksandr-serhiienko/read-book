@@ -5,6 +5,7 @@ import { ParsedWord } from '../types/types';
 import { BookDatabase, DBSentence } from '@/components/db/bookDatabase';
 import { SlidePanelEvents } from '../events/slidePanelEvents';
 import WordPopup from './WordPopup';
+import TranslationContext from '@/components/reverso/languages/entities/translationContext';
 
 interface WordProps {
   word: ParsedWord;
@@ -92,9 +93,10 @@ const Word: React.FC<WordProps> = memo(({
     const updatedWord = await onPress(word.word, sentence, word.wordIndex);
     if (!updatedWord) return;
   
-
+    console.log("Test1");
     // If it's part of a group
-    if (updatedWord.linkeNumber.length > 0) {        
+    if (updatedWord.linkeNumber.length > 0) {  
+        console.log("Test2");      
         let individualTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
         if (individualTranslation) {
           setPopupTranslation(individualTranslation.translations[0]);
@@ -121,21 +123,48 @@ const Word: React.FC<WordProps> = memo(({
   
       const currentPhrase = allGroupWords.join(' ');
       const translationPhrase = sortedTranslations.join(' ');
+
+      console.log("Here, no1? " + allGroupWords.length)
+      console.log("Here, no2? " + updatedWord.isTranslation)
+      console.log("Here, no3? " + sortedTranslations.length)
+      let translations = [];
+      let convertedContexts:TranslationContext[] = [];
+      translations.push({
+        word: updatedWord.isTranslation ? currentPhrase : translationPhrase,
+        pos: ""})
+      if (allGroupWords.length > 1 && updatedWord.isTranslation && sortedTranslations.length == 1){ 
+        let dbTranslation = await database.getWordTranslation(translationPhrase);
+        console.log("Here, no? " + translationPhrase)
+        if (dbTranslation){
+          dbTranslation.translations.forEach(translation => {
+                 translations.push({
+                   word: translation,
+                   pos: ""
+               });
+              });
+
+              // Assign to the already-declared convertedContexts variable
+          convertedContexts = dbTranslation?.contexts?.map(context => {
+            return {
+              original: context.original_text || "",
+              translation: context.translated_text || ""
+            }
+          }) || [];
+        
+        }     
+      }
         
         const responseTranslation = {
             Original: updatedWord.isTranslation ? translationPhrase : currentPhrase,
-            Translations: [{
-                word: updatedWord.isTranslation ? currentPhrase : translationPhrase,
-                pos: ""
-            }],
-            Contexts: [],
+            Translations: translations,
+            Contexts: convertedContexts,
             Book: database.getDbName(),
             TextView: ""
         };
         
         SlidePanelEvents.emit(responseTranslation, true);
     } else {
-
+      console.log("Test3");
       let cleanedWord = updatedWord.isTranslation ? cleanWord(updatedWord.wordLinkedWordMirror.join(' ')) : cleanWord(updatedWord.word);
       // Single word case - check both DB and coupled translation
       let dbTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
