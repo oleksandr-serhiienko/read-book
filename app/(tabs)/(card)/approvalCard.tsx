@@ -26,6 +26,7 @@ export default function ApprovalScreen() {
       setCards(cardsToLearn);
       setCardsToLearn(cardsToLearn.length);
     };
+    console.log("CARDS HERE: " + cards.length)
     loadCard();
   }, [source]);
 

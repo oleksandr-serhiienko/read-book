@@ -3,6 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
 import { getWordHints } from '../../../../../components/db/nextWordToLearn';
+import { Card } from '@/components/db/database';
+import { selectBestContext } from '../shared/helpers';
 
 const localStyles = StyleSheet.create({
   contextText: {
@@ -60,6 +62,8 @@ const styles = {
 };
 
 
+
+
 const ContextWithBlankOriginal: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
   const [showHints, setShowHints] = useState(false);
   useEffect(() => {
@@ -68,7 +72,10 @@ const ContextWithBlankOriginal: FC<CardProps> = ({ card, onShowAnswer, isFlippin
   
   if (!card.context || !card.context[0]) return null;
 
-  const originalSentence = card.context[0].sentence.replace(/<\/?em>/g, '');
+  const selectedContext = selectBestContext(card);
+  if (!selectedContext) return null;
+
+  const originalSentence = selectedContext.sentence.replace(/<\/?em>/g, '');
   const hints = getWordHints(card.word);
 
   const renderHighlightedText = (text: string) => {

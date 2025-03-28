@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
 import { getWordHints } from '../../../../../components/db/nextWordToLearn';
+import { selectBestContext } from '../shared/helpers';
 
 const renderHighlightedText = (text: string) => {
   return text.replace(/<\/?em>/g, '');
@@ -70,8 +71,10 @@ const ContextWithBlankTranslation: FC<CardProps> = ({ card, onShowAnswer, isFlip
   }, [card.word]); // Reset when word changes
 
   if (!card.context || !card.context[0]) return null;
+  const selectedContext = selectBestContext(card);
+    if (!selectedContext) return null;
 
-  const originalText = card.context[0].translation;
+  const originalText = selectedContext.translation;
   const translationSentence = originalText.replace(/<\/?em>/g, '');
   const wordToReplace = originalText.match(/<em>(.*?)<\/em>/)?.[1] ?? card.translations[0];
   const hints = getWordHints(wordToReplace);

@@ -2,7 +2,7 @@ import React, { FC, useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
-import { renderHighlightedText } from '../shared/helpers';
+import { renderHighlightedText, selectBestContext } from '../shared/helpers';
 
 const localStyles = StyleSheet.create({
   selectableTextContainer: {
@@ -48,18 +48,45 @@ const styles = {
   ...localStyles,
 };
 
+function cleanWord(word: string) {
+  if (!word || typeof word !== 'string') {
+    return '';
+  }
+  
+  return word
+    // Remove trailing punctuation
+    .replace(/[.,!?;:]+$/, '')
+    // Remove leading punctuation
+    .replace(/^[.,!?;:]+/, '')
+    .replace(/[.,!?;:]/g, '')
+    // Remove quotes (single, double, smart quotes, guillemets)
+    .replace(/[«»]/g, '')
+    // Remove brackets and parentheses
+    .replace(/[\[\]()<>{}]/g, '')
+    // Remove angle brackets and HTML-like tags
+    .replace(/[<>]/g, '')
+    // Remove other special characters as needed
+    .replace(/[@#$%^&*_=+|~]/g, '')
+    // Optionally trim whitespace
+    .trim();
+}
+
 const ContextWithSelectableTranslation: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
   if (!card.context || !card.context[0]) return null;
 
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
-  const translationSentence = card.context[0].translation.replace(/<\/?em>/g, '');
+   const selectedContext = selectBestContext(card);
+        if (!selectedContext) return null;
+    
+
+  const translationSentence = selectedContext.translation.replace(/<\/?em>/g, '');
   const words = translationSentence.split(/\s+/);
 
   const handleWordPress = (word: string) => {
-    setSelectedWord(word);
-    const isWordCorrect = card.translations.includes(word);
+    setSelectedWord(cleanWord(word));
+    const isWordCorrect = card.translations.includes(cleanWord(word));
     setIsCorrect(isWordCorrect);
     
     if (!isWordCorrect) {

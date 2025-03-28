@@ -431,33 +431,40 @@ export class Database {
   async getCardToLearnBySource(source: string, sourceLanguage: string, targetLanguage: string): Promise<Card[]> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
-    
+    console.log("HERE E");
     if (source === 'All Cards') {
       return this.getAllCards(sourceLanguage, targetLanguage);
     }
-    
+    console.log("HERE EA");
     const query = `
       SELECT 
-        c.id, 
-        c.word, 
-        c.translations, 
-        c.lastRepeat, 
-        c.level, 
+        c.id,
+        c.word,
+        c.translations,
+        c.lastRepeat,
+        c.level,
         c.userId,
-        c.source, 
-        c.sourceLanguage, 
-        c.targetLanguage, 
-        c.comment, 
+        c.source,
+        c.sourceLanguage,
+        c.targetLanguage,
+        c.comment,
         c.info,
-        ctx.id as contextId, 
-        ctx.sentence, 
-        ctx.translation
+        ctx.id as contextId,
+        ctx.sentence,
+        ctx.translation,
+        ctx.isBad,
+        h.id as historyId,
+        h.date as historyDate,
+        h.success as historySuccess,
+        h.contextId as historyContextId,
+        h.type as historyType
       FROM cards c
       LEFT JOIN contexts ctx ON c.id = ctx.cardId
-      WHERE c.source = ? 
-        AND c.sourceLanguage = ? 
+      LEFT JOIN histories h ON c.id = h.cardId
+      WHERE c.source = ?
+        AND c.sourceLanguage = ?
         AND c.targetLanguage = ?
-      ORDER BY c.lastRepeat DESC
+      ORDER BY c.lastRepeat DESC, h.date DESC
     `;
     
     try {
@@ -465,6 +472,7 @@ export class Database {
       const cardMap = new Map<number, Card>();
       
       for (const row of results) {
+        // Create card if it doesn't exist in the map
         if (!cardMap.has(row.id)) {
           cardMap.set(row.id, {
             id: row.id,
@@ -478,18 +486,43 @@ export class Database {
             sourceLanguage: row.sourceLanguage,
             targetLanguage: row.targetLanguage,
             context: [],
+            history: [],
             info: ensureCardInfo(JSON.parse(row.info || '{}'))
           });
         }
         
         const card = cardMap.get(row.id)!;
         
+        // Add context if it exists and isn't already added
         if (row.contextId) {
-          card.context!.push({
-            sentence: row.sentence,
-            translation: row.translation,
-            isBad: false  // Default value since it's not in the database
+          const contextExists = card.context!.some(c => c.sentence === row.sentence);
+          if (!contextExists) {
+            card.context!.push({
+              sentence: row.sentence,
+              translation: row.translation,
+              isBad: row.isBad === 1 || row.isBad === true
+            });
+          }
+        }
+        
+        // Add history entry if it exists and isn't already added
+        if (row.historyId && !card.history!.some(h => h.id === row.historyId)) {
+          card.history!.push({
+            id: row.historyId,
+            date: new Date(row.historyDate),
+            success: row.historySuccess === 1 || row.historySuccess === true,
+            cardId: row.id,
+            contextId: row.historyContextId,
+            type: row.historyType
           });
+        }
+      }
+      
+      // Sort history entries by date (newest first) for each card
+      for (const card of cardMap.values()) {
+        if (card.history && card.history.length > 0) {
+          card.history.sort((a, b) => b.date.getTime() - a.date.getTime());
+          console.log("History: " + card.history?.length);
         }
       }
       
@@ -499,27 +532,32 @@ export class Database {
       console.error(`Error getting cards for source ${source}:`, error);
       throw error;
     }
-}
-
+  }
+ 
   async getAllCards(sourceLanguage: string, targetLanguage: string): Promise<Card[]> {
     await this.initialize();
     
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
+    
     const query = `
       SELECT 
-        c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId, 
+        c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId,
         c.source, c.sourceLanguage, c.targetLanguage, c.comment, c.info,
-        ctx.id as contextId, ctx.sentence, ctx.translation
+        ctx.id as contextId, ctx.sentence, ctx.translation, ctx.isBad,
+        h.id as historyId, h.date as historyDate, h.success as historySuccess,
+        h.contextId as historyContextId, h.type as historyType
       FROM cards c
       LEFT JOIN contexts ctx ON c.id = ctx.cardId
+      LEFT JOIN histories h ON c.id = h.cardId
       WHERE c.sourceLanguage = ? AND c.targetLanguage = ?
-      ORDER BY c.lastRepeat DESC
+      ORDER BY c.lastRepeat DESC, h.date DESC
     `;
-  
+    
     const results = await this.db.getAllAsync<any>(query, [sourceLanguage, targetLanguage]);
     const cardMap = new Map<number, Card>();
-  
+    
     for (const row of results) {
+      // Create card if it doesn't exist in the map
       if (!cardMap.has(row.id)) {
         cardMap.set(row.id, {
           id: row.id,
@@ -533,21 +571,43 @@ export class Database {
           sourceLanguage: row.sourceLanguage,
           targetLanguage: row.targetLanguage,
           context: [],
+          history: [],
           info: ensureCardInfo(JSON.parse(row.info || '{}'))
         });
       }
-  
+      
       const card = cardMap.get(row.id)!;
-  
-      if (row.contextId) {
+      
+      // Add context if it exists and isn't already in the context array
+      if (row.contextId && !card.context!.some(c => c.sentence === row.sentence)) {
         card.context!.push({
           sentence: row.sentence,
           translation: row.translation,
-          isBad: false
+          isBad: row.isBad === 1 || row.isBad === true
+        });
+      }
+      
+      // Add history entry if it exists and isn't already in the history array
+      if (row.historyId && !card.history!.some(h => h.id === row.historyId)) {
+        card.history!.push({
+          id: row.historyId,
+          date: new Date(row.historyDate),
+          success: row.historySuccess === 1 || row.historySuccess === true,
+          cardId: row.id,
+          contextId: row.historyContextId,
+          type: row.historyType
         });
       }
     }
-  
+    
+    // Sort history entries by date (newest first) for each card
+    for (const card of cardMap.values()) {
+      if (card.history && card.history.length > 0) {
+        card.history.sort((a, b) => b.date.getTime() - a.date.getTime());
+        console.log("History: " + card.history?.length);
+      }
+    }
+    
     return Array.from(cardMap.values());
   }
 
