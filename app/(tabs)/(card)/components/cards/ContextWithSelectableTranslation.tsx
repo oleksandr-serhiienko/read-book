@@ -71,13 +71,13 @@ function cleanWord(word: string) {
     .trim();
 }
 
-const ContextWithSelectableTranslation: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
+const ContextWithSelectableTranslation: FC<CardProps> = ({ card, onShowAnswer, contextId, isFlipping }) => {
   if (!card.context || !card.context[0]) return null;
 
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
-   const selectedContext = selectBestContext(card);
+  const selectedContext = card.context.find(c => c.id == contextId) ?? card.context[0];
         if (!selectedContext) return null;
     
 

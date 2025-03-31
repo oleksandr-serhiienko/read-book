@@ -71,54 +71,53 @@ function cleanWord(word: string) {
     .trim();
 }
 
-const ContextWithSelectableOriginal: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
+const ContextWithSelectableOriginal: FC<CardProps> = ({ card, onShowAnswer, contextId, isFlipping }) => {
   if (!card.context || !card.context[0]) return null;
-
+  
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [isCorrect, setIsCorrect] = useState<boolean | null>(null);
 
-  const selectedContext = selectBestContext(card);
-      if (!selectedContext) return null;
+  const selectedContext = card.context.find(c => c.id == contextId) ?? card.context[0];
+  
+  if (!selectedContext) return null;
   
   const originalSentence = selectedContext.sentence.replace(/<\/?em>/g, '');
   const words = originalSentence.split(/\s+/);
-
+  
   const handleWordPress = (word: string) => {
-    setSelectedWord(cleanWord(word));
-    const isWordCorrect = cleanWord(word) === card.word;
+    const cleanedWord = cleanWord(word);
+    setSelectedWord(cleanedWord);
+    const isWordCorrect = cleanedWord === card.word;
     setIsCorrect(isWordCorrect);
     
-    if (!isWordCorrect) {
-      setTimeout(() => {
-        setSelectedWord(null);
-        setIsCorrect(null);
-      }, 1000);
-    }
-  };
-
+     };
+  
   return (
     <View style={styles.cardContent}>
       <View style={styles.selectableTextContainer}>
-        {words.map((word, index) => (
-          <TouchableOpacity
-            key={index}
-            onPress={() => handleWordPress(word)}
-            style={[
-              styles.wordButton,
-              selectedWord === word && (isCorrect ? styles.correctWord : styles.wrongWord)
-            ]}
-          >
-            <Text style={styles.contextText}>{word}</Text>
-          </TouchableOpacity>
-        ))}
+        {words.map((word, index) => {
+          const cleanedWord = cleanWord(word);
+          return (
+            <TouchableOpacity
+              key={index}
+              onPress={() => handleWordPress(word)}
+              style={[
+                styles.wordButton,
+                selectedWord === cleanedWord && (isCorrect ? styles.correctWord : styles.wrongWord)
+              ]}
+            >
+              <Text style={styles.contextText}>{word}</Text>
+            </TouchableOpacity>
+          );
+        })}
       </View>
       
       <View style={styles.translationContainer}>
         <Text style={styles.contextText}>
-          {renderHighlightedText(card.context[0].translation, styles)}
+          {renderHighlightedText(selectedContext.translation, styles)}
         </Text>
       </View>
-
+      
       {!isFlipping && onShowAnswer && (
         <TouchableOpacity 
           style={styles.showAnswerButton}

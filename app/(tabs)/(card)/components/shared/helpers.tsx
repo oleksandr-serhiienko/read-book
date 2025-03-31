@@ -27,6 +27,9 @@ export const renderHighlightedText = (text: string, styles: TextStyles) => {
 export const selectBestContext = (card: Card) => {
   if (!card.context || card.context.length === 0) return null;
   
+  const jsonString = JSON.stringify(card);
+  console.log(jsonString);
+
   // If there's no history, just find any non-bad context or default to the first one
   if (!card.history || card.history.length === 0) {
     const nonBadContext = card.context.find(ctx => !ctx.isBad);
@@ -42,11 +45,11 @@ export const selectBestContext = (card: Card) => {
       usedContextIds.add(entry.contextId);
     }
   });
-  
+
   // Find a context that's not bad and wasn't used in history
   for (let i = 0; i < card.context.length; i++) {
     const context = card.context[i];
-    if (!context.isBad && !usedContextIds.has(i)) {
+    if (!context.isBad && !usedContextIds.has(context.id ?? 0)) {
       return context;
     }
   }

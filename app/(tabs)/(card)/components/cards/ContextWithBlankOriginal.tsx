@@ -64,7 +64,7 @@ const styles = {
 
 
 
-const ContextWithBlankOriginal: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
+const ContextWithBlankOriginal: FC<CardProps> = ({ card, onShowAnswer, contextId, isFlipping }) => {
   const [showHints, setShowHints] = useState(false);
   useEffect(() => {
     setShowHints(false);
@@ -72,7 +72,7 @@ const ContextWithBlankOriginal: FC<CardProps> = ({ card, onShowAnswer, isFlippin
   
   if (!card.context || !card.context[0]) return null;
 
-  const selectedContext = selectBestContext(card);
+  const selectedContext = card.context.find(c => c.id == contextId) ?? card.context[0];
   if (!selectedContext) return null;
 
   const originalSentence = selectedContext.sentence.replace(/<\/?em>/g, '');

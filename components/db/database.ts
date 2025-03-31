@@ -11,7 +11,7 @@ export interface Card {
   sourceLanguage: string;
   targetLanguage: string;
   comment: string;
-  context?: Array<{ sentence: string; translation: string, isBad: boolean }>;
+  context?: Array<{ id?: number; sentence: string; translation: string; isBad: boolean }>;
   history?: Array<HistoryEntry>;
   info?: CardInfo;
 }
@@ -316,6 +316,7 @@ export class Database {
       results.forEach(row => {
         if (row.contextId) {
           card.context!.push({
+            id: row.contextId,
             sentence: row.sentence,
             translation: row.translation,
             isBad: Boolean(row.isBad)
@@ -367,6 +368,7 @@ export class Database {
       results.forEach(row => {
         if (row.contextId) {
           card.context!.push({
+            id: row.contextId,
             sentence: row.sentence,
             translation: row.translation,
             isBad: Boolean(row.isBad)
@@ -498,6 +500,7 @@ export class Database {
           const contextExists = card.context!.some(c => c.sentence === row.sentence);
           if (!contextExists) {
             card.context!.push({
+              id : row.contextId,
               sentence: row.sentence,
               translation: row.translation,
               isBad: row.isBad === 1 || row.isBad === true
@@ -539,78 +542,96 @@ export class Database {
     
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
     
-    const query = `
+    // Step 1: Get all cards with their basic information
+    const cardsQuery = `
       SELECT 
-        c.id, c.word, c.translations, c.lastRepeat, c.level, c.userId,
-        c.source, c.sourceLanguage, c.targetLanguage, c.comment, c.info,
-        ctx.id as contextId, ctx.sentence, ctx.translation, ctx.isBad,
-        h.id as historyId, h.date as historyDate, h.success as historySuccess,
-        h.contextId as historyContextId, h.type as historyType
-      FROM cards c
-      LEFT JOIN contexts ctx ON c.id = ctx.cardId
-      LEFT JOIN histories h ON c.id = h.cardId
-      WHERE c.sourceLanguage = ? AND c.targetLanguage = ?
-      ORDER BY c.lastRepeat DESC, h.date DESC
+        id, word, translations, lastRepeat, level, userId,
+        source, sourceLanguage, targetLanguage, comment, info
+      FROM cards
+      WHERE sourceLanguage = ? AND targetLanguage = ?
+      ORDER BY lastRepeat DESC
     `;
     
-    const results = await this.db.getAllAsync<any>(query, [sourceLanguage, targetLanguage]);
-    const cardMap = new Map<number, Card>();
+    const cards = await this.db.getAllAsync<any>(cardsQuery, [sourceLanguage, targetLanguage]);
     
-    for (const row of results) {
-      // Create card if it doesn't exist in the map
-      if (!cardMap.has(row.id)) {
-        cardMap.set(row.id, {
-          id: row.id,
-          word: row.word,
-          translations: JSON.parse(row.translations),
-          lastRepeat: new Date(row.lastRepeat),
-          level: row.level,
-          userId: row.userId,
-          source: row.source,
-          comment: row.comment,
-          sourceLanguage: row.sourceLanguage,
-          targetLanguage: row.targetLanguage,
-          context: [],
-          history: [],
-          info: ensureCardInfo(JSON.parse(row.info || '{}'))
-        });
-      }
-      
-      const card = cardMap.get(row.id)!;
-      
-      // Add context if it exists and isn't already in the context array
-      if (row.contextId && !card.context!.some(c => c.sentence === row.sentence)) {
+    // Create the base cards
+    const cardMap = new Map<number, Card>();
+    const cardIds: number[] = [];
+    
+    for (const card of cards) {
+      cardIds.push(card.id);
+      cardMap.set(card.id, {
+        id: card.id,
+        word: card.word,
+        translations: JSON.parse(card.translations),
+        lastRepeat: new Date(card.lastRepeat),
+        level: card.level,
+        userId: card.userId,
+        source: card.source,
+        comment: card.comment,
+        sourceLanguage: card.sourceLanguage,
+        targetLanguage: card.targetLanguage,
+        context: [],
+        history: [],
+        info: ensureCardInfo(JSON.parse(card.info || '{}'))
+      });
+    }
+    
+    // If we have no cards, return empty array
+    if (cardIds.length === 0) {
+      return [];
+    }
+    
+    // Step 2: Get contexts for all cards in a single query
+    const placeholders = cardIds.map(() => '?').join(',');
+    const contextsQuery = `
+      SELECT id, cardId, sentence, translation, isBad
+      FROM contexts
+      WHERE cardId IN (${placeholders})
+    `;
+    
+    const contexts = await this.db.getAllAsync<any>(contextsQuery, cardIds);
+    
+    // Add contexts to cards
+    for (const context of contexts) {
+      const card = cardMap.get(context.cardId);
+      if (card) {
         card.context!.push({
-          sentence: row.sentence,
-          translation: row.translation,
-          isBad: row.isBad === 1 || row.isBad === true
-        });
-      }
-      
-      // Add history entry if it exists and isn't already in the history array
-      if (row.historyId && !card.history!.some(h => h.id === row.historyId)) {
-        card.history!.push({
-          id: row.historyId,
-          date: new Date(row.historyDate),
-          success: row.historySuccess === 1 || row.historySuccess === true,
-          cardId: row.id,
-          contextId: row.historyContextId,
-          type: row.historyType
+          id: context.id,
+          sentence: context.sentence,
+          translation: context.translation,
+          isBad: context.isBad === 1 || context.isBad === true
         });
       }
     }
     
-    // Sort history entries by date (newest first) for each card
-    for (const card of cardMap.values()) {
-      if (card.history && card.history.length > 0) {
-        card.history.sort((a, b) => b.date.getTime() - a.date.getTime());
-        console.log("History: " + card.history?.length);
+    // Step 3: Get histories for all cards in a single query
+    const historiesQuery = `
+      SELECT id, cardId, date, success, contextId, type
+      FROM histories
+      WHERE cardId IN (${placeholders})
+      ORDER BY date DESC
+    `;
+    
+    const histories = await this.db.getAllAsync<any>(historiesQuery, cardIds);
+    
+    // Add histories to cards
+    for (const history of histories) {
+      const card = cardMap.get(history.cardId);
+      if (card) {
+        card.history!.push({
+          id: history.id,
+          date: new Date(history.date),
+          success: history.success === 1 || history.success === true,
+          cardId: history.cardId,
+          contextId: history.contextId,
+          type: history.type
+        });
       }
     }
     
     return Array.from(cardMap.values());
   }
-
   async updateCard(card: Card): Promise<void> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
@@ -635,26 +656,6 @@ export class Database {
         card.id ?? 0
       ]
     );
-    
-    // Update contexts if they exist
-    if (card.context && card.context.length > 0) {
-      // First delete existing contexts
-      await this.db.runAsync('DELETE FROM contexts WHERE cardId = ?', [card.id ?? 1]);
-      
-      // Then insert new contexts
-      for (const context of card.context) {
-        await this.db.runAsync(
-          `INSERT INTO contexts (sentence, translation, cardId, isBad)
-           VALUES (?, ?, ?, ?)`,
-          [
-            context.sentence,
-            context.translation,
-            card.id ?? 1,
-            context.isBad || false
-          ]
-        );
-      }
-    }
   }
 
   async updateCardComment(card: Card): Promise<void> {

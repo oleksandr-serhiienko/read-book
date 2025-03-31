@@ -92,6 +92,7 @@ export default function CardPanel() {
     card.level = await getNextLevel(card.level, success, type);
     card.lastRepeat = new Date(Date.now());
     
+    console.log("saved card context: " + selectedContextId);
     let history: HistoryEntry = {
       date: new Date(),
       success: success,

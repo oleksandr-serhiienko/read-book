@@ -5,11 +5,12 @@ import { Database } from '@/components/db/database';
 import { CardProps } from './shared/types';
 import { cardStyles } from './shared/styles';
 import { ProgressBar } from './ProgressBar';
-import { getCardComponent } from './CardFactory';
+import { getCardComponent, needContext } from './CardFactory';
 
 export const ApprovalCard: React.FC<CardProps> = ({ 
   card, 
   onCardUpdate, 
+  contextId,
   cardsToLearn, 
   cardsLearned 
 }) => {
@@ -33,8 +34,7 @@ export const ApprovalCard: React.FC<CardProps> = ({
     setIsFlipping(true);
     setIsNavigating(true);
 
-    const contextId = await database.getNextContextForCard(card.id);
-
+    console.log("Approval CARD: " + contextId);
     Animated.sequence([
       Animated.timing(flipAnim, {
         toValue: 0.5,
@@ -43,12 +43,13 @@ export const ApprovalCard: React.FC<CardProps> = ({
       }),
       Animated.delay(50)
     ]).start(async () => {
+      console.log("Actual: " + needContext(card.level) ? contextId?.toString() || '' : null)
       router.push({
         pathname: '/cardPanel',
         params: { 
           cardId: card.id,
           returnToApproval: 'true',
-          contextId: contextId?.toString() || '',
+          contextId: needContext(card.level) ? contextId?.toString() || '' : null,
           isFlipped: 'true'
         }
       });
@@ -56,7 +57,7 @@ export const ApprovalCard: React.FC<CardProps> = ({
   };
 
   const CardComponent = getCardComponent(card.level);
-
+  
   const frontRotate = flipAnim.interpolate({
     inputRange: [0, 0.5, 1],
     outputRange: ['0deg', '90deg', '90deg']
@@ -81,6 +82,7 @@ export const ApprovalCard: React.FC<CardProps> = ({
       >
         <CardComponent 
           card={card} 
+          contextId={contextId}
           onCardUpdate={onCardUpdate}
           cardsLearned={cardsLearned}
           cardsToLearn={cardsToLearn}           

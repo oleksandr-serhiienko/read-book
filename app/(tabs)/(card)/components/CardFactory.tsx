@@ -22,3 +22,11 @@ export const cardComponents: CardComponentsMap = {
 export const getCardComponent = (level: number): CardComponentType => {
   return cardComponents[level] || WordOnlyCard;
 };
+
+export const needContext = (level: number): boolean => {
+  const comp = getCardComponent(level);
+  if (comp == WordOnlyCard || comp == TranslationOnlyCard)
+    return false;
+  else 
+    return true;
+};

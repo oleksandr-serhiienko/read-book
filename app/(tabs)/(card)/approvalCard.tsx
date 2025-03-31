@@ -6,6 +6,7 @@ import { useLanguage } from '@/app/languageSelector';
 import { CardEvents } from './components/CardEvents';
 import wordGenerator from '@/components/db/nextWordToLearn';
 import ApprovalCard from './components/ApprovalCard';
+import { selectBestContext } from './components/shared/helpers';
 
 export default function ApprovalScreen() {
   const { source } = useLocalSearchParams<{ source: string }>();
@@ -69,6 +70,7 @@ export default function ApprovalScreen() {
   return (
     <ApprovalCard 
       card={cards[currentCardIndex]}
+      contextId={selectBestContext(cards[currentCardIndex])?.id}
       onCardUpdate={handleCardUpdate}
       cardsToLearn={cardsToLearn}
       cardsLearned={cardsLearned}

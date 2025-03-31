@@ -64,19 +64,19 @@ const styles = {
   ...localStyles,
 };
 
-const ContextWithBlankTranslation: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
+const ContextWithBlankTranslation: FC<CardProps> = ({ card, onShowAnswer, contextId, isFlipping }) => {
   const [showHints, setShowHints] = useState(false);
   useEffect(() => {
     setShowHints(false);
   }, [card.word]); // Reset when word changes
 
   if (!card.context || !card.context[0]) return null;
-  const selectedContext = selectBestContext(card);
+  const selectedContext = card.context.find(c => c.id == contextId) ?? card.context[0];
     if (!selectedContext) return null;
 
   const originalText = selectedContext.translation;
   const translationSentence = originalText.replace(/<\/?em>/g, '');
-  const wordToReplace = originalText.match(/<em>(.*?)<\/em>/)?.[1] ?? card.translations[0];
+  const wordToReplace = originalText.match(/<em>(.*?)<\/em>/)?.[1] ?? card.translations.find(t => originalText.toLowerCase().includes(t.toLowerCase())) ?? card.translations[0];
   const hints = getWordHints(wordToReplace);
   
   return (
