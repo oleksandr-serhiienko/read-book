@@ -131,7 +131,6 @@ const Word: React.FC<WordProps> = memo(({
 
   const handleWordPress = async (): Promise<void> => {
     const cleanedWord = cleanWord(word.word);
-    
     // Get updated word data
     const updatedWord = await onPress(word.word, sentence, word.wordIndex);
     if (!updatedWord) return;
@@ -183,13 +182,18 @@ const Word: React.FC<WordProps> = memo(({
       word: currentPhrase,
       pos: ""
     }];
-    
     // Get additional translations for multi-word groups that translate to single words
     let convertedContexts: TranslationContext[] = [];
     if (allGroupWords.length > 1 && sortedTranslations.length === 1) {
       const result = await fetchAdditionalTranslations(translationPhrase);
       if (result) {
-        translations = [...translations, ...result.translations];
+        // Use a Set to remove duplicates
+        const mergedTranslations = [...translations, ...result.translations];
+        const uniqueTranslations = Array.from(
+            new Map(mergedTranslations.map(t => [t.word, t])).values()
+        );
+    
+        translations = uniqueTranslations;
         convertedContexts = result.contexts;
       }
     }
@@ -248,12 +252,25 @@ const Word: React.FC<WordProps> = memo(({
     
     // Get database translation (might contain additional info)
     const dbTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
-    const convertedContexts = convertContexts(dbTranslation);
+    const result = await fetchAdditionalTranslations(cleanedWord);
+    const translation = [{ word: cleanWord(updatedWord.word), pos: "" }];
+    let translations: Translation[] = [...translation];
+    let convertedContexts = convertContexts(dbTranslation);
+      if (result) {
+        // Use a Set to remove duplicates
+        const mergedTranslations = [...translations, ...result.translations];
+        const uniqueTranslations = Array.from(
+            new Map(mergedTranslations.map(t => [t.word, t])).values()
+        );
+    
+        translations = uniqueTranslations;
+
+      }
     
     // Create response with the original word as the translation
     const responseTranslation = createTranslationResponse(
       cleanedWord,
-      [{ word: cleanWord(updatedWord.word), pos: "" }],
+      translations,
       convertedContexts
     );
     
@@ -273,7 +290,7 @@ const Word: React.FC<WordProps> = memo(({
     const coupledTranslation = extractCoupledTranslation(updatedWord);
     
     // Combine translations from different sources
-    const translations = combineTranslations(dbTranslation, coupledTranslation, updatedWord);
+    const translations = combineTranslations(dbTranslation, coupledTranslation);
     
     // Convert contexts to required format
     const convertedContexts = convertContexts(dbTranslation);
@@ -334,10 +351,9 @@ const Word: React.FC<WordProps> = memo(({
     translations: Translation[], 
     contexts: TranslationContext[] 
   } | null> => {
-    const dbTranslation = await database.getWordTranslation(translationPhrase);
-    
+    const dbTranslation = await database.getWordTranslation(translationPhrase.toLowerCase());
     if (!dbTranslation) return null;
-    
+  
     const translations = dbTranslation.translations.map(translation => ({
       word: translation,
       pos: ""
@@ -370,14 +386,11 @@ const Word: React.FC<WordProps> = memo(({
    */
   const combineTranslations = (
     dbTranslation: DbTranslation | null, 
-    coupledTranslation: string, 
-    updatedWord: UpdatedWord
+    coupledTranslation: string
   ): Translation[] => {
     const translations: Translation[] = [];
-    
     // Add coupled translation first if it exists and isn't in DB
-    if (coupledTranslation && 
-        (!dbTranslation || !dbTranslation.translations.includes(coupledTranslation))) {
+    if (coupledTranslation) {
       translations.push({
         word: coupledTranslation,
         pos: ""
@@ -387,10 +400,12 @@ const Word: React.FC<WordProps> = memo(({
     // Add DB translations if they exist
     if (dbTranslation) {
       dbTranslation.translations.forEach(translation => {
-        translations.push({
-          word: translation,
-          pos: ""
-        });
+        if(translation !== coupledTranslation){
+          translations.push({
+            word: translation,
+            pos: ""
+          });
+        }        
       });
     }
     
