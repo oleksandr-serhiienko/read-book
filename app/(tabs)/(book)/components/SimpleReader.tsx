@@ -64,7 +64,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
         await bookDatabase.downloadDatabase(bookUrl);
         dbInitialized = await bookDatabase.initialize();
         
-        if (!dbInitialized) {
+        if (!dbInitialized) { 
           throw new Error("Failed to initialize database after download");
         }
       }

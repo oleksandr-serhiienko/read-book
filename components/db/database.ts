@@ -433,11 +433,9 @@ export class Database {
   async getCardToLearnBySource(source: string, sourceLanguage: string, targetLanguage: string): Promise<Card[]> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
-    console.log("HERE E");
     if (source === 'All Cards') {
       return this.getAllCards(sourceLanguage, targetLanguage);
     }
-    console.log("HERE EA");
     const query = `
       SELECT 
         c.id,
@@ -538,7 +536,7 @@ export class Database {
   }
  
   async getAllCards(sourceLanguage: string, targetLanguage: string): Promise<Card[]> {
-    await this.initialize();
+    await this.initialize();    
     
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
     
@@ -622,7 +620,7 @@ export class Database {
         card.history!.push({
           id: history.id,
           date: new Date(history.date),
-          success: history.success === 1 || history.success === true,
+          success: history.success === "true" || history.success === true || history.success === 1|| history.success === "1",
           cardId: history.cardId,
           contextId: history.contextId,
           type: history.type

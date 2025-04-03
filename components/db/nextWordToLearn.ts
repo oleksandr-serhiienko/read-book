@@ -124,11 +124,16 @@ export default function wordGenerator(cards: Card[]): Card[] {
         `Type: ${type}, ` +
         `Status: ${card.info?.status}, ` +
         `Info: ${card.info?.learningProgress.meaningToWord}, ` +
-        `Sentence: ${card.info?.sentence}`
+        //`Sentence: ${card.info?.sentence}` + 
+        `LastHIstory: ${lastHistory?.date}` +
+        `LastHIstory: ${lastHistory?.success}`
       );
 
-      // Compare dates ignoring time
-      return isSameOrAfterDate(now, nextReviewDate);
+      // NEW LOGIC: Include cards where the last answer was wrong
+      const wasLastAttemptWrong = lastHistory && lastHistory.success === false;
+      
+      // Include if due for review OR if the last attempt was wrong
+      return isSameOrAfterDate(now, nextReviewDate) || wasLastAttemptWrong;
     } catch (error) {
       console.error(`Error processing card ${card.word}:`, error);
       return false;

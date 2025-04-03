@@ -93,8 +93,6 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
           setIndividualWords([]);
         }
       } catch (error) {
-        console.error('Error in setup and load:', error);
-        // Set empty array to prevent rendering errors
         setIndividualWords([]);
       }
     };

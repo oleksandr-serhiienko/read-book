@@ -93,6 +93,7 @@ export default function CardPanel() {
     card.lastRepeat = new Date(Date.now());
     
     console.log("saved card context: " + selectedContextId);
+    console.log("history to save was " + success);
     let history: HistoryEntry = {
       date: new Date(),
       success: success,
