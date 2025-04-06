@@ -59,10 +59,30 @@ export default function SettingsScreen() {
     
     setIsLoading(true);
     try {
-      // 1. Delete book from database
+      // 1. First close any existing connection to the book database
+      const bookDb = new BookDatabase(selectedBook.name);
+      await bookDb.close();
+      
+      // 2. Delete book from database (your existing code)
       await database.deleteBook(selectedBook.name, sourceLanguage.toLowerCase());
       
-      // 2. Delete book file from filesystem if it exists
+      // 3. Remove the actual book database file
+      if (selectedBook.bookUrl && selectedBook.bookUrl.endsWith('.db')) {
+        // The main database file in SQLite directory
+        const dbPath = `${FileSystem.documentDirectory}SQLite/${selectedBook.name}.db`;
+        console.log(`Deleting database file: ${dbPath}`);
+        
+        try {
+          if ((await FileSystem.getInfoAsync(dbPath)).exists) {
+            await FileSystem.deleteAsync(dbPath, { idempotent: true });
+            console.log(`Successfully deleted database file: ${dbPath}`);
+          }
+        } catch (fileError) {
+          console.error('Error deleting database file:', fileError);
+        }
+      }
+      
+      // 4. Delete book file and image (your existing code for these)
       try {
         if (selectedBook.bookUrl && typeof selectedBook.bookUrl === 'string' && 
             FileSystem.documentDirectory && 
@@ -71,10 +91,8 @@ export default function SettingsScreen() {
         }
       } catch (fileError) {
         console.error('Error deleting book file:', fileError);
-        // Continue even if file deletion fails
       }
       
-      // 3. Delete cover image if it exists
       try {
         if (selectedBook.imageUrl && typeof selectedBook.imageUrl === 'string' && 
             FileSystem.documentDirectory && 
@@ -83,10 +101,9 @@ export default function SettingsScreen() {
         }
       } catch (imageError) {
         console.error('Error deleting cover image:', imageError);
-        // Continue even if image deletion fails
       }
       
-      // 4. Refresh book list
+      // 5. Refresh book list
       await loadBooks();
       
       Alert.alert('Success', `"${selectedBook.name}" has been deleted.`);
