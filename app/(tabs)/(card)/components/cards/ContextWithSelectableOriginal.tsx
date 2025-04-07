@@ -48,26 +48,15 @@ const styles = {
   ...localStyles,
 };
 
-function cleanWord(word: string) {
+function cleanWord(word: string ) {
   if (!word || typeof word !== 'string') {
     return '';
   }
   
+  // Trim non-letters from start and end
+  // \p{L} matches any kind of letter from any language
   return word
-    // Remove trailing punctuation
-    .replace(/[.,!?;:]+$/, '')
-    // Remove leading punctuation
-    .replace(/^[.,!?;:]+/, '')
-    .replace(/[.,!?;:]/g, '')
-    // Remove quotes (single, double, smart quotes, guillemets)
-    .replace(/[«»]/g, '')
-    // Remove brackets and parentheses
-    .replace(/[\[\]()<>{}]/g, '')
-    // Remove angle brackets and HTML-like tags
-    .replace(/[<>]/g, '')
-    // Remove other special characters as needed
-    .replace(/[@#$%^&*_=+|~]/g, '')
-    // Optionally trim whitespace
+    .replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '')
     .trim();
 }
 

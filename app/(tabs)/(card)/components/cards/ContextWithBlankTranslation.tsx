@@ -82,7 +82,7 @@ const ContextWithBlankTranslation: FC<CardProps> = ({ card, onShowAnswer, contex
   return (
     <View style={styles.cardContent}>
       <Text style={styles.contextText}>
-        {renderHighlightedText(card.context[0].sentence)}
+        {renderHighlightedText(selectedContext.sentence)}
       </Text>
       
       <View style={styles.translationContainer}>

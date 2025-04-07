@@ -54,7 +54,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
           console.log("Invalid content format");
           return;
         }
-  
+        
         // Initialize the database
         console.log("init");
         const bookDatabase = new BookDatabase(parsedContent.Book);

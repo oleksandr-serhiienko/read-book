@@ -105,28 +105,19 @@ const Word: React.FC<WordProps> = memo(({
     }
   });
 
-  function cleanWord(word: string) {
+  function cleanWord(word: string ) {
     if (!word || typeof word !== 'string') {
       return '';
     }
     
+    // Trim non-letters from start and end
+    // \p{L} matches any kind of letter from any language
     return word
-      // Remove trailing punctuation
-      .replace(/[.,!?;:]+$/, '')
-      // Remove leading punctuation
-      .replace(/^[.,!?;:]+/, '')
-      .replace(/[.,!?;:]/g, '')
-      // Remove quotes (single, double, smart quotes, guillemets)
-      .replace(/[«»]/g, '')
-      // Remove brackets and parentheses
-      .replace(/[\[\]()<>{}]/g, '')
-      // Remove angle brackets and HTML-like tags
-      .replace(/[<>]/g, '')
-      // Remove other special characters as needed
-      .replace(/[@#$%^&*_=+|~]/g, '')
-      // Optionally trim whitespace
+      .replace(/^[^\p{L}]+|[^\p{L}]+$/gu, '')
       .trim();
   }
+  
+    
 
 
   const handleWordPress = async (): Promise<void> => {
@@ -415,7 +406,7 @@ const Word: React.FC<WordProps> = memo(({
   /**
    * Convert contexts to required format
    */
-  const convertContexts = (dbTranslation: DbTranslation | null): TranslationContext[] => {
+  const convertContexts = (dbTranslation: DbTranslation | null): TranslationContext[] => {    
     return dbTranslation?.contexts?.map(context => ({
       original: context.original_text || "",
       translation: context.translated_text || ""
