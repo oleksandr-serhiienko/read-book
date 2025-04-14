@@ -1,6 +1,6 @@
-// SimpleReader.tsx with database lifecycle fixes
+// SimpleReader.tsx - Complete rewritten version
 import React, { useEffect, useState, useRef } from 'react';
-import { View, ScrollView, ActivityIndicator, StyleSheet, Text, FlatList } from 'react-native';
+import { View, ScrollView, ActivityIndicator, StyleSheet, Text, FlatList, Button, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useChapterData } from './hooks/useChapterData';
 import { Sentence } from './components/Sentence';
@@ -12,15 +12,24 @@ import SlidePanel from '../slidePanel';
 import ReaderSettings from './components/ReaderSettings';
 import BottomChapterNavigation from './components/BottomChapterNavigation';
 import { ParsedWord } from './types/types';
-import { BookDatabase } from '@/components/db/bookDatabase';
+import { BookDatabase, DBSentence } from '@/components/db/bookDatabase';
 import { SentenceTranslation } from '@/components/reverso/reverso';
 import { Book, database } from "@/components/db/database";
 import { useLanguage } from '@/app/languageSelector';
 import FileManager from './FileManager';
 
+// Type definition for ViewToken
+type ViewToken = {
+  item: DBSentence;
+  key: string;
+  index: number | null;
+  isViewable: boolean;
+};
+
 const MIN_FONT_SIZE = 12;
 const MAX_FONT_SIZE = 24;
 const DEFAULT_FONT_SIZE = 16;
+
 
 interface DBReaderProps {
   bookUrl: string;
@@ -29,12 +38,27 @@ interface DBReaderProps {
 }
 
 const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl }) => {
+  // Basic reader state
   const [currentFontSize, setCurrentFontSize] = useState(DEFAULT_FONT_SIZE);
   const [isPanelVisible, setIsPanelVisible] = useState(false);
   const [panelContent, setPanelContent] = useState<PanelContent>(null);
   const [db, setDb] = useState<BookDatabase | null>(null);
   const { sourceLanguage, targetLanguage } = useLanguage();
   const dbRef = useRef<BookDatabase | null>(null);
+  
+  // Chapter and sentence tracking
+  const [readerCurrentChapter, setReaderCurrentChapter] = useState(1);
+  const [targetSentenceIndex, setTargetSentenceIndex] = useState(1);
+  const [sentencesBeforeTarget, setSentencesBeforeTarget] = useState(15);
+  const [currentVisibleSentence, setCurrentVisibleSentence] = useState<number | null>(null);
+  
+  // UI state
+  const [shouldScrollToTarget, setShouldScrollToTarget] = useState(true);
+  const [showAllSentences, setShowAllSentences] = useState(false);
+  const [isAtBeginning, setIsAtBeginning] = useState(true);
+  
+  // FlatList ref
+  const flatListRef = useRef<FlatList<DBSentence>>(null);
   
   // Database initialization function
   const initializeDb = async () => {
@@ -84,7 +108,31 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
         };
         await database.insertBook(book);
       } else {
-        await database.updateBook(bookTitle, sourceLanguage.toLowerCase(), "");
+        let savedChapter = 1; // Default
+        let savedSentence = 1; // Default
+  
+        if (bookExist.currentLocation) {
+          try {
+            const parts = bookExist.currentLocation.split('_');
+            if (parts.length === 2) {
+              const ch = parseInt(parts[0], 10);
+              const sent = parseInt(parts[1], 10);
+              
+              if (!isNaN(ch) && !isNaN(sent)) {
+                console.log(`Found saved position: Chapter ${ch}, Sentence ${sent}`);
+                savedChapter = ch;
+                savedSentence = sent;
+              }
+            }
+          } catch (e) {
+            console.error("Error parsing saved position:", e);
+          }
+        }
+        
+        // Set the values directly regardless of whether we found a saved position
+        console.log(`Setting reader position: Chapter ${savedChapter}, Sentence ${savedSentence}`);
+        setReaderCurrentChapter(savedChapter);
+        setTargetSentenceIndex(savedSentence);       
       }
       
       console.log("Database initialized successfully");
@@ -134,13 +182,16 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     };
   }, [bookTitle, bookUrl]);
 
-  // Load chapter once database is ready
+  // Load chapter when database is ready or chapter changes
   useEffect(() => {
     if (db) {
-      loadChapter(1);
+      loadChapter(readerCurrentChapter);
+      setShouldScrollToTarget(true);
+      setShowAllSentences(false);
     }
-  }, [db]);
+  }, [db, readerCurrentChapter]);
 
+  // Chapter data from hook
   const {
     currentChapter,
     chapterSentences,
@@ -152,7 +203,121 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     previousChapter
   } = useChapterData({ db });
 
+  // Sentence parsing
   const { parsedSentences, updateParsedSentences, parseSentence } = useParsedSentences(chapterSentences);
+  
+  // Filter sentences based on current mode
+  const displayedSentences = showAllSentences 
+    ? chapterSentences 
+    : chapterSentences.filter(
+        s => s.sentence_number >= targetSentenceIndex - sentencesBeforeTarget
+      );
+
+  // Determine if we should show the back button
+  const shouldShowBackButton = !showAllSentences && 
+                              targetSentenceIndex > sentencesBeforeTarget && 
+                              isAtBeginning;
+
+  // Track visible items to log reading progress and save position
+  const onViewableItemsChanged = useRef(({ 
+    viewableItems 
+  }: {
+    viewableItems: ViewToken[];
+    changed: ViewToken[];
+  }) => {
+    if (viewableItems && viewableItems.length > 0) {
+      // Get the middle item that's most likely being read
+      const middleIndex = Math.floor(viewableItems.length / 2);
+      const middleItem = viewableItems[middleIndex];
+      
+      if (middleItem && middleItem.item) {
+        const sentenceNumber = middleItem.item.sentence_number;
+        if (sentenceNumber !== currentVisibleSentence) {
+          setCurrentVisibleSentence(sentenceNumber);
+          console.log(`Currently reading sentence ${sentenceNumber} in chapter ${readerCurrentChapter}`);
+          
+          // Save current reading position to database
+          // Format: "chapterNumber_sentenceNumber"
+          const progress = `${readerCurrentChapter}_${sentenceNumber}`;
+          database.updateBook(bookTitle, sourceLanguage.toLowerCase(), progress);
+        }
+      }
+    }
+  }).current;
+
+  // Handler for "Back to beginning" button
+  const handleBackToTop = () => {
+    console.log("Back to top button pressed");
+    setShowAllSentences(true);
+    
+    // Scroll to top after render
+    setTimeout(() => {
+      if (flatListRef.current) {
+        flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+      }
+    }, 100);
+  };
+
+  // Custom chapter navigation handlers
+  const handleNextChapter = () => {
+    if (readerCurrentChapter < totalChapters) {
+      setReaderCurrentChapter(readerCurrentChapter + 1);
+      // Reset states for new chapter
+      setShouldScrollToTarget(true);
+      setShowAllSentences(false);
+    }
+  };
+
+  const handlePreviousChapter = () => {
+    if (readerCurrentChapter > 1) {
+      setReaderCurrentChapter(readerCurrentChapter - 1);
+      // Reset states for new chapter
+      setShouldScrollToTarget(true);
+      setShowAllSentences(false);
+    }
+  };
+
+  // Auto-scroll to target sentence
+  useEffect(() => {
+    if (shouldScrollToTarget && !showAllSentences && displayedSentences.length > 0 && flatListRef.current) {
+      console.log("Attempting to scroll to target sentence in filtered data");
+      
+      // Find the index of the targetSentenceIndex in the filtered array
+      const targetIndex = displayedSentences.findIndex(
+        item => item.sentence_number === targetSentenceIndex
+      );
+      
+      console.log("Target sentence index in filtered array:", targetIndex);
+      
+      if (targetIndex !== -1) {
+        // Get estimate of items to render before target
+        const itemsBeforeTarget = Math.min(5, targetIndex);
+        const estimatedItemHeight = currentFontSize * 1.5; // rough estimate
+        
+        // Scroll to estimated position first
+        console.log("Scrolling to offset...");
+        flatListRef.current.scrollToOffset({
+          offset: estimatedItemHeight * (targetIndex - itemsBeforeTarget),
+          animated: false
+        });
+        
+        // After a moment, try to adjust more precisely
+        setTimeout(() => {
+          console.log("Scrolling to index...");
+          if (flatListRef?.current) {
+            flatListRef.current.scrollToIndex({
+              index: targetIndex,
+              viewPosition: 0.3,
+              animated: false
+            });
+          }
+        }, 100);
+        
+        // Reset scroll flag to avoid unnecessary scrolling
+        setShouldScrollToTarget(false);
+      }
+    }
+  }, [displayedSentences, shouldScrollToTarget, currentFontSize, showAllSentences, targetSentenceIndex]);
 
   // Font size management
   useEffect(() => {
@@ -219,6 +384,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     };
   }, []);
 
+  // Word highlighting and selection
   const parsedSentencesState = {
     parsedSentences,
     updateParsedSentences
@@ -252,19 +418,91 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     }
   };
 
-  // Added retry logic for database errors
+  // Database error recovery
   const retryDatabaseOperation = async () => {
     try {
       console.log("Attempting to reinitialize database after error");
       await initializeDb();
       if (db) {
-        loadChapter(currentChapter);
+        // Try to restore from last saved position
+        const bookExist = await database.getBookByName(bookTitle, sourceLanguage.toLowerCase());
+        
+        if (bookExist?.currentLocation) {
+          const progressParts = bookExist.currentLocation.split('_');
+          if (progressParts.length === 2) {
+            const savedChapter = parseInt(progressParts[0], 10);
+            const savedSentence = parseInt(progressParts[1], 10);
+            console.log("HERE WHAT IS PROGRESS " + progressParts);
+            
+            if (!isNaN(savedChapter) && !isNaN(savedSentence)) {
+              setReaderCurrentChapter(savedChapter);
+              setTargetSentenceIndex(savedSentence);
+              setShouldScrollToTarget(true);
+              setShowAllSentences(false);
+              return;
+            }
+          }
+        }
+        
+        // Fall back to current chapter if no valid saved position
+        loadChapter(readerCurrentChapter);
+        setShouldScrollToTarget(true);
+        setShowAllSentences(false);
       }
     } catch (retryError) {
       console.error("Failed to recover database:", retryError);
     }
   };
 
+  // Handle scroll to index failure
+  const handleScrollToIndexFailed = (info: {
+    index: number;
+    highestMeasuredFrameIndex: number;
+    averageItemLength: number;
+  }) => {
+    console.log("Failed to scroll to index", info);
+    
+    // Try again with a larger timeout and scroll to the highest measured index first
+    setTimeout(() => {
+      if (flatListRef.current) {
+        flatListRef.current.scrollToIndex({
+          index: Math.min(info.highestMeasuredFrameIndex, info.index),
+          animated: false
+        });
+        
+        // Then try to get to our actual target
+        setTimeout(() => {
+          if (flatListRef.current) {
+            flatListRef.current.scrollToIndex({
+              index: info.index,
+              animated: false
+            });
+          }
+        }, 100);
+      }
+    }, 300);
+  };
+  
+  // Function to manually jump to a specific sentence
+  const jumpToSentence = (sentenceNumber: number, chapter: number = readerCurrentChapter) => {
+    // If we need to change chapters
+    if (chapter !== readerCurrentChapter) {
+      setReaderCurrentChapter(chapter);
+    }
+    
+    // Set the target sentence
+    setTargetSentenceIndex(sentenceNumber);
+    setShouldScrollToTarget(true);
+    setShowAllSentences(false);
+    
+    // Update database
+    const progress = `${chapter}_${sentenceNumber}`;
+    database.updateBook(bookTitle, sourceLanguage.toLowerCase(), progress);
+    
+    console.log(`Jumping to Chapter ${chapter}, Sentence ${sentenceNumber}`);
+  };
+
+  // Loading state
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -273,6 +511,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     );
   }
 
+  // Error state
   if (error) {
     return (
       <View style={styles.container}>
@@ -284,6 +523,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     );
   }
   
+  // Database not ready state
   if (!db) {
     return (
       <View style={styles.loadingContainer}>
@@ -292,49 +532,76 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     );
   }
 
+  // Main reader view
   return (
     <View style={styles.container}>
       <ReaderSettings
-        currentChapter={currentChapter}
+        currentChapter={readerCurrentChapter}
         totalChapters={totalChapters}
-        onNext={nextChapter}
-        onPrevious={previousChapter}
+        onNext={handleNextChapter}
+        onPrevious={handlePreviousChapter}
         currentFontSize={currentFontSize}
         onIncreaseFontSize={increaseFontSize}
         onDecreaseFontSize={decreaseFontSize}
       />
       
-      <FlatList
-        data={chapterSentences}
-        keyExtractor={(item) => item.sentence_number.toString()}
-        renderItem={({ item }) => (
-          <Sentence
-            sentence={item}
-            parsedSentence={parsedSentences.get(item.sentence_number)}
-            isSelected={selectedSentence === item.sentence_number}
-            bookTitle={bookTitle}
-            fontSize={currentFontSize}
-            onWordPress={(word, sentence, index) => handleWordPress(word, sentence, index) as Promise<ParsedWord>}
-            onLongPress={() => handleLongPress(item)}
-            isWordHighlighted={isWordHighlighted}
-            database={db}
-          />
+      <View style={styles.readerContainer}>
+        {/* Back to beginning button - only shown when at start of filtered content */}
+        {shouldShowBackButton && (
+          <View style={styles.fixedButtonContainer}>
+            <TouchableOpacity 
+              style={styles.backButton} 
+              onPress={handleBackToTop}
+            >
+              <Text style={styles.backButtonText}>Back to beginning</Text>
+            </TouchableOpacity>
+          </View>
         )}
-        windowSize={5}
-        maxToRenderPerBatch={5}
-        initialNumToRender={10}
-        removeClippedSubviews={true}
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.content}
-        ListFooterComponent={
-          <BottomChapterNavigation
-            currentChapter={currentChapter}
-            totalChapters={totalChapters}
-            onNext={nextChapter}
-            onPrevious={previousChapter}
-          />
-        }
-      />
+        
+        <FlatList
+          ref={flatListRef}
+          data={displayedSentences}
+          keyExtractor={(item) => item.sentence_number.toString()}
+          onScroll={(event) => {
+            // Check if we're at the beginning of the list (with a small threshold)
+            const offset = event.nativeEvent.contentOffset.y;
+            setIsAtBeginning(offset < 20);
+          }}
+          onViewableItemsChanged={onViewableItemsChanged}
+          viewabilityConfig={{
+            itemVisiblePercentThreshold: 50,
+            minimumViewTime: 300
+          }}
+          renderItem={({ item }) => (
+            <Sentence
+              sentence={item}
+              parsedSentence={parsedSentences.get(item.sentence_number)}
+              isSelected={selectedSentence === item.sentence_number}
+              bookTitle={bookTitle}
+              fontSize={currentFontSize}
+              onWordPress={(word, sentence, index) => handleWordPress(word, sentence, index) as Promise<ParsedWord>}
+              onLongPress={() => handleLongPress(item)}
+              isWordHighlighted={isWordHighlighted}
+              database={db}
+            />
+          )}
+          windowSize={5}
+          maxToRenderPerBatch={5}
+          initialNumToRender={20}
+          removeClippedSubviews={true}
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.content}
+          onScrollToIndexFailed={handleScrollToIndexFailed}
+          ListFooterComponent={
+            <BottomChapterNavigation
+              currentChapter={readerCurrentChapter}
+              totalChapters={totalChapters}
+              onNext={handleNextChapter}
+              onPrevious={handlePreviousChapter}
+            />
+          }
+        />
+      </View>
   
       <SlidePanel
         isVisible={isPanelVisible}
@@ -356,13 +623,35 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  readerContainer: {
+    flex: 1,
+    position: 'relative',
+  },
   content: {
     padding: 16,
-    // Remove paddingBottom if it's causing issues
+    paddingTop: 60, 
   },
-  // Add this new style
-  flatListContainer: {
-    flexGrow: 1, // This ensures the content can grow and be scrollable
+  fixedButtonContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: '#f8f8f8',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+    padding: 10,
+  },
+  backButton: {
+    backgroundColor: '#007AFF',
+    padding: 10,
+    borderRadius: 5,
+    alignItems: 'center',
+  },
+  backButtonText: {
+    color: 'white',
+    fontWeight: 'bold',
+    fontSize: 16,
   },
   errorText: {
     color: 'red',
