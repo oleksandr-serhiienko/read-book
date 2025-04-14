@@ -56,6 +56,11 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
   const [shouldScrollToTarget, setShouldScrollToTarget] = useState(true);
   const [showAllSentences, setShowAllSentences] = useState(false);
   const [isAtBeginning, setIsAtBeginning] = useState(true);
+  const [isAutoScrolling, setIsAutoScrolling] = useState(false);
+  const [scrollPosition, setScrollPosition] = useState(0);
+  
+  // Scrolling timer ref
+  const scrollingTimerRef = useRef<NodeJS.Timeout | null>(null);
   
   // FlatList ref
   const flatListRef = useRef<FlatList<DBSentence>>(null);
@@ -165,6 +170,11 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     return () => {
       unsubscribe();
       
+      // Clean up auto-scrolling timer
+      if (scrollingTimerRef.current) {
+        clearTimeout(scrollingTimerRef.current);
+      }
+      
       // Close database connection when component unmounts
       const cleanup = async () => {
         if (dbRef.current) {
@@ -215,7 +225,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
 
   // Determine if we should show the back button
   const shouldShowBackButton = !showAllSentences && 
-                              targetSentenceIndex > sentencesBeforeTarget && 
+                              targetSentenceIndex > 1 && 
                               isAtBeginning;
 
   // Track visible items to log reading progress and save position
@@ -247,13 +257,21 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
 
   // Handler for "Back to beginning" button
   const handleBackToTop = () => {
-    console.log("Back to top button pressed");
+    console.log("Back to beginning button pressed");
     setShowAllSentences(true);
+    
+    // Indicate auto-scrolling is in progress
+    setIsAutoScrolling(true);
     
     // Scroll to top after render
     setTimeout(() => {
       if (flatListRef.current) {
         flatListRef.current.scrollToOffset({ offset: 0, animated: true });
+        
+        // Turn off auto-scrolling after animation completes
+        setTimeout(() => {
+          setIsAutoScrolling(false);
+        }, 500);
       }
     }, 100);
   };
@@ -290,6 +308,9 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
       console.log("Target sentence index in filtered array:", targetIndex);
       
       if (targetIndex !== -1) {
+        // Show loading overlay for automatic scrolling
+        setIsAutoScrolling(true);
+        
         // Get estimate of items to render before target
         const itemsBeforeTarget = Math.min(5, targetIndex);
         const estimatedItemHeight = currentFontSize * 1.5; // rough estimate
@@ -311,6 +332,11 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
               animated: false
             });
           }
+          
+          // Hide loading overlay after adjustment
+          setTimeout(() => {
+            setIsAutoScrolling(false);
+          }, 300);
         }, 100);
         
         // Reset scroll flag to avoid unnecessary scrolling
@@ -418,42 +444,6 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     }
   };
 
-  // Database error recovery
-  const retryDatabaseOperation = async () => {
-    try {
-      console.log("Attempting to reinitialize database after error");
-      await initializeDb();
-      if (db) {
-        // Try to restore from last saved position
-        const bookExist = await database.getBookByName(bookTitle, sourceLanguage.toLowerCase());
-        
-        if (bookExist?.currentLocation) {
-          const progressParts = bookExist.currentLocation.split('_');
-          if (progressParts.length === 2) {
-            const savedChapter = parseInt(progressParts[0], 10);
-            const savedSentence = parseInt(progressParts[1], 10);
-            console.log("HERE WHAT IS PROGRESS " + progressParts);
-            
-            if (!isNaN(savedChapter) && !isNaN(savedSentence)) {
-              setReaderCurrentChapter(savedChapter);
-              setTargetSentenceIndex(savedSentence);
-              setShouldScrollToTarget(true);
-              setShowAllSentences(false);
-              return;
-            }
-          }
-        }
-        
-        // Fall back to current chapter if no valid saved position
-        loadChapter(readerCurrentChapter);
-        setShouldScrollToTarget(true);
-        setShowAllSentences(false);
-      }
-    } catch (retryError) {
-      console.error("Failed to recover database:", retryError);
-    }
-  };
-
   // Handle scroll to index failure
   const handleScrollToIndexFailed = (info: {
     index: number;
@@ -495,6 +485,9 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     setShouldScrollToTarget(true);
     setShowAllSentences(false);
     
+    // Show loading overlay for automatic jump
+    setIsAutoScrolling(true);
+    
     // Update database
     const progress = `${chapter}_${sentenceNumber}`;
     database.updateBook(bookTitle, sourceLanguage.toLowerCase(), progress);
@@ -507,18 +500,6 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#0000ff" />
-      </View>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.errorText}>Error: {error.message}</Text>
-        <Text style={styles.retryText} onPress={retryDatabaseOperation}>
-          Tap to retry
-        </Text>
       </View>
     );
   }
@@ -548,13 +529,18 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
       <View style={styles.readerContainer}>
         {/* Back to beginning button - only shown when at start of filtered content */}
         {shouldShowBackButton && (
-          <View style={styles.fixedButtonContainer}>
-            <TouchableOpacity 
-              style={styles.backButton} 
-              onPress={handleBackToTop}
-            >
-              <Text style={styles.backButtonText}>Back to beginning</Text>
-            </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.backButton} 
+            onPress={handleBackToTop}
+          >
+            <Text style={styles.backButtonText}>↑</Text>
+          </TouchableOpacity>
+        )}
+        
+        {/* Loading overlay during automatic scrolling */}
+        {isAutoScrolling && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="large" color="#ffffff" />
           </View>
         )}
         
@@ -566,6 +552,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
             // Check if we're at the beginning of the list (with a small threshold)
             const offset = event.nativeEvent.contentOffset.y;
             setIsAtBeginning(offset < 20);
+            setScrollPosition(offset);
           }}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={{
@@ -631,27 +618,38 @@ const styles = StyleSheet.create({
     padding: 16,
     paddingTop: 60, 
   },
-  fixedButtonContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 10,
-    backgroundColor: '#f8f8f8',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e0e0e0',
-    padding: 10,
-  },
   backButton: {
+    position: 'absolute',
+    top: 20,
+    alignSelf: 'center',
     backgroundColor: '#007AFF',
-    padding: 10,
-    borderRadius: 5,
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    zIndex: 10,
+    elevation: 5,
   },
   backButtonText: {
     color: 'white',
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 24,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0, 
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 15,
   },
   errorText: {
     color: 'red',
