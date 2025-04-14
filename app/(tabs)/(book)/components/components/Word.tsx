@@ -121,7 +121,7 @@ const Word: React.FC<WordProps> = memo(({
 
 
   const handleWordPress = async (): Promise<void> => {
-    const cleanedWord = cleanWord(word.word);
+    const cleanedWord = cleanWord(word.word.toLowerCase());
     // Get updated word data
     const updatedWord = await onPress(word.word, sentence, word.wordIndex);
     if (!updatedWord) return;
@@ -244,7 +244,7 @@ const Word: React.FC<WordProps> = memo(({
     // Get database translation (might contain additional info)
     const dbTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
     const result = await fetchAdditionalTranslations(cleanedWord);
-    const translation = [{ word: cleanWord(updatedWord.word), pos: "" }];
+    const translation = [{ word: cleanWord(updatedWord.word.toLowerCase()), pos: "" }];
     let translations: Translation[] = [...translation];
     let convertedContexts = convertContexts(dbTranslation);
       if (result) {
@@ -272,7 +272,7 @@ const Word: React.FC<WordProps> = memo(({
    * Handle an original single word
    */
   const handleOriginalSingleWord = async (updatedWord: UpdatedWord): Promise<void> => {
-    const cleanedWord = cleanWord(updatedWord.word);
+    const cleanedWord = cleanWord(updatedWord.word.toLowerCase());
     
     // Get translation from database
     const dbTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
@@ -312,10 +312,10 @@ const Word: React.FC<WordProps> = memo(({
    */
   const extractGroupWords = (updatedWord: UpdatedWord): string[] => {
     return [
-      { index: updatedWord.wordIndex, word: cleanWord(updatedWord.word) },
+      { index: updatedWord.wordIndex, word: cleanWord(updatedWord.word.toLowerCase()) },
       ...updatedWord.wordLinkedNumber.map((word, i) => ({
         index: updatedWord.linkeNumber[i],
-        word: cleanWord(word)
+        word: cleanWord(word.toLowerCase())
       }))
     ]
     .sort((a, b) => a.index - b.index)
@@ -329,7 +329,7 @@ const Word: React.FC<WordProps> = memo(({
     return updatedWord.linkedWordMirror
       .map((index, i) => ({
         index,
-        word: cleanWord(updatedWord.wordLinkedWordMirror[i])
+        word: cleanWord(updatedWord.wordLinkedWordMirror[i].toLowerCase())
       }))
       .sort((a, b) => a.index - b.index)
       .map(item => item.word);
@@ -365,7 +365,7 @@ const Word: React.FC<WordProps> = memo(({
     return updatedWord.linkedWordMirror
       .map((index, i) => ({
         index,
-        word: cleanWord(updatedWord.wordLinkedWordMirror[i])
+        word: cleanWord(updatedWord.wordLinkedWordMirror[i].toLowerCase())
       }))
       .sort((a, b) => a.index - b.index)
       .map(item => item.word)
