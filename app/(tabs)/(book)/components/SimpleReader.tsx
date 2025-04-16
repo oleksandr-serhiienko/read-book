@@ -1,4 +1,4 @@
-// SimpleReader.tsx - Complete rewritten version
+// SimpleReader.tsx - Fixed version
 import React, { useEffect, useState, useRef } from 'react';
 import { View, ScrollView, ActivityIndicator, StyleSheet, Text, FlatList, Button, TouchableOpacity } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -48,6 +48,8 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
   
   // Chapter and sentence tracking
   const [readerCurrentChapter, setReaderCurrentChapter] = useState(1);
+  // Add a ref to track the current chapter that the callback can use
+  const currentChapterRef = useRef(1);
   const [targetSentenceIndex, setTargetSentenceIndex] = useState(1);
   const [sentencesBeforeTarget, setSentencesBeforeTarget] = useState(15);
   const [currentVisibleSentence, setCurrentVisibleSentence] = useState<number | null>(null);
@@ -64,6 +66,11 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
   
   // FlatList ref
   const flatListRef = useRef<FlatList<DBSentence>>(null);
+  
+  // Update the ref whenever readerCurrentChapter changes
+  useEffect(() => {
+    currentChapterRef.current = readerCurrentChapter;
+  }, [readerCurrentChapter]);
   
   // Database initialization function
   const initializeDb = async () => {
@@ -123,7 +130,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
               const ch = parseInt(parts[0], 10);
               const sent = parseInt(parts[1], 10);
               
-              if (!isNaN(ch) && !isNaN(sent)) {
+              if (!isNaN(ch) && ch > 0 && !isNaN(sent) && sent > 0) {
                 console.log(`Found saved position: Chapter ${ch}, Sentence ${sent}`);
                 savedChapter = ch;
                 savedSentence = sent;
@@ -137,6 +144,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
         // Set the values directly regardless of whether we found a saved position
         console.log(`Setting reader position: Chapter ${savedChapter}, Sentence ${savedSentence}`);
         setReaderCurrentChapter(savedChapter);
+        currentChapterRef.current = savedChapter; // Update the ref too
         setTargetSentenceIndex(savedSentence);       
       }
       
@@ -244,11 +252,13 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
         const sentenceNumber = middleItem.item.sentence_number;
         if (sentenceNumber !== currentVisibleSentence) {
           setCurrentVisibleSentence(sentenceNumber);
-          console.log(`Currently reading sentence ${sentenceNumber} in chapter ${readerCurrentChapter}`);
+          // Use the current chapter from the ref, not the state
+          const currentChapter = currentChapterRef.current;
+          console.log(`Currently reading sentence ${sentenceNumber} in chapter ${currentChapter}`);
           
-          // Save current reading position to database
+          // Save current reading position to database with the CORRECT chapter number
           // Format: "chapterNumber_sentenceNumber"
-          const progress = `${readerCurrentChapter}_${sentenceNumber}`;
+          const progress = `${currentChapter}_${sentenceNumber}`;
           database.updateBook(bookTitle, sourceLanguage.toLowerCase(), progress);
         }
       }
@@ -280,6 +290,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
   const handleNextChapter = () => {
     if (readerCurrentChapter < totalChapters) {
       setReaderCurrentChapter(readerCurrentChapter + 1);
+      setTargetSentenceIndex(1); 
       // Reset states for new chapter
       setShouldScrollToTarget(true);
       setShowAllSentences(false);
@@ -289,6 +300,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
   const handlePreviousChapter = () => {
     if (readerCurrentChapter > 1) {
       setReaderCurrentChapter(readerCurrentChapter - 1);
+      setTargetSentenceIndex(1); 
       // Reset states for new chapter
       setShouldScrollToTarget(true);
       setShowAllSentences(false);
@@ -573,7 +585,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
             />
           )}
           windowSize={5}
-          maxToRenderPerBatch={5}
+          maxToRenderPerBatch={10}
           initialNumToRender={20}
           removeClippedSubviews={true}
           style={{ flex: 1 }}
