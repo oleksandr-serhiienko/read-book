@@ -100,7 +100,7 @@ const ContextWithSelectableTranslation: FC<CardProps> = ({ card, onShowAnswer, c
               onPress={() => handleWordPress(word)}
               style={[
                 styles.wordButton,
-                selectedWord === word && (isCorrect ? styles.correctWord : styles.wrongWord)
+                selectedWord === cleanWord(word) && (isCorrect ? styles.correctWord : styles.wrongWord)
               ]}
             >
               <Text style={styles.contextText}>{word}</Text>

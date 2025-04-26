@@ -210,13 +210,14 @@ export class BookDatabase {
         throw new Error('Database is not initialized');
       }
       
-      // Find the chapter sentence and update it
+      // Find the chapter sentence and update it, including the created_at timestamp
       const chapterQuery = `
         UPDATE book_sentences 
-        SET original_parsed_text = ?, translation_parsed_text = ? 
-        WHERE sentence_number = ? 
+        SET original_parsed_text = ?, 
+            translation_parsed_text = ?,
+            created_at = CURRENT_TIMESTAMP
+        WHERE id = ? 
       `;
-      
       await this.db.runAsync(chapterQuery, [originalNew, translationNew, id]);
       return true;
     });
@@ -231,7 +232,7 @@ export class BookDatabase {
       console.log("Getting sentences");
       
       return await this.db.getAllAsync<DBSentence>(
-        `SELECT sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
+        `SELECT id, sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
          FROM book_sentences 
          ORDER BY sentence_number`
       );

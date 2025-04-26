@@ -446,7 +446,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
         const st: SentenceTranslation = {
           Original: sentenceObj.original_parsed_text ?? "",
           Translation: sentenceObj.translation_parsed_text ?? "",
-          id: selectedSentence,
+          id: sentenceObj.id,
           bookTitle: bookTitle
         }
         

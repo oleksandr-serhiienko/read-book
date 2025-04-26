@@ -47,13 +47,13 @@ const ReaderSettings: React.FC<ReaderSettingsProps> = ({
               </TouchableOpacity>
               
               <Text style={styles.info}>
-                Chapter {currentChapter + 1} of {totalChapters}
+                Chapter {currentChapter} of {totalChapters}
               </Text>
               
               <TouchableOpacity 
                 onPress={onNext}
-                disabled={currentChapter === totalChapters - 1}
-                style={[styles.button, currentChapter === totalChapters - 1 && styles.disabledButton]}
+                disabled={currentChapter === totalChapters}
+                style={[styles.button, currentChapter === totalChapters && styles.disabledButton]}
               >
                 <ChevronRight size={24} color="#666" />
               </TouchableOpacity>
