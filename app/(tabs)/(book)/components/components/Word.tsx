@@ -92,6 +92,7 @@ const Word: React.FC<WordProps> = memo(({
       flexDirection: 'row',
       alignItems: 'baseline',  // Important for text alignment
       alignSelf: 'flex-start',  // Don't stretch the container
+      paddingTop: 1,           // Pre-apply this top padding to all words
     },
     word: {
       fontSize: fontSize,
@@ -458,6 +459,12 @@ const styles = StyleSheet.create({
   highlightedWord: {
     backgroundColor: '#3498db',
     color: '#fff',
+    borderRadius: 4,          // This adds rounded corners
+    //marginTop: 1
+    //height: 'auto',
+    //paddingHorizontal: 4,     // This adds some horizontal padding
+    //paddingVertical: 2,       // This reduces the vertical padding/height
+    //marginHorizontal: 1,       // This can help offset the extra height from padding
   }
 });
 
