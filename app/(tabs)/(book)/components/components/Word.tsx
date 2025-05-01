@@ -90,9 +90,9 @@ const Word: React.FC<WordProps> = memo(({
   const dynamicStyles = StyleSheet.create({
     container: {
       flexDirection: 'row',
-      alignItems: 'baseline',  // Important for text alignment
-      alignSelf: 'flex-start',  // Don't stretch the container
-      paddingTop: 1,           // Pre-apply this top padding to all words
+      alignItems: 'baseline',  
+      alignSelf: 'flex-start',  
+      paddingTop: 1,           
     },
     word: {
       fontSize: fontSize,

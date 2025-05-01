@@ -308,6 +308,27 @@ export class BookDatabase {
     });
   }
 
+  async getChapterSentenceCount(chapterNumber: number): Promise<number> {
+    return this.withRetry(async () => {
+      if (!this.db) {
+        await this.initialize();
+        if (!this.db) {
+          throw new Error('Database not initialized after retry');
+        }
+      }
+      
+      console.log("Getting sentence count for chapter:", chapterNumber);
+      
+      const result = await this.db.getFirstAsync<{ count: number }>(
+        'SELECT COUNT(*) as count FROM book_sentences WHERE chapter_id = ?',
+        [chapterNumber]
+      );
+      
+      return result?.count ?? 0;
+    });
+  }
+
+
   async getWordTranslation(word: string): Promise<WordTranslationWithContext | null> {
     return this.withRetry(async () => {
       if (!this.db) {

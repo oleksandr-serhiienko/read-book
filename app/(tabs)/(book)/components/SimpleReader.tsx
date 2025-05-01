@@ -17,6 +17,7 @@ import { SentenceTranslation } from '@/components/reverso/reverso';
 import { Book, database } from "@/components/db/database";
 import { useLanguage } from '@/app/languageSelector';
 import FileManager from './FileManager';
+import ProgressBar from './ProgressBar';
 
 // Type definition for ViewToken
 type ViewToken = {
@@ -53,13 +54,17 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
   const [targetSentenceIndex, setTargetSentenceIndex] = useState(1);
   const [sentencesBeforeTarget, setSentencesBeforeTarget] = useState(15);
   const [currentVisibleSentence, setCurrentVisibleSentence] = useState<number | null>(null);
+  let maxChapterCount = 0;
+  let maxSentenceCount = 0;
+  const [chapterProgress, setChapterProgress] = useState<number>(0);
+  const [sentencProgress, setSentenceProgress] = useState<number>(0);
   
   // UI state
   const [shouldScrollToTarget, setShouldScrollToTarget] = useState(true);
   const [showAllSentences, setShowAllSentences] = useState(false);
   const [isAtBeginning, setIsAtBeginning] = useState(true);
   const [isAutoScrolling, setIsAutoScrolling] = useState(false);
-  const [scrollPosition, setScrollPosition] = useState(0);
+  //const [scrollPosition, setScrollPosition] = useState(0);
   
   // Scrolling timer ref
   const scrollingTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -122,7 +127,6 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
       } else {
         let savedChapter = 1; // Default
         let savedSentence = 1; // Default
-  
         if (bookExist.currentLocation) {
           try {
             const parts = bookExist.currentLocation.split('_');
@@ -152,9 +156,8 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
       dbRef.current = bookDatabase;
       setDb(bookDatabase);
       
-      // Verify database connection works by checking total chapters
-      const chapters = await bookDatabase.getTotalChapters();
-      console.log("Successfully verified database, found chapters:", chapters);
+      maxChapterCount = await bookDatabase.getTotalChapters();
+      maxSentenceCount = await bookDatabase.getChapterSentenceCount(readerCurrentChapter);
       
       return true;
     } catch (error) {
@@ -260,10 +263,32 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
           // Format: "chapterNumber_sentenceNumber"
           const progress = `${currentChapter}_${sentenceNumber}`;
           database.updateBook(bookTitle, sourceLanguage.toLowerCase(), progress);
+          getReadingProgress(currentChapter, sentenceNumber);          
         }
       }
     }
   }).current;
+
+  const getReadingProgress = async (currentChapterNumber: number, currentSentenceNumber: number) => {
+    
+    try {
+      
+      // Now calculate with the fresh values
+      const chapterProgress = (currentChapterNumber / maxChapterCount) * 100;
+      const sentenceProgress = (currentSentenceNumber / maxSentenceCount) * 100;
+
+      // Update state with the calculated values
+      setChapterProgress(chapterProgress);
+      setSentenceProgress(sentenceProgress);
+      
+      // You can also update the book progress in the database here
+      // Use the overall progress (combination of chapter and sentence progress)
+      const overallProgress = (chapterProgress + (sentenceProgress / totalChapters)) / 100;
+      database.updateBookProgress(bookTitle, sourceLanguage.toLowerCase(), overallProgress);
+    } catch (error) {
+      console.error("Error calculating reading progress:", error);
+    }
+  };
 
   // Handler for "Back to beginning" button
   const handleBackToTop = () => {
@@ -484,28 +509,6 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
       }
     }, 300);
   };
-  
-  // Function to manually jump to a specific sentence
-  const jumpToSentence = (sentenceNumber: number, chapter: number = readerCurrentChapter) => {
-    // If we need to change chapters
-    if (chapter !== readerCurrentChapter) {
-      setReaderCurrentChapter(chapter);
-    }
-    
-    // Set the target sentence
-    setTargetSentenceIndex(sentenceNumber);
-    setShouldScrollToTarget(true);
-    setShowAllSentences(false);
-    
-    // Show loading overlay for automatic jump
-    setIsAutoScrolling(true);
-    
-    // Update database
-    const progress = `${chapter}_${sentenceNumber}`;
-    database.updateBook(bookTitle, sourceLanguage.toLowerCase(), progress);
-    
-    console.log(`Jumping to Chapter ${chapter}, Sentence ${sentenceNumber}`);
-  };
 
   // Loading state
   if (isLoading) {
@@ -539,6 +542,16 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
       />
       
       <View style={styles.readerContainer}>
+        <View style={styles.rightProgressBarContainer}>
+          <View style={styles.rightProgressBarBg}>
+            <View 
+              style={[
+                styles.rightProgressBarFill,
+                { height: `${sentencProgress}%` }
+              ]} 
+            />
+          </View>
+      </View>
         {/* Back to beginning button - only shown when at start of filtered content */}
         {shouldShowBackButton && (
           <TouchableOpacity 
@@ -564,7 +577,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
             // Check if we're at the beginning of the list (with a small threshold)
             const offset = event.nativeEvent.contentOffset.y;
             setIsAtBeginning(offset < 20);
-            setScrollPosition(offset);
+            //setScrollPosition(offset);
           }}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={{
@@ -608,6 +621,7 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
         onClose={() => SlidePanelEvents.emit(null, false)}
         onAnnotateSentence={() => handleSelectSentence(selectedSentence)}
       />
+      <ProgressBar progress={chapterProgress} />
     </View>
   );
 };
@@ -629,6 +643,34 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingTop: 60, 
+  },
+  rightProgressBarContainer: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    bottom: 0,
+    width: 3,
+    zIndex: 5,
+  },
+  rightProgressBarBg: {
+    height: '100%',
+    backgroundColor: '#e5e5e5',
+    width: '100%',
+  },
+  rightProgressBarFill: {
+    width: '100%',
+    backgroundColor: '#3498db',
+    position: 'absolute',
+    top: 0,
+  },
+  progressBarBg: {
+    height: 3,
+    backgroundColor: '#e5e5e5',
+    width: '100%',
+  },
+  progressBarFill: {
+    height: '100%',
+    backgroundColor: '#3498db',
   },
   backButton: {
     position: 'absolute',

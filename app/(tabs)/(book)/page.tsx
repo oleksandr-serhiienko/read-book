@@ -125,7 +125,6 @@ export default function PageScreen() {
         onClose={handlePanelClose}
         onAnnotateSentence={handleAnnotateSentence}
       />
-      <ProgressBar progress={readingProgress} />
     </SafeAreaView>
   );
 }
