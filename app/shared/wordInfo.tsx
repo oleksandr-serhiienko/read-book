@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { ResponseTranslation } from '@/components/reverso/reverso';
-import { Database } from '@/components/db/database';
+import { Database, Card, HistoryEntry } from '@/components/db/database';
 import SupportedLanguages from '@/components/reverso/languages/entities/languages';
 import { Transform } from '@/components/transform';
 import { useLanguage } from '@/app/languageSelector';
 import * as Speech from 'expo-speech';
-import { Volume2, Volume1, Check, Pencil, ArrowRight } from 'lucide-react-native';
+import { ChevronDown, ChevronUp, Clock, Check, Volume2, Volume1, Pencil, ArrowRight, BarChart2 } from 'lucide-react-native';
 import languages from '@/components/reverso/languages/entities/languages';
 import voices from '@/components/reverso/languages/voicesTranslate';
 import { BookDatabase } from '@/components/db/bookDatabase';
 import { router } from 'expo-router';
 import TranslationContext from '@/components/reverso/languages/entities/translationContext';
+import HistoryItem from './historyItem';
 
 interface WordInfoContentProps {
   content: string;
@@ -34,6 +35,13 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   const languageKey = sourceLanguage.toLowerCase() as keyof typeof languages;
   const database = new Database();   
   const [db, setDb] = useState<BookDatabase | null>(null);
+  
+  // State for card history
+  const [cardHistory, setCardHistory] = useState<HistoryEntry[]>([]);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyExists, setHistoryExists] = useState(false);
+  const [currentCard, setCurrentCard] = useState<Card | null>(null);
 
   const formattedTranslations = parsedContent.Translations.slice(0, 5).map(t =>
     `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
@@ -43,6 +51,9 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   useEffect(() => {
     if (initialIsAdded) {
       loadExistingComment();
+      checkForHistory();
+    } else {
+      checkWordExists();
     }
   }, []);
 
@@ -99,6 +110,64 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   
     setupAndLoadData();
   }, [content]);
+
+  // Check if the word exists in the database
+  const checkWordExists = async () => {
+    try {
+      const wordExists = !(await database.WordDoesNotExist(parsedContent.Original));
+      setHistoryExists(wordExists);
+      if (wordExists) {
+        const card = await database.getCardByWord(parsedContent.Original);
+        if (card) {
+          setCurrentCard(card);
+        }
+      }
+    } catch (error) {
+      console.error('Error checking if word exists:', error);
+    }
+  };
+
+  // Check for history and load it
+  const checkForHistory = async () => {
+    try {
+      const card = await database.getCardByWord(parsedContent.Original);
+      if (card) {
+        setCurrentCard(card);
+        setHistoryExists(true);
+      }
+    } catch (error) {
+      console.error('Error checking for history:', error);
+    }
+  };
+
+  // Load history for the current word
+  const loadHistory = async () => {
+    if (!currentCard || !currentCard.id) return;
+    
+    setIsLoadingHistory(true);
+    
+    try {
+      const history = await database.getCardHistory(currentCard.id);
+      setCardHistory(history);
+      setShowHistory(true);
+    } catch (error) {
+      console.error('Error loading history:', error);
+    } finally {
+      setIsLoadingHistory(false);
+    }
+  };
+
+  const toggleHistoryView = async () => {
+    if (showHistory) {
+      setShowHistory(false);
+    } else {
+      if (cardHistory.length === 0) {
+        await loadHistory();
+      } else {
+        setShowHistory(true);
+      }
+    }
+  };
 
   const loadExistingComment = async () => {
     try {
@@ -202,6 +271,10 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
     if (!isAdded) {     
       database.insertCard(Transform.fromWordToCard(parsedContent, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]), parsedContent.TextView);
       setIsAdded(true);
+      setHistoryExists(true);
+      
+      // After adding to dictionary, check for history again
+      await checkForHistory();
     }
   };
 
@@ -239,6 +312,55 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
               <Pencil size={16} color="#007AFF" />
             </TouchableOpacity>
           </View>
+        )}
+      </View>
+    );
+  };
+
+  const renderHistoryButton = () => {
+    if (!historyExists) return null;
+
+    return (
+      <TouchableOpacity
+        style={styles.historyButton}
+        onPress={toggleHistoryView}
+        disabled={isLoadingHistory}
+      >
+        {isLoadingHistory ? (
+          <ActivityIndicator size="small" color="#fff" />
+        ) : (
+          <>
+            <BarChart2 size={20} color="#fff" style={styles.buttonIcon} />
+            <Text style={styles.historyButtonText}>
+              {showHistory ? 'Hide History' : 'Show History'}
+            </Text>
+            {showHistory ? 
+              <ChevronUp size={20} color="#fff" /> : 
+              <ChevronDown size={20} color="#fff" />
+            }
+          </>
+        )}
+      </TouchableOpacity>
+    );
+  };
+
+  const renderHistoryList = () => {
+    if (!showHistory) return null;
+
+    return (
+      <View style={styles.historyContainer}>
+        <Text style={styles.historySectionTitle}>Learning History</Text>
+        {cardHistory.length === 0 ? (
+          <Text style={styles.noHistoryText}>No learning history available</Text>
+        ) : (
+          cardHistory.map((entry, index) => (
+            <HistoryItem 
+              key={index} 
+              entry={entry} 
+              index={index} 
+              card={currentCard} // Pass the card to access context information
+            />
+          ))
         )}
       </View>
     );
@@ -297,9 +419,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
           </Text>
         </TouchableOpacity>
       )}
-       {renderComment()}
-      
-
+      {renderComment()}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Translations</Text>
         {formattedTranslations.map((translation, index) => (
@@ -320,11 +440,14 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
           </View>
         ))}
       </View>
+      {renderHistoryButton()}
+      {renderHistoryList()}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
+  // Existing styles
   wordButtonsContainer: {
     marginVertical: 16,
   },
@@ -510,4 +633,48 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
+
+  // New styles for history feature
+  historyButton: {
+    backgroundColor: '#6366f1',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 15,
+    borderRadius: 10,
+    marginVertical: 10,
+  },
+  buttonIcon: {
+    marginRight: 8,
+  },
+  historyButtonText: {
+    color: 'white',
+    fontSize: 16,
+    fontWeight: 'bold',
+    flex: 1,
+    textAlign: 'center',
+  },
+  historyContainer: {
+    backgroundColor: 'white',
+    padding: 15,
+    borderRadius: 10,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  historySectionTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  noHistoryText: {
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    paddingVertical: 20,
+  }
 });

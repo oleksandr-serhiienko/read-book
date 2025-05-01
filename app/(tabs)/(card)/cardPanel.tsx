@@ -7,11 +7,24 @@ import { Transform } from '@/components/transform';
 import { CardEvents } from './components/CardEvents';
 import AudioControl from './components/AudioControl';
 
+// Import these to get the type information
+import { cardComponents } from './components/CardFactory';
+
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const SWIPE_THRESHOLD = {
   horizontal: 0.25 * SCREEN_WIDTH,
   vertical: 0.25 * SCREEN_HEIGHT
+};
+
+// Map for detailed exercise type descriptions based on card level
+const CARD_TYPE_DESCRIPTIONS = {
+  0: 'Word Recognition',
+  1: 'Translation Recognition',
+  2: 'Context with Blank (Original)',
+  3: 'Context with Blank (Translation)',
+  4: 'Context with Selection (Original)',
+  5: 'Context with Selection (Translation)'
 };
 
 const renderHighlightedText = (text: string) => {
@@ -94,12 +107,17 @@ export default function CardPanel() {
     
     console.log("saved card context: " + selectedContextId);
     console.log("history to save was " + success);
+    
+    // Get the detailed card type description based on the card's level
+    const cardTypeDescription = CARD_TYPE_DESCRIPTIONS[card.level as keyof typeof CARD_TYPE_DESCRIPTIONS] || 'Unknown Type';
+    
+    // Create a history entry with the detailed type information
     let history: HistoryEntry = {
       date: new Date(),
       success: success,
       cardId: card.id ?? 0,
       contextId: selectedContextId,
-      type: type
+      type: `${cardTypeDescription} (${type})`
     };
     
     await database.updateHistory(history);
@@ -430,7 +448,3 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
 });
-
-function useNumberParam(cardId: string): number {
-  throw new Error('Function not implemented.');
-}

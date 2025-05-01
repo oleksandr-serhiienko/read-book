@@ -696,7 +696,7 @@ export class Database {
     return history.map(entry => ({
       ...entry,
       date: new Date(entry.date),
-      success: entry.success
+      success: entry.success === "true" || entry.success === true || entry.success === 1|| entry.success === "1",
     }));
   }
 
