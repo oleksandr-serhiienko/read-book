@@ -120,31 +120,6 @@ export class BookDatabase {
   public getDbName(): string {
     return this.bookTitle;
   }
-  
-  private async cleanupDatabase(): Promise<void> {
-    try {
-      if (this.db) {
-        await this.db.closeAsync();
-        this.db = null;
-      }
-
-      // Clean up both locations
-      const dbInfo = await FileSystem.getInfoAsync(this.dbPath);
-      if (dbInfo.exists) {
-        await FileSystem.deleteAsync(this.dbPath);
-      }
-
-      const sqlitePath = `${FileSystem.documentDirectory}SQLite/${this.dbName}`;
-      const sqliteInfo = await FileSystem.getInfoAsync(sqlitePath);
-      if (sqliteInfo.exists) {
-        await FileSystem.deleteAsync(sqlitePath);
-      }
-
-      console.log("Cleaned up database files");
-    } catch (error) {
-      console.error("Error cleaning up database:", error);
-    }
-  }
 
   async downloadDatabase(bookUrl: string): Promise<void> {
     try {

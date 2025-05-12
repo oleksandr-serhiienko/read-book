@@ -383,7 +383,7 @@ export class Database {
     }
   }
 
-  async deleteBook(name: string, sourceLanguage: string): Promise<void> {
+  async deleteBook(name: string, sourceLanguage: string, deleteCards: boolean): Promise<void> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
   
@@ -399,30 +399,31 @@ export class Database {
         'DELETE FROM books WHERE name = ? AND sourceLanguage = ?',
         [name, sourceLanguage]
       );
-  
-      // Get all cards associated with this book as a source
-      const cardsQuery = `
-        SELECT id FROM cards
-        WHERE source = ? AND sourceLanguage = ?
-      `;
-      
-      const cardIds = await this.db.getAllAsync<{ id: number }>(
-        cardsQuery, 
-        [name, sourceLanguage]
-      );
-  
-      // Delete associated contexts and histories for each card
-      for (const { id } of cardIds) {
-        await this.db.runAsync('DELETE FROM contexts WHERE cardId = ?', [id]);
-        await this.db.runAsync('DELETE FROM histories WHERE cardId = ?', [id]);
+      if (deleteCards){
+        
+          // Get all cards associated with this book as a source
+          const cardsQuery = `
+          SELECT id FROM cards
+          WHERE source = ? AND sourceLanguage = ?
+        `;
+        
+        const cardIds = await this.db.getAllAsync<{ id: number }>(
+          cardsQuery, 
+          [name, sourceLanguage]
+        );
+
+        // Delete associated contexts and histories for each card
+        for (const { id } of cardIds) {
+          await this.db.runAsync('DELETE FROM contexts WHERE cardId = ?', [id]);
+          await this.db.runAsync('DELETE FROM histories WHERE cardId = ?', [id]);
+        }
+
+        // Delete the cards themselves
+        await this.db.runAsync(
+          'DELETE FROM cards WHERE source = ? AND sourceLanguage = ?',
+          [name, sourceLanguage]
+        );
       }
-  
-      // Delete the cards themselves
-      await this.db.runAsync(
-        'DELETE FROM cards WHERE source = ? AND sourceLanguage = ?',
-        [name, sourceLanguage]
-      );
-  
       console.log(`Book '${name}' and all associated data successfully deleted.`);
     } catch (error) {
       console.error(`Error deleting book '${name}':`, error);

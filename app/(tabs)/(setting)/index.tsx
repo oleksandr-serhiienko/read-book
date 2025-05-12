@@ -64,7 +64,7 @@ export default function SettingsScreen() {
       await bookDb.close();
       
       // 2. Delete book from database (your existing code)
-      await database.deleteBook(selectedBook.name, sourceLanguage.toLowerCase());
+      await database.deleteBook(selectedBook.name, sourceLanguage.toLowerCase(), false);
       
       // 3. Remove the actual book database file
       if (selectedBook.bookUrl && selectedBook.bookUrl.endsWith('.db')) {
