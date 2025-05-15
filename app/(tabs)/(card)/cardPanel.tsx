@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, PanResponder, Animated, Dimensions, TouchableOpacity } from 'react-native';
-import { Card, Database, HistoryEntry } from '../../../components/db/database';
+import { Card, cardHelpers, Database, Example, HistoryEntry } from '../../../components/db/database';
 import { getNextLevel } from '../../../components/db/nextWordToLearn';
 import { Link, useLocalSearchParams, useRouter } from 'expo-router';
 import { Transform } from '@/components/transform';
@@ -43,7 +43,7 @@ const renderHighlightedText = (text: string) => {
 
 export default function CardPanel() {
   const [database] = useState(() => new Database());
-  const [selectedContextId, setSelectedContextId] = useState<number | null>(null);
+  const [selectedContextId, setSelectedContextId] = useState<string | null>(null);
   const [card, setCard] = useState<Card>();
   const position = useRef(new Animated.ValueXY()).current;
   const rightOpacity = useRef(new Animated.Value(0)).current;
@@ -68,7 +68,7 @@ export default function CardPanel() {
       await getCard();
     };
     if (contextId) {
-      setSelectedContextId(parseInt(contextId));
+      setSelectedContextId(contextId);
     }
     initialize();
   }, [cardId]);
@@ -82,45 +82,56 @@ export default function CardPanel() {
 
   const onSwipeComplete = async (direction: 'left' | 'right' | 'down') => {
     if (!card) return;
-  
-    let success = false;
-    let type: 'card' | 'review' = 'card';
-  
-    switch(direction) {
-      case 'right':
-        success = true;
-        type = 'card';
-        break;
-      case 'left':
-        success = false;
-        type = 'card';
-        break;
-      case 'down':
-        success = true;
-        type = 'review';
-        break;
-    }
-  
-    // Calculate new level using the updated spaced repetition system
-    card.level = await getNextLevel(card.level, success, type);
-    card.lastRepeat = new Date(Date.now());
-    
-    console.log("saved card context: " + selectedContextId);
-    console.log("history to save was " + success);
-    
-    // Get the detailed card type description based on the card's level
-    const cardTypeDescription = CARD_TYPE_DESCRIPTIONS[card.level as keyof typeof CARD_TYPE_DESCRIPTIONS] || 'Unknown Type';
-    
-    // Create a history entry with the detailed type information
-    let history: HistoryEntry = {
-      date: new Date(),
-      success: success,
-      cardId: card.id ?? 0,
-      contextId: selectedContextId,
-      type: `${cardTypeDescription} (${type})`
-    };
-    
-    await database.updateHistory(history);
+      let success = false;
+      let type: 'card' | 'review' = 'card';
+
+      switch(direction) {
+        case 'right':
+          success = true;
+          type = 'card';
+          break;
+        case 'left':
+          success = false;
+          type = 'card';
+          break;
+        case 'down':
+          success = true;
+          type = 'review';
+          break;
+      }
+
+      // Calculate new level using the updated spaced repetition system
+      card.level = await getNextLevel(card.level, success, type);
+      card.lastRepeat = new Date(Date.now());
+
+      console.log("saved card context hash: " + selectedContextId);
+      console.log("history to save was " + success);
+
+      // Get the detailed card type description based on the card's level
+      const cardTypeDescription = CARD_TYPE_DESCRIPTIONS[card.level as keyof typeof CARD_TYPE_DESCRIPTIONS] || 'Unknown Type';
+
+      // Find the selected example to get source and target
+      let selectedExample: Example | null = null;
+      const allExamples = cardHelpers.getAllExamples(card);
+      for (const example of allExamples) {
+        const hash = await database.createExampleHash(example.sentence || '', example.translation || '');
+        if (hash === selectedContextId) {
+          selectedExample = example;
+          break;
+        }
+      }
+
+      // Create a history entry with the hash and example details
+      let history: HistoryEntry = {
+        date: new Date(),
+        success: success,
+        cardId: card.id ?? 0,
+        exampleHash: selectedContextId ?? "", // Using hash instead of contextId
+        type: `${cardTypeDescription} (${type})`
+      };
+
+      // Save the history
+      await database.updateHistory(history);
     await database.updateCard(card);
     
     // Fetch fresh card data to ensure we have all contexts
@@ -294,15 +305,15 @@ export default function CardPanel() {
           </View>
   
           <Text style={styles.word}>{card.word}</Text>
-          <Text style={styles.translation}>{card.translations[0]}</Text>
+          <Text style={styles.translation}>{cardHelpers.getFirstMeaning(card)}</Text>
           
-          {card.context && card.context.length > 0 && (
+          {cardHelpers.getAllExamples(card) && cardHelpers.getAllExamples(card).length > 0 && (
             <View style={styles.contextContainer}>
               <Text style={styles.contextText}>
-                {renderHighlightedText(card.context[0].sentence)}
+                {renderHighlightedText(cardHelpers.getFirstExample(card)?.sentence ?? "")}
               </Text>
               <Text style={styles.contextText}>
-                {renderHighlightedText(card.context[0].translation)}
+                {renderHighlightedText(cardHelpers.getFirstExample(card)?.translation ?? "")}
               </Text>
             </View>
           )}

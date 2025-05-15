@@ -70,7 +70,7 @@ export default function ApprovalScreen() {
   return (
     <ApprovalCard 
       card={cards[currentCardIndex]}
-      contextId={selectBestContext(cards[currentCardIndex])?.id}
+      contextId={selectBestContext(cards[currentCardIndex])}
       onCardUpdate={handleCardUpdate}
       cardsToLearn={cardsToLearn}
       cardsLearned={cardsLearned}

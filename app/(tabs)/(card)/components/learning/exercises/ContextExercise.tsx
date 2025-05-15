@@ -4,6 +4,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { LearningExerciseProps } from '../LearningFactory';
 import { learningStyles } from '../../shared/styles';
 import ExerciseContainer from '../../shared/exerciseContainer';
+import { cardHelpers } from '@/components/db/database';
 
 const ContextExercise: React.FC<LearningExerciseProps> = ({
   card,
@@ -52,7 +53,7 @@ const ContextExercise: React.FC<LearningExerciseProps> = ({
     return cleanSentence.replace(new RegExp(`\\b${word}\\b`, 'gi'), '_____');
   };
 
-  if (!card.context || card.context.length === 0) {
+  if (!cardHelpers.getAllExamples(card) || cardHelpers.getAllExamples(card).length === 0) {
     return (
       <View style={learningStyles.container}>
         <View style={learningStyles.cardContent}>
@@ -65,11 +66,11 @@ const ContextExercise: React.FC<LearningExerciseProps> = ({
   return (
     <ExerciseContainer>       
       <Text style={learningStyles.contextText}>
-        {getSentenceWithBlank(card.context[0].sentence, card.word)}
+        {getSentenceWithBlank(cardHelpers.getFirstExample(card)?.sentence ?? '', card.word)}
       </Text>
       <View style={learningStyles.translationContainer}>
         <Text style={learningStyles.contextText}>
-          {card.context[0].translation.replace(/<\/?em>/g, '')}
+          {cardHelpers.getFirstMeaning(card).replace(/<\/?em>/g, '')}
         </Text>
       </View>
       <View style={learningStyles.optionsContainer}>

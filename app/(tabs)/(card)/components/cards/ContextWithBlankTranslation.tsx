@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
 import { getWordHints } from '../../../../../components/db/nextWordToLearn';
-import { selectBestContext } from '../shared/helpers';
+import { createExampleHashSync, selectBestContext } from '../shared/helpers';
+import { cardHelpers, Example } from '@/components/db/database';
 
 const renderHighlightedText = (text: string) => {
   return text.replace(/<\/?em>/g, '');
@@ -67,22 +68,43 @@ const styles = {
 const ContextWithBlankTranslation: FC<CardProps> = ({ card, onShowAnswer, contextId, isFlipping }) => {
   const [showHints, setShowHints] = useState(false);
   useEffect(() => {
-    setShowHints(false);
-  }, [card.word]); // Reset when word changes
+    setShowHints(false);}, [card.word]); // Reset when word changes
+      const allExamples = cardHelpers.getAllExamples(card);
+      if (allExamples.length === 0) return null;
 
-  if (!card.context || !card.context[0]) return null;
-  const selectedContext = card.context.find(c => c.id == contextId) ?? card.context[0];
-    if (!selectedContext) return null;
+      // Find the example that matches the contextId (which is now a hash)
+      let selectedExample: Example | null = null;
+      for (const example of allExamples) {
+        const hash = createExampleHashSync(example.sentence || '', example.translation || '');
+        if (hash === contextId) {
+          selectedExample = example;
+          break;
+        }
+      }
 
-  const originalText = selectedContext.translation;
-  const translationSentence = originalText.replace(/<\/?em>/g, '');
-  const wordToReplace = originalText.match(/<em>(.*?)<\/em>/)?.[1] ?? card.translations.find(t => originalText.toLowerCase().includes(t.toLowerCase())) ?? card.translations[0];
-  const hints = getWordHints(wordToReplace);
+      // If no match found, use the first example
+      if (!selectedExample) {
+        selectedExample = allExamples[0];
+      }
+
+      if (!selectedExample) return null;
+
+      const originalText = selectedExample.translation || '';
+      const translationSentence = originalText.replace(/<\/?em>/g, '');
+
+      // Get all meanings from the card
+      const allMeanings = cardHelpers.getAllMeanings(card);
+      const wordToReplace = originalText.match(/<em>(.*?)<\/em>/)?.[1] 
+        ?? allMeanings.find(meaning => originalText.toLowerCase().includes(meaning.toLowerCase())) 
+        ?? allMeanings[0] 
+        ?? '';
+
+      const hints = getWordHints(wordToReplace);
   
   return (
     <View style={styles.cardContent}>
       <Text style={styles.contextText}>
-        {renderHighlightedText(selectedContext.sentence)}
+        {renderHighlightedText(selectedExample?.sentence ?? "")}
       </Text>
       
       <View style={styles.translationContainer}>

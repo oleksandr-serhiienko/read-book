@@ -4,7 +4,7 @@ export interface CardProps {
   card: Card;
   onCardUpdate: (card: Card) => void;
   onShowAnswer?: () => void;
-  contextId?: number;
+  contextId: string;
   isFlipping?: boolean;
   cardsToLearn: number;
   cardsLearned: number;

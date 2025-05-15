@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { Link, useLocalSearchParams } from 'expo-router';
-import { Card, database } from '@/components/db/database';
+import { Card, cardHelpers, database } from '@/components/db/database';
 import { useLanguage } from '@/app/languageSelector';
 import { LearningType, getLearningComponent } from './components/learning/LearningFactory';
 import { learningStyles } from './components/shared/styles';
@@ -13,6 +13,7 @@ import * as Speech from 'expo-speech';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { HelpCircle, Volume2, VolumeX } from 'lucide-react-native';
 import { Transform } from '@/components/transform';
+import { cardComponents } from './components/CardFactory';
 
 type ExerciseSession = {
   type: LearningType;
@@ -134,7 +135,7 @@ export default function LearningScreen() {
           context: 0,
           contextLetters: 0
         },
-        sentence: currentCard.context?.[0]?.sentence ?? ""
+        sentence: cardHelpers.getFirstExample(currentCard)?.sentence ?? ""
       };
     }
   

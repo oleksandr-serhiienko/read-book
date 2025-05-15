@@ -3,8 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
 import { getWordHints } from '../../../../../components/db/nextWordToLearn';
-import { Card } from '@/components/db/database';
-import { selectBestContext } from '../shared/helpers';
+import { Card, cardHelpers } from '@/components/db/database';
+import { createExampleHashSync, selectBestContext } from '../shared/helpers';
 
 const localStyles = StyleSheet.create({
   contextText: {
@@ -61,28 +61,37 @@ const styles = {
   ...localStyles,
 };
 
-
-
-
 const ContextWithBlankOriginal: FC<CardProps> = ({ card, onShowAnswer, contextId, isFlipping }) => {
   const [showHints, setShowHints] = useState(false);
   useEffect(() => {
     setShowHints(false);
   }, [card.word]); // Reset when word changes
   
-  if (!card.context || !card.context[0]) return null;
-
-  const selectedContext = card.context.find(c => c.id == contextId) ?? card.context[0];
-  if (!selectedContext) return null;
-
-  const originalSentence = selectedContext.sentence.replace(/<\/?em>/g, '');
+  // Check if there are any examples
+  const allExamples = cardHelpers.getAllExamples(card);
+  if (allExamples.length === 0) return null;
+  
+  // Find the example that matches the contextId (which is now a hash)
+  let selectedExample = null;
+  for (const example of allExamples) {
+    const hash = createExampleHashSync(example.sentence || '', example.translation || '');
+    if (hash === contextId) {
+      selectedExample = example;
+      break;
+    }
+  }
+  
+  // If no match found, use the first example
+  if (!selectedExample) {
+    selectedExample = allExamples[0];
+  }
+  
+  const originalSentence = selectedExample.sentence?.replace(/<\/?em>/g, '') || '';
   const hints = getWordHints(card.word);
-
+  
   const renderHighlightedText = (text: string) => {
     return text.replace(/<\/?em>/g, '');
   };
-  
-  
   return (
     <View style={styles.cardContent}>
       <Text style={styles.contextText}>
@@ -110,7 +119,7 @@ const ContextWithBlankOriginal: FC<CardProps> = ({ card, onShowAnswer, contextId
       
       <View style={styles.translationContainer}>
         <Text style={styles.contextText}>
-          {renderHighlightedText(selectedContext.translation)}
+          {renderHighlightedText(selectedExample.translation ?? "")}
         </Text>
       </View>
 

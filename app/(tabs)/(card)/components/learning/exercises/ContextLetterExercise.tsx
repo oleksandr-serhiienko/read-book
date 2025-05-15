@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, Keyboa
 import { LearningExerciseProps } from '../LearningFactory';
 import { learningStyles } from '../../shared/styles';
 import ExerciseContainer from '../../shared/exerciseContainer';
+import { cardHelpers } from '@/components/db/database';
 
 const ContextInputExercise: React.FC<LearningExerciseProps> = ({
   card,
@@ -123,9 +124,9 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
   };
 
   const getContextSentence = () => {
-    if (!card.context || card.context.length === 0) return '';
+    if (!cardHelpers.getAllExamples(card) || cardHelpers.getAllExamples(card).length === 0) return '';
     
-    const sentence = card.context[0].sentence;
+    const sentence = cardHelpers.getFirstExample(card)?.sentence ?? "";
     const matchWord = sentence.match(/<em>(.*?)<\/em>/);
     if (!matchWord) return sentence.replace(/<\/?em>/g, '');
     
@@ -137,8 +138,8 @@ const ContextInputExercise: React.FC<LearningExerciseProps> = ({
   };
 
   const getContextTranslation = () => {
-    if (!card.context || card.context.length === 0) return '';
-    return card.context[0].translation.replace(/<\/?em>/g, '');
+    if (!cardHelpers.getAllExamples(card) || cardHelpers.getAllExamples(card).length === 0) return '';
+    return cardHelpers.getFirstMeaning(card).replace(/<\/?em>/g, '');
   };
 
   return (

@@ -1,6 +1,6 @@
 import { Text } from 'react-native';
 import React from 'react';
-import { Card } from '@/components/db/database';
+import { Card, cardHelpers, Example } from '@/components/db/database';
 
 interface TextStyles {
   boldText: {
@@ -24,40 +24,66 @@ export const renderHighlightedText = (text: string, styles: TextStyles) => {
   });
 };
 
-export const selectBestContext = (card: Card) => {
-  if (!card.context || card.context.length === 0) return null;
+export const selectBestContext = (card: Card): string => {
+  const allExamples = cardHelpers.getAllExamples(card);
   
-  const jsonString = JSON.stringify(card);
-  console.log(jsonString);
-
-  // If there's no history, just find any non-bad context or default to the first one
+  if (allExamples.length === 0) return "";
+  
+  // If there's no history, return hash of the first example
   if (!card.history || card.history.length === 0) {
-    const nonBadContext = card.context.find(ctx => !ctx.isBad);
-    return nonBadContext || card.context[0];
+    return createExampleHashSync(allExamples[0].sentence || '', allExamples[0].translation || '');
   }
   
-  // Create a set of context IDs that were used in history for quick lookup
-  const usedContextIds = new Set<number>();
+  // Create a set of example hashes that were used in history
+  const usedExampleHashes = new Set<string>();
   
-  // Assuming context has an implicit index based on its position in the array
   card.history.forEach(entry => {
-    if (entry.contextId !== null) {
-      usedContextIds.add(entry.contextId);
+    if (entry.exampleHash) {
+      usedExampleHashes.add(entry.exampleHash);
     }
   });
-
-  // Find a context that's not bad and wasn't used in history
-  for (let i = 0; i < card.context.length; i++) {
-    const context = card.context[i];
-    if (!context.isBad && !usedContextIds.has(context.id ?? 0)) {
-      return context;
+  
+  // Find an example that wasn't used in history
+  for (const example of allExamples) {
+    // Calculate hash for this example
+    const hash = createExampleHashSync(example.sentence || '', example.translation || '');
+    
+    if (!usedExampleHashes.has(hash)) {
+      return hash; // Return the hash directly
     }
   }
   
-  // If no good unused context found, find any non-bad context
-  const nonBadContext = card.context.find(ctx => !ctx.isBad);
-  if (nonBadContext) return nonBadContext;
+  // If all examples have been used, return the one used longest ago
+  if (card.history.length > 0) {
+    // Find the oldest used example that still exists
+    const sortedHistory = [...card.history].sort((a, b) => 
+      a.date.getTime() - b.date.getTime()
+    );
+    
+    for (const historyEntry of sortedHistory) {
+      if (historyEntry.exampleHash) {
+        // Find the example matching this hash
+        const example = allExamples.find(ex => 
+          createExampleHashSync(ex.sentence || '', ex.translation || '') === historyEntry.exampleHash
+        );
+        if (example) return historyEntry.exampleHash; // Return the hash
+      }
+    }
+  }
   
-  // Last resort: return the first (oldest) context
-  return card.context[0];
+  // Last resort: return hash of the first example
+  return createExampleHashSync(allExamples[0].sentence || '', allExamples[0].translation || '');
 };
+
+// Synchronous version of hash creation for use in selection
+export function createExampleHashSync(source: string, target: string): string {
+  // Simple hash function for synchronous use
+  const content = `${source}||${target}`;
+  let hash = 0;
+  for (let i = 0; i < content.length; i++) {
+    const char = content.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32-bit integer
+  }
+  return Math.abs(hash).toString(16);
+}

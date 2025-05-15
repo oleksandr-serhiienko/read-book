@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { LearningExerciseProps } from '../LearningFactory';
 import { learningStyles } from '../../shared/styles';
 import ExerciseContainer from '../../shared/exerciseContainer';
+import { cardHelpers } from '@/components/db/database';
 
 const localStyles = StyleSheet.create({
   alternateTranslations: {
@@ -28,7 +29,7 @@ const MeaningToWordExercise: React.FC<LearningExerciseProps> = ({
   const [selectedOption, setSelectedOption] = useState<string | null>(null);
   const [showResult, setShowResult] = useState(false);
   const [options, setOptions] = useState<string[]>([]);
-  const alternateTranslations = card.translations.slice(1);
+  const alternateTranslations = cardHelpers.getAllMeanings(card).slice(1);
 
   useEffect(() => {
     const otherOptions = otherCards
@@ -59,7 +60,7 @@ const MeaningToWordExercise: React.FC<LearningExerciseProps> = ({
 
   return (
     <ExerciseContainer>    
-      <Text style={styles.word}>{card.translations[0]}</Text>
+      <Text style={styles.word}>{cardHelpers.getFirstMeaning(card)}</Text>
       {alternateTranslations.length > 0 && (
         <Text style={styles.alternateTranslations}>
           {alternateTranslations.join(', ')}

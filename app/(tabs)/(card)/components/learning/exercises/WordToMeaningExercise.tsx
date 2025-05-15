@@ -6,6 +6,7 @@ import ExerciseContainer from '../../shared/exerciseContainer';
 import { Link } from 'expo-router';
 import { HelpCircle, Volume2, VolumeX } from 'lucide-react-native';
 import { Transform } from '@/components/transform';
+import { cardHelpers } from '@/components/db/database';
 
 const localStyles = StyleSheet.create({
   originalContext: {
@@ -72,10 +73,10 @@ const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
   useEffect(() => {
     const otherOptions = otherCards
       .filter(c => c.id !== card.id)
-      .map(c => c.translations[0])
+      .map(c => cardHelpers.getFirstMeaning(c))
       .slice(0, 3);
 
-    const shuffledOptions = [card.translations[0], ...otherOptions]
+    const shuffledOptions = [cardHelpers.getFirstMeaning(card), ...otherOptions]
       .sort(() => Math.random() - 0.5);
       
     setOptions(shuffledOptions);
@@ -87,7 +88,7 @@ const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
     setShowResult(true);
     
     setTimeout(() => {
-      if (option === card.translations[0]) {
+      if (option === cardHelpers.getFirstMeaning(card)) {
         onSuccess();
       } else {
         onFailure();
@@ -119,20 +120,11 @@ const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
 
   const getContextToShow = () => {
     if (!card.info?.sentence) {
-      if (card.context) {
-        return formatSentence(card.context[0].sentence);
+      if (cardHelpers.getAllExamples(card)) {
+        return formatSentence(cardHelpers.getFirstExample(card)?.sentence ?? "");
       }
       return "";
     }
-
-    const wordCount = card.info.sentence.replace(/<\/?em>/g, '').split(/\s+/).length;
-    if (wordCount > 20) {
-      if (card.context) {
-        return formatSentence(card.context[0].sentence);
-      }
-      return "";
-    }
-
     return formatSentence(card.info.sentence);
   };
 
@@ -177,7 +169,7 @@ const WordToMeaningExercise: React.FC<LearningExerciseProps> = ({
         <View style={styles.optionsContainer}>
           {options.map((option, index) => {
             const isSelected = selectedOption === option;
-            const isCorrect = showResult && option === card.translations[0];
+            const isCorrect = showResult && option === cardHelpers.getFirstMeaning(card);
             const isWrong = showResult && isSelected && !isCorrect;
     
             return (

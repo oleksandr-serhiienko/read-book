@@ -1,7 +1,8 @@
 // File path: app/shared/components/HistoryItem.tsx
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { HistoryEntry, Card } from '@/components/db/database';
+import { HistoryEntry, Card, cardHelpers, Example } from '@/components/db/database';
+import { createExampleHashSync } from '../(tabs)/(card)/components/shared/helpers';
 
 interface HistoryItemProps {
   entry: HistoryEntry;
@@ -10,12 +11,12 @@ interface HistoryItemProps {
 }
 
 const HistoryItem: React.FC<HistoryItemProps> = ({ entry, index, card }) => {
-  const [contextSentence, setContextSentence] = useState<string | null>(null);
-  const [isLoadingContext, setIsLoadingContext] = useState(false);
+  const [exampleData, setExampleData] = useState<Example | null>(null);
+  const [isLoadingExample, setIsLoadingExample] = useState(false);
 
   useEffect(() => {
-    loadContextSentence();
-  }, [entry.contextId]);
+    loadExampleData();
+  }, [entry.exampleHash]);
 
   // Format date in a readable way
   const formatDate = (date: Date) => {
@@ -28,30 +29,37 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ entry, index, card }) => {
     });
   };
 
-  // Load the context sentence from the card data
-  const loadContextSentence = () => {
-    if (!entry.contextId || !card || !card.context) {
+  // Load the example data from the card by hash
+  const loadExampleData = () => {
+    if (!entry.exampleHash || !card) {
       return;
     }
 
-    setIsLoadingContext(true);
+    setIsLoadingExample(true);
     
     try {
-      // Find the context with matching ID
-      const context = card.context.find(ctx => ctx.id === entry.contextId);
-      if (context) {
-        // Extract the word from the sentence (typically in <em> tags)
-        const cleanSentence = context.sentence.replace(/<\/?em>/g, (match) => {
-          return match === '<em>' ? '«' : '»';
-        });
-        
-        setContextSentence(cleanSentence);
+      // Find the example with matching hash
+      const allExamples = cardHelpers.getAllExamples(card);
+      for (const example of allExamples) {
+        const hash = createExampleHashSync(example.sentence || '', example.translation || '');
+        if (hash === entry.exampleHash) {
+          setExampleData(example);
+          break;
+        }
       }
     } catch (error) {
-      console.error('Error loading context sentence:', error);
+      console.error('Error loading example data:', error);
     } finally {
-      setIsLoadingContext(false);
+      setIsLoadingExample(false);
     }
+  };
+
+  // Format the sentence with highlighting
+  const formatSentence = (sentence: string) => {
+    // Replace <em> tags with guillemets for visual emphasis
+    return sentence.replace(/<\/?em>/g, (match) => {
+      return match === '<em>' ? '«' : '»';
+    });
   };
 
   // Get a shorter version of the type if it's too long
@@ -89,19 +97,26 @@ const HistoryItem: React.FC<HistoryItemProps> = ({ entry, index, card }) => {
           <Text style={styles.historyLabel}>Type:</Text> {getShortTypeDisplay(entry.type)}
         </Text>
         
-        {entry.contextId && (
+        {entry.exampleHash && (
           <View style={styles.contextContainer}>
             <View style={styles.contextHeader}>
-              <Text style={styles.historyLabel}>Context:</Text>
-              <Text style={styles.contextId}>ID: {entry.contextId}</Text>
+              <Text style={styles.historyLabel}>Example:</Text>
+              <Text style={styles.contextId}>Hash: {entry.exampleHash.substring(0, 8)}...</Text>
             </View>
             
-            {isLoadingContext ? (
+            {isLoadingExample ? (
               <ActivityIndicator size="small" color="#666" style={styles.contextLoader} />
-            ) : contextSentence ? (
-              <Text style={styles.contextSentence}>{contextSentence}</Text>
+            ) : exampleData ? (
+              <>
+                <Text style={styles.contextSentence}>
+                  {formatSentence(exampleData.sentence || '')}
+                </Text>
+                <Text style={styles.translationText}>
+                  → {exampleData.translation || ''}
+                </Text>
+              </>
             ) : (
-              <Text style={styles.noContextText}>No context available</Text>
+              <Text style={styles.noContextText}>No example available</Text>
             )}
           </View>
         )}
@@ -177,6 +192,12 @@ const styles = StyleSheet.create({
     color: '#333',
     marginTop: 4,
     fontStyle: 'italic',
+    lineHeight: 20,
+  },
+  translationText: {
+    fontSize: 14,
+    color: '#666',
+    marginTop: 4,
     lineHeight: 20,
   },
   noContextText: {

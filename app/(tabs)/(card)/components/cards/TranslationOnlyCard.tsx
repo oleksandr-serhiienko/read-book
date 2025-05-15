@@ -2,6 +2,7 @@ import React, { FC } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
+import { cardHelpers } from '@/components/db/database';
 
 const localStyles = StyleSheet.create({
   labelText: {
@@ -32,7 +33,7 @@ const styles = {
 };
 
 const TranslationOnlyCard: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
-  const alternateTranslations = card.translations.slice(1);
+  const alternateTranslations = cardHelpers.getAllMeanings(card).slice(1);
   
   return (
     <View style={styles.cardContent}>
@@ -45,7 +46,7 @@ const TranslationOnlyCard: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) 
       
       <View>
         <Text style={styles.labelText}>Translation</Text>
-        <Text style={styles.mainText}>{card.translations[0]}</Text>
+        <Text style={styles.mainText}>{cardHelpers.getFirstMeaning(card)}</Text>
         {alternateTranslations.length > 0 && (
           <Text style={styles.alternateTranslations}>
             {alternateTranslations.join(', ')}

@@ -1,7 +1,8 @@
 import React, { FC, useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
-import { renderHighlightedText } from '../shared/helpers';
+import { createExampleHashSync, renderHighlightedText } from '../shared/helpers';
+import { cardHelpers, Example } from '@/components/db/database';
 
 // Define complete local styles
 const localStyles = StyleSheet.create({
@@ -101,23 +102,38 @@ function cleanWord(word: string) {
 }
 
 const ContextWithSelectableOriginal: FC<CardProps> = ({ card, onShowAnswer, contextId, isFlipping }) => {
-  if (!card.context || !card.context[0]) return null;
+  // Check if there are any examples
+  const allExamples = cardHelpers.getAllExamples(card);
+  if (allExamples.length === 0) return null;
   
   // Track the selected indices
   const [selectedIndices, setSelectedIndices] = useState<number[]>([]);
   const [correctIndices, setCorrectIndices] = useState<number[]>([]);
   const [isAllCorrect, setIsAllCorrect] = useState<boolean>(false);
   
-  // Store card id for comparison when props change
+  // Store card id and context hash for comparison when props change
   const [currentCardId, setCurrentCardId] = useState<number | null>(null);
-  const [currentContextId, setCurrentContextId] = useState<number | null>(null);
+  const [currentContextHash, setCurrentContextHash] = useState<string | null>(null);
 
-  const selectedContext = card.context.find(c => c.id == contextId) ?? card.context[0];
+  // Find the example that matches the contextId (which is now a hash)
+  let selectedExample: Example | null = null;
+  for (const example of allExamples) {
+    const hash = createExampleHashSync(example.sentence || '', example.translation || '');
+    if (hash === contextId) {
+      selectedExample = example;
+      break;
+    }
+  }
   
-  if (!selectedContext) return null;
+  // If no match found, use the first example
+  if (!selectedExample) {
+    selectedExample = allExamples[0];
+  }
+  
+  if (!selectedExample) return null;
   
   // Extract the original raw sentence with <em> tags
-  const originalRawSentence = selectedContext.sentence;
+  const originalRawSentence = selectedExample.sentence || '';
   // Clean version for display
   const originalSentence = originalRawSentence.replace(/<\/?em>/g, '');
   const words = originalSentence.split(/\s+/);
@@ -125,12 +141,12 @@ const ContextWithSelectableOriginal: FC<CardProps> = ({ card, onShowAnswer, cont
   // Reset selections when card changes
   useEffect(() => {
     // Check if card or context has changed
-    if (card.id !== currentCardId || contextId !== currentContextId) {
+    if (card.id !== currentCardId || contextId !== currentContextHash) {
       // Reset selection state
       setSelectedIndices([]);
       setIsAllCorrect(false);
       setCurrentCardId(card.id || null);
-      setCurrentContextId(contextId || null);
+      setCurrentContextHash(contextId || null);
     }
   }, [card.id, contextId]);
   
@@ -261,8 +277,8 @@ const ContextWithSelectableOriginal: FC<CardProps> = ({ card, onShowAnswer, cont
       <View style={styles.translationContainer}>
         <Text style={styles.contextText}>
           {renderHighlightedText
-            ? renderHighlightedText(selectedContext.translation, styles)
-            : renderHighlightedTextFallback(selectedContext.translation)}
+            ? renderHighlightedText(selectedExample?.translation ?? "", styles)
+            : renderHighlightedTextFallback(selectedExample?.translation ?? "")}
         </Text>
       </View>
       

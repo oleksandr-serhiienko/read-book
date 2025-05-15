@@ -2,6 +2,7 @@ import React, { FC } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { CardProps } from '../shared/types';
 import { cardStyles } from '../shared/styles';
+import { cardHelpers } from '@/components/db/database';
 
 const localStyles = StyleSheet.create({
   labelText: {
@@ -39,16 +40,16 @@ const styles = {
 const WordOnlyCard: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
   const getContextToShow = () => {
     if (!card.info?.sentence) {
-      if (card.context) {
-        return formatSentence(card.context[0].sentence);
+      if (cardHelpers.getAllExamples(card)) {
+        return formatSentence(cardHelpers.getFirstExample(card)?.sentence ?? "");
       }
       return "";
     }
 
     const wordCount = card.info.sentence.split(/\s+/).length;
     if (wordCount > 20) {
-      if (card.context) {
-        return formatSentence(card.context[0].sentence);
+      if (!card.info?.sentence) {
+        return formatSentence(cardHelpers.getFirstExample(card)?.sentence ?? "");
       }
       return "";
     }
@@ -87,7 +88,7 @@ const WordOnlyCard: FC<CardProps> = ({ card, onShowAnswer, isFlipping }) => {
       <View>
         <Text style={styles.labelText}>Translation</Text>
         <Text style={styles.mainText}>
-          {'_'.repeat(Math.max(8, card.translations[0].length))}
+          {'_'.repeat(Math.max(8, cardHelpers.getAllMeanings(card).length))}
         </Text>
       </View>
 
