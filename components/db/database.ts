@@ -1,5 +1,6 @@
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
+import { createExampleHashSync } from '@/app/(tabs)/(card)/components/shared/helpers';
 
 export interface Word {
   id?: number;
@@ -111,6 +112,7 @@ export class Database {
       this.db = await SQLite.openDatabaseAsync('myAppDatabase.db');
       await this.createTables();
       await this.migrateDataToNewFormat();
+      await this.migrateToSyncHash();
       console.log("Database initialized successfully");
     } catch (error) {
       console.error("Error initializing database:", error);
@@ -176,6 +178,7 @@ export class Database {
     await this.ensureColumnExists('histories', 'exampleHash', 'TEXT NULL');
   }
 
+
   private async ensureColumnExists(table: string, column: string, type: string): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
     
@@ -191,6 +194,51 @@ export class Database {
       console.error(`Error checking/adding ${column} column:`, error);
       throw error;
     }
+  }
+
+  async migrateToSyncHash(): Promise<void> {
+    if (!this.db) throw new Error('Database not initialized');
+    
+    console.log("Starting hash migration...");
+    
+    // Get all history entries with crypto hashes
+    const histories = await this.db.getAllAsync<any>(
+      'SELECT * FROM histories WHERE exampleHash IS NOT NULL'
+    );
+    
+    for (const history of histories) {
+      // Get the card to find the example
+      const card = await this.getCardById(history.cardId);
+      if (!card || !card.wordInfo) continue;
+      
+      // Find the example that matches this hash
+      let found = false;
+      const allExamples = cardHelpers.getAllExamples(card);
+      
+      for (const example of allExamples) {
+        const cryptoHash = await this.createExampleHash(example.sentence || '', example.translation || '');
+        
+        if (cryptoHash === history.exampleHash) {
+          // Found the matching example, now create sync hash
+          const syncHash = createExampleHashSync(example.sentence || '', example.translation || '');
+          
+          // Update the history entry with new hash
+          await this.db.runAsync(
+            'UPDATE histories SET exampleHash = ? WHERE id = ?',
+            [syncHash, history.id]
+          );
+          
+          found = true;
+          break;
+        }
+      }
+      
+      if (found) {
+        console.log(`Migrated hash for history entry ${history.id}`);
+      }
+    }
+    
+    console.log("Hash migration completed");
   }
 
   async createExampleHash(source: string, target: string): Promise<string> {

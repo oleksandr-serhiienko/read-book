@@ -280,6 +280,19 @@ export default function CardPanel() {
       );
     }
   
+    // Early check for card structure
+    if (!card.wordInfo) {
+      return (
+        <View style={styles.container}>
+          <Text>Loading card data...</Text>
+        </View>
+      );
+    }
+  
+    const examples = cardHelpers.getAllExamples(card);
+    const firstExample = cardHelpers.getFirstExample(card);
+    const firstMeaning = cardHelpers.getFirstMeaning(card);
+  
     return (
       <Animated.View style={[styles.cardContainer, getCardStyle()]} {...panResponder.panHandlers}>
         <View style={styles.cardContent}>
@@ -305,15 +318,15 @@ export default function CardPanel() {
           </View>
   
           <Text style={styles.word}>{card.word}</Text>
-          <Text style={styles.translation}>{cardHelpers.getFirstMeaning(card)}</Text>
+          <Text style={styles.translation}>{firstMeaning}</Text>
           
-          {cardHelpers.getAllExamples(card) && cardHelpers.getAllExamples(card).length > 0 && (
+          {examples.length > 0 && firstExample && (
             <View style={styles.contextContainer}>
               <Text style={styles.contextText}>
-                {renderHighlightedText(cardHelpers.getFirstExample(card)?.sentence ?? "")}
+                {renderHighlightedText(firstExample.sentence || "")}
               </Text>
               <Text style={styles.contextText}>
-                {renderHighlightedText(cardHelpers.getFirstExample(card)?.translation ?? "")}
+                {renderHighlightedText(firstExample.translation || "")}
               </Text>
             </View>
           )}
