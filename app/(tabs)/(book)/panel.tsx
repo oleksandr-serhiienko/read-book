@@ -8,7 +8,7 @@ import voices from '@/components/reverso/languages/voicesTranslate';
 import { ArrowLeftRight, Volume1, Volume2 } from 'lucide-react-native';
 import languages from '@/components/reverso/languages/entities/languages';
 import * as Speech from 'expo-speech';
-import { BookDatabase } from '@/components/db/bookDatabase';
+import { EmittedWord } from './components/events/slidePanelEvents';
 
 // Base Panel Component remains the same...
 const BasePanel = ({ 
@@ -50,148 +50,111 @@ const BasePanel = ({
 
 // Updated WordTranslationPanel with EmittedWord navigation
 const WordTranslationPanel = ({
-    content,
-    isVisible,
-    onClose,
-    onAddToDictionary,
-    onAnnotateSentence,
-    isAdded
-  }: {
-    content: ResponseTranslation;
-    isVisible: boolean;
-    onClose: () => void;
-    onAddToDictionary: () => void;
-    onAnnotateSentence: () => void;
-    isAdded: boolean;
-  }) => {
-    const [isSpeaking, setIsSpeaking] = useState(false);
-    const { sourceLanguage } = useLanguage();
-    const languageKey = sourceLanguage.toLowerCase() as keyof typeof languages;
-   
-    const mainTranslation = content.Translations[0]?.word;
-    
-    const handleSpeak = async () => {
-      setIsSpeaking(true);
-      try {
-        const options = {
-          language: voices[languageKey as keyof typeof voices] || 'en-US',
-          pitch: 1.0,
-          rate: 0.75
-        };    
-        await Speech.speak(content.Original, options);
-      } catch (error) {
-        console.error('Error speaking:', error);
-      } finally {
-        setIsSpeaking(false);
-      }
-    };
+  content,
+  isVisible,
+  onClose,
+  onAddToDictionary,
+  isAdded
+}: {
+  content: EmittedWord;
+  isVisible: boolean;
+  onClose: () => void;
+  onAddToDictionary: () => void;
+  isAdded: boolean;
+}) => {
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const { sourceLanguage } = useLanguage();
+  const languageKey = sourceLanguage.toLowerCase() as keyof typeof languages;
   
-    // Stop event propagation when clicking buttons
-    const handleButtonPress = (callback: () => void) => (event: any) => {
-      event.stopPropagation();
-      callback();
-    };
-
-    // Create EmittedWord format for navigation
-    const createEmittedWordContent = () => {
-      return {
-        word: content.Original,
-        translation: mainTranslation, 
-        bookTitle: content.Book
-      };
-    };
-  
-    return (
-      <BasePanel isVisible={isVisible}>
-        <Link
-          href={{
-            pathname: "/wordInfo",
-            params: { 
-              content: JSON.stringify(createEmittedWordContent()),
-              added: isAdded.toString()
-            }
-          }}
-          asChild
-        >
-          <Pressable style={styles.mainContent}>
-            <View style={styles.topSection}>
-              <Text style={styles.translationText}>{mainTranslation}</Text>
-              <TouchableOpacity 
-                onPress={handleButtonPress(onClose)} 
-                style={styles.closeButton}
-              >
-                <Text style={styles.closeButtonText}>×</Text>
-              </TouchableOpacity>
-            </View>
-  
-            <View style={styles.bottomSection}>
-              <Text style={styles.originalText}>{content.Original}</Text>
-              <View style={styles.actionButtons}>
-                <TouchableOpacity 
-                  onPress={handleButtonPress(onAddToDictionary)} 
-                  style={[styles.actionButton, isAdded && styles.disabledButton]}
-                  disabled={isAdded}
-                >
-                  <Text style={styles.actionButtonText}>{isAdded ? '✓' : '+'}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity 
-                onPress={handleButtonPress(onAnnotateSentence)}
-                style={styles.actionButton}
-              >
-                <ArrowLeftRight size={20} color="white" strokeWidth={2} />
-              </TouchableOpacity>
-                <TouchableOpacity 
-                  onPress={handleButtonPress(handleSpeak)}
-                  style={[styles.actionButton, isSpeaking && styles.speakButtonActive]}
-                  disabled={isSpeaking}
-                >
-                  {isSpeaking ? (
-                    <Volume1 size={20} color="white" strokeWidth={2} />
-                  ) : (
-                    <Volume2 size={20} color="white" strokeWidth={2} />
-                  )}
-                </TouchableOpacity>
-              </View>
-            </View>
-          </Pressable>
-        </Link>
-      </BasePanel>
-    );
+  const handleSpeak = async () => {
+    setIsSpeaking(true);
+    try {
+      const options = {
+        language: voices[languageKey as keyof typeof voices] || 'en-US',
+        pitch: 1.0,
+        rate: 0.75
+      };    
+      await Speech.speak(content.word, options);
+    } catch (error) {
+      console.error('Error speaking:', error);
+    } finally {
+      setIsSpeaking(false);
+    }
   };
-  
 
-// SentenceTranslationPanel remains the same...
-const SentenceTranslationPanel = ({
-    content,
-    isVisible,
-    onClose
-  }: {
-    content: SentenceTranslation;
-    isVisible: boolean;
-    onClose: () => void;
-  }) => {
-    return (
-      <BasePanel isVisible={isVisible}>
-        <Link
-          href={{
-            pathname: "/sentenceInfo",
-            params: { content: JSON.stringify(content) }
-          }}
-          asChild
-        >
-          <Pressable style={styles.sentenceContent}>
-            <Text style={styles.sentenceTranslation}>
-              {content.Translation}
-            </Text>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+  // Stop event propagation when clicking buttons
+  const handleButtonPress = (callback: () => void) => (event: any) => {
+    event.stopPropagation();
+    callback();
+  };
+
+  return (
+    <BasePanel isVisible={isVisible}>
+      <Link
+        href={{
+          pathname: "/wordInfo",
+          params: { 
+            content: JSON.stringify(content),
+            added: isAdded.toString()
+          }
+        }}
+        asChild
+      >
+        <Pressable style={styles.mainContent}>
+          <View style={styles.topSection}>
+            <Text style={styles.translationText}>{content.translation}</Text>
+            <TouchableOpacity 
+              onPress={handleButtonPress(onClose)} 
+              style={styles.closeButton}
+            >
               <Text style={styles.closeButtonText}>×</Text>
             </TouchableOpacity>
-          </Pressable>
-        </Link>
-      </BasePanel>
-    );
-  };
+          </View>
 
+          <View style={styles.bottomSection}>
+            <Text style={styles.originalText}>{content.word}</Text>
+            <View style={styles.actionButtons}>
+              <TouchableOpacity 
+                onPress={handleButtonPress(onAddToDictionary)} 
+                style={[styles.actionButton, isAdded && styles.disabledButton]}
+                disabled={isAdded}
+              >
+                <Text style={styles.actionButtonText}>{isAdded ? '✓' : '+'}</Text>
+              </TouchableOpacity>
+              
+              <Link
+                href={{
+                  pathname: "/sentenceInfo",
+                  params: { content: JSON.stringify(content) }
+                }}
+                asChild
+              >
+                <TouchableOpacity 
+                  onPress={handleButtonPress(() => {})} // Empty function since navigation is handled by Link
+                  style={styles.actionButton}
+                >
+                  <ArrowLeftRight size={20} color="white" strokeWidth={2} />
+                </TouchableOpacity>
+              </Link>
+              
+              <TouchableOpacity 
+                onPress={handleButtonPress(handleSpeak)}
+                style={[styles.actionButton, isSpeaking && styles.speakButtonActive]}
+                disabled={isSpeaking}
+              >
+                {isSpeaking ? (
+                  <Volume1 size={20} color="white" strokeWidth={2} />
+                ) : (
+                  <Volume2 size={20} color="white" strokeWidth={2} />
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Pressable>
+      </Link>
+    </BasePanel>
+  );
+};
 const styles = StyleSheet.create({
     actionButton: {
         backgroundColor: 'rgba(255,255,255,0.2)',
@@ -285,4 +248,4 @@ const styles = StyleSheet.create({
   }
 });
 
-export { WordTranslationPanel, SentenceTranslationPanel };
+export { WordTranslationPanel };

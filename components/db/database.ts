@@ -1,5 +1,7 @@
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
+import { EmittedWord } from '@/app/(tabs)/(book)/components/events/slidePanelEvents';
+import { BookDatabase } from './bookDatabase';
 
 export interface Word {
   id?: number;
@@ -405,10 +407,64 @@ export class Database {
     return result === null;
   }
 
-  async insertCard(card: Card, sentence: string): Promise<number> {
+  async insertCard(emittedWord: EmittedWord): Promise<number> {
     await this.initialize();
     if (!this.db) throw new Error('Database not initialized. Call initialize() first.');
     
+    // Check if word already exists
+    const wordExists = !(await this.WordDoesNotExist(emittedWord.word));
+    if (wordExists) {
+      console.log("Word already exists");
+      return 0;
+    }
+  
+    // Create BookDatabase instance for the emitted word's book
+    const bookDatabase = new BookDatabase(emittedWord.bookTitle);
+    let wordInfo: Word | undefined;
+    
+    try {
+      // Try to initialize the book database and get word information
+      const initialized = await bookDatabase.initialize();
+      if (initialized) {
+        const bookWordInfo = await bookDatabase.getWordTranslation(emittedWord.word.toLowerCase());
+        if (bookWordInfo) {
+          wordInfo = bookWordInfo;
+        }
+      }
+    } catch (error) {
+      console.error(`Error accessing book database for ${emittedWord.bookTitle}:`, error);
+    }
+  
+    // If no word info found in book database, create minimal structure
+    if (!wordInfo) {
+      wordInfo = {
+        name: emittedWord.word,
+        baseForm: '',
+        additionalInfo: '',
+        translations: [{
+          type: '',
+          meaning: emittedWord.translation,
+          additionalInfo: '',
+          examples: []
+        }]
+      };
+    }
+  
+    // Get the sentence context if sentenceId is provided
+    let sentenceContext = '';
+    if (emittedWord.sentenceId && bookDatabase) {
+      try {
+        const sentences = await bookDatabase.getSentences();
+        const sentence = sentences.find(s => s.id === emittedWord.sentenceId);
+        if (sentence) {
+          sentenceContext = sentence.original_text || '';
+        }
+      } catch (error) {
+        console.error('Error getting sentence context:', error);
+      }
+    }
+  
+    // Create default CardInfo
     const defaultInfo: CardInfo = {
       status: 'learning',
       learningProgress: {
@@ -417,10 +473,11 @@ export class Database {
         context: 0,
         contextLetters: 0
       },
-      sentence: sentence
+      sentence: sentenceContext
     };
+  
     const infoString = JSON.stringify(defaultInfo);
-    const wordInfoString = JSON.stringify(card.wordInfo || {});
+    const wordInfoString = JSON.stringify(wordInfo);
     
     // Just use an empty array string for translations to satisfy NOT NULL constraint
     const emptyTranslations = '[]';
@@ -429,16 +486,16 @@ export class Database {
       `INSERT INTO cards (word, wordInfo, translations, lastRepeat, level, userId, source, sourceLanguage, targetLanguage, comment, info)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
-        card.word || '',
+        emittedWord.word,
         wordInfoString,
-        emptyTranslations, // Just provide empty translations array
-        card.lastRepeat.toISOString(),
-        card.level,
-        card.userId,
-        card.source,
-        card.sourceLanguage,
-        card.targetLanguage,
-        card.comment || '',
+        emptyTranslations,
+        new Date().toISOString(),
+        0, // level starts at 0
+        'test', // userId - you might want to make this dynamic
+        emittedWord.bookTitle,
+        'sourceLanguage', // You'll need to pass this or get it from context
+        'targetLanguage', // You'll need to pass this or get it from context
+        '', // empty comment initially
         infoString
       ]
     );

@@ -6,9 +6,10 @@ export interface EmittedWord {
   word: string;
   translation: string;
   bookTitle: string;
+  sentenceId: number;
 }
 
-export type PanelContent = ResponseTranslation | SentenceTranslation | EmittedWord | null;
+export type PanelContent =  EmittedWord | null;
 type PanelUpdateListener = (content: PanelContent, isVisible: boolean) => void;
 
 export class SlidePanelEvents {

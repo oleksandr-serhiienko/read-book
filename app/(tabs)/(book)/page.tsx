@@ -10,6 +10,7 @@ import { database } from '@/components/db/database';
 import ReaderComponent from './components/ReaderComponent';
 import ProgressBar from './components/ProgressBar';
 import SimpleReader from './components/SimpleReader';
+import { EmittedWord } from './components/events/slidePanelEvents';
 
 export default function PageScreen() {
   const { bookUrl, bookTitle, imageUrl } = useLocalSearchParams<{ 
@@ -19,7 +20,7 @@ export default function PageScreen() {
   }>();
   
   const [isPanelVisible, setIsPanelVisible] = useState(false);
-  const [panelContent, setPanelContent] = useState<SentenceTranslation | ResponseTranslation | null>(null);
+  const [panelContent, setPanelContent] = useState<EmittedWord | null>(null);
   const [initialLocation, setInitialLocation] = useState<string | undefined>(undefined);
   const { sourceLanguage } = useLanguage();
   const [readingProgress, setReadingProgress] = useState(0);

@@ -78,7 +78,7 @@ export class BookDatabase {
       // Check if database exists
       const dbInfo = await FileSystem.getInfoAsync(this.dbPath);
       if (!dbInfo.exists) {
-        console.log("Database file does not exist yet");
+        console.log("Database file does not exist yet " + this.dbPath);
         this.isConnecting = false;
         return false;
       }
@@ -186,13 +186,23 @@ export class BookDatabase {
         throw new Error('Database is not initialized');
       }
       
-      // Find the chapter sentence and update it
-      const chapterQuery = `
+      let chapterQuery = `
         UPDATE book_sentences 
         SET original_parsed_text = ?, 
             translation_parsed_text = ?
-        WHERE sentence_id = ? 
+        WHERE id = ? 
       `;
+      if (this.db.databaseName.includes("gemini"))
+        {
+          chapterQuery = `
+            UPDATE book_sentences 
+            SET original_parsed_text = ?, 
+                translation_parsed_text = ?
+            WHERE sentence_id = ? 
+          `;
+
+        }
+      
       await this.db.runAsync(chapterQuery, [originalNew, translationNew, id]);
       return true;
     });
@@ -205,12 +215,19 @@ export class BookDatabase {
       }
       
       console.log("Getting sentences");
+
+      let query =  `SELECT id as id, sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
+      FROM book_sentences 
+      ORDER BY sentence_number`
+      if (this.db.databaseName.includes("gemini"))
+        {
+          query =  `SELECT sentence_id as id, sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
+          FROM book_sentences 
+          ORDER BY sentence_number`;
+
+        }
       
-      return await this.db.getAllAsync<DBSentence>(
-        `SELECT sentence_id as id, sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
-         FROM book_sentences 
-         ORDER BY sentence_number`
-      );
+      return await this.db.getAllAsync<DBSentence>(query);
     });
   }
 
@@ -225,18 +242,35 @@ export class BookDatabase {
       
       console.log("Getting chapter sentences for chapter:", chapterNumber);
       console.log("Book:", this.getDbName());
+
+      let query = `SELECT 
+                    id as id,
+                    sentence_number,
+                    chapter_id,
+                    original_text,
+                    original_parsed_text,
+                    translation_parsed_text
+                  FROM book_sentences 
+                  WHERE chapter_id = ? 
+                  ORDER BY sentence_number`;
+
+        if (this.db.databaseName.includes("gemini"))
+          {
+            query =  `SELECT 
+                      sentence_id as id,
+                      sentence_number,
+                      chapter_id,
+                      original_text,
+                      original_parsed_text,
+                      translation_parsed_text
+                      FROM book_sentences 
+                      WHERE chapter_id = ? 
+                      ORDER BY sentence_number`;
+  
+          }
       
       return await this.db.getAllAsync<DBSentence>(
-        `SELECT 
-          sentence_id as id,
-          sentence_number,
-          chapter_id,
-          original_text,
-          original_parsed_text,
-          translation_parsed_text
-        FROM book_sentences 
-        WHERE chapter_id = ? 
-        ORDER BY sentence_number`,
+        query,
         [chapterNumber]
       );
     });
@@ -248,17 +282,33 @@ export class BookDatabase {
         throw new Error('Database not initialized');
       }
       
+
+      let query = `SELECT 
+                    id as id,
+                    sentence_number,
+                    chapter_id,
+                    original_text,
+                    original_parsed_text,
+                    translation_parsed_text
+                  FROM book_sentences 
+                  WHERE sentence_number = ? 
+                  ORDER BY sentence_number`
+      if (this.db.databaseName.includes("gemini"))
+        {
+          query =  `SELECT 
+                    sentence_id as id,
+                    sentence_number,
+                    chapter_id,
+                    original_text,
+                    original_parsed_text,
+                    translation_parsed_text
+                    FROM book_sentences 
+                    WHERE chapter_id = ? 
+                    ORDER BY sentence_number`;
+
+        }
       return await this.db.getAllAsync<DBSentence>(
-        `SELECT 
-          sentence_id as id,
-          sentence_number,
-          chapter_id,
-          original_text,
-          original_parsed_text,
-          translation_parsed_text
-        FROM book_sentences 
-        WHERE sentence_number = ? 
-        ORDER BY sentence_number`,
+        query,
         [sentenceNumber]
       );
     });

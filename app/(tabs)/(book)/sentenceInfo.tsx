@@ -5,16 +5,17 @@ import { SentenceTranslation } from '@/components/reverso/reverso';
 import { BookDatabase, DBSentence } from '@/components/db/bookDatabase';
 import { ParsedSentence, ParsedWord } from '../(book)/components/types/types';
 import { Plus, Link, X } from 'lucide-react-native';
+import { EmittedWord } from './components/events/slidePanelEvents';
 
 export default function SentenceInfo() {
   const { content } = useLocalSearchParams();
-  const parsedContent: SentenceTranslation = JSON.parse(content as string);
+  const parsedContent: EmittedWord = JSON.parse(content as string);
   const router = useRouter();
   
   // State for editing
   const [isEditing, setIsEditing] = useState(false);
-  const [originalText, setOriginalText] = useState(parsedContent.Original);
-  const [translationText, setTranslationText] = useState(parsedContent.Translation);
+  const [originalText, setOriginalText] = useState("");
+  const [translationText, setTranslationText] = useState("");
   const [db] = useState(() => new BookDatabase(parsedContent.bookTitle as string));
   const [showRawFormat, setShowRawFormat] = useState(false);
   const [parsedSentence, setParsedSentence] = useState<ParsedSentence | null>(null);
@@ -30,17 +31,19 @@ export default function SentenceInfo() {
     const initialize = async () => {
       await db.initialize();
       
-      if (parsedContent.id) {
+      
         try {
           // Get the sentence from the database
-          const sentences = await db.getChapterSentencesBySnd(parsedContent.id);
+          const sentences = await db.getChapterSentencesBySnd(parsedContent.sentenceId);
           if (sentences && sentences.length > 0) {
             setDbSentence(sentences[0]);
+            setOriginalText(sentences[0].original_parsed_text ?? "");
+            setTranslationText(sentences[0].translation_parsed_text ?? "");
           }
         } catch (error) {
           console.error("Error loading sentence:", error);
         }
-      }
+      
       
       parseSentence();
     };
@@ -114,8 +117,8 @@ export default function SentenceInfo() {
       return words;
     };
     
-    const original = parseText(originalText, parsedContent.id || 0, false);
-    const translation = parseText(translationText, parsedContent.id || 0, true);
+    const original = parseText(originalText, parsedContent.sentenceId, false);
+    const translation = parseText(translationText, parsedContent.sentenceId, true);
     
     // Process word groups using a simpler approach
     const groupToWords: Map<number, { original: ParsedWord[], translation: ParsedWord[] }> = new Map();
@@ -330,14 +333,14 @@ export default function SentenceInfo() {
   }, [selectedWordGroup, parsedSentence]);
   
   const handleSave = async () => {
-    if (parsedContent.id === null || parsedContent.id === undefined) {
+    if (parsedContent.sentenceId === null || parsedContent.sentenceId === undefined) {
       Alert.alert("Error", "Cannot save - no sentence ID");
       return;
     }
     
     try {
       // Find the sentence in the database and update it
-      await db.rewriteSentence(parsedContent.id, originalText, translationText);
+      await db.rewriteSentence(parsedContent.sentenceId, originalText, translationText);
       
       Alert.alert("Success", "Sentence updated successfully", [
         { 
@@ -499,7 +502,7 @@ export default function SentenceInfo() {
         )}
       </View>
       
-      {parsedContent.id !== null && (
+      {parsedContent.sentenceId !== null && (
         <View style={styles.buttonContainer}>
           {isEditing ? (
             <>
@@ -516,8 +519,8 @@ export default function SentenceInfo() {
                   setIsLongPressed(false);
                   setSelectedWordGroup(null);
                   // Reset text to original values
-                  setOriginalText(parsedContent.Original);
-                  setTranslationText(parsedContent.Translation);
+                  setOriginalText(dbSentence?.original_parsed_text ?? "");
+                  setTranslationText(dbSentence?.translation_parsed_text ?? "");
                 }}
               >
                 <Text style={styles.buttonText}>Cancel</Text>

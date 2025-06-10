@@ -460,27 +460,6 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
     isWordHighlighted 
   } = useWordHighlight(parseSentence, parsedSentencesState);
 
-  const handleSelectSentence = (selectedSentence: number | null) => {
-    if (selectedSentence) {
-      // Find the sentence object from its number
-      const sentenceObj = chapterSentences.find(
-        s => s.sentence_number === selectedSentence
-      );
-      
-      if (sentenceObj) {
-        const st: SentenceTranslation = {
-          Original: sentenceObj.original_parsed_text ?? "",
-          Translation: sentenceObj.translation_parsed_text ?? "",
-          id: sentenceObj.id,
-          bookTitle: bookTitle
-        }
-        
-        // Set this as the content for translation
-        setPanelContent(st);      
-      }
-    }
-  };
-
   // Handle scroll to index failure
   const handleScrollToIndexFailed = (info: {
     index: number;
@@ -619,7 +598,6 @@ const SimpleReader: React.FC<DBReaderProps> = ({ bookUrl, bookTitle, imageUrl })
         isVisible={isPanelVisible}
         content={panelContent}
         onClose={() => SlidePanelEvents.emit(null, false)}
-        onAnnotateSentence={() => handleSelectSentence(selectedSentence)}
       />
       <ProgressBar progress={chapterProgress} />
     </View>

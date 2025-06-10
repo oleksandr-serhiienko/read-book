@@ -9,6 +9,7 @@ import AudioControl from './components/AudioControl';
 
 // Import these to get the type information
 import { cardComponents } from './components/CardFactory';
+import { EmittedWord } from '../(book)/components/events/slidePanelEvents';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -292,6 +293,7 @@ export default function CardPanel() {
     const examples = cardHelpers.getAllExamples(card);
     const firstExample = cardHelpers.getFirstExample(card);
     const firstMeaning = cardHelpers.getFirstMeaning(card);
+    const emittedWord: EmittedWord = {bookTitle: card.source, word: card.word, translation: "", sentenceId: 0 }
   
     return (
       <Animated.View style={[styles.cardContainer, getCardStyle()]} {...panResponder.panHandlers}>
@@ -335,7 +337,7 @@ export default function CardPanel() {
             href={{
               pathname: "/wordInfo",
               params: { 
-                content: JSON.stringify(Transform.fromCardToWord(card)),
+                content: JSON.stringify(emittedWord),
                 added: 'true'
               }
             }}

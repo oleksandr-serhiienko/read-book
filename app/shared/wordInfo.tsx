@@ -26,22 +26,6 @@ interface WordInfo {
   translation: string;
 }
 
-// Type guard to check if content is EmittedWord
-function isEmittedWord(content: any): content is EmittedWord {
-  return content && 
-         typeof content.word === 'string' && 
-         typeof content.translation === 'string' &&
-         !content.Translations && // Not ResponseTranslation
-         !content.Translation;    // Not SentenceTranslation
-}
-
-// Type guard to check if content is ResponseTranslation
-function isResponseTranslation(content: any): content is ResponseTranslation {
-  return content && 
-         content.Original && 
-         content.Translations && 
-         Array.isArray(content.Translations);
-}
 
 export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProps) {
   const parsedContent = JSON.parse(content);
@@ -74,16 +58,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   const initializeData = async () => {
     try {
       setIsLoading(true);
-      
-      if (isEmittedWord(parsedContent)) {
-        // Handle EmittedWord - fetch from database
-        await handleEmittedWord(parsedContent);
-      } else if (isResponseTranslation(parsedContent)) {
-        // Handle ResponseTranslation - use existing data
-        setFullTranslation(parsedContent);
-        await setupDatabase(parsedContent.Book);
-      }
-      
+      await handleEmittedWord(parsedContent);
       if (initialIsAdded) {
         await loadExistingComment();
         await checkForHistory();
@@ -99,29 +74,23 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
 
   const handleEmittedWord = async (emittedWord: EmittedWord) => {
     try {
-      // First, try to determine which book this came from
-      // This is a simplified approach - you might need to pass book info differently
-      const books = await database.getAllBooks(sourceLanguage.toLowerCase());
+     
       let bookDb: BookDatabase | null = null;
       let wordTranslation: Word | null = null;
 
-      // Try to find the word in any of the books
-      for (const book of books) {
-        try {
-          const tempDb = new BookDatabase(book.name);
-          const initialized = await tempDb.initialize();
-          if (initialized) {
-            const translation = await tempDb.getWordTranslation(emittedWord.word.toLowerCase());
-            if (translation && translation.translations && translation.translations.length > 0) {
-              bookDb = tempDb;
-              wordTranslation = translation;
-              setDb(tempDb);
-              break;
-            }
+      try {
+        const tempDb = new BookDatabase(emittedWord.bookTitle);
+        const initialized = await tempDb.initialize();
+        if (initialized) {
+          const translation = await tempDb.getWordTranslation(emittedWord.word.toLowerCase());
+          if (translation && translation.translations && translation.translations.length > 0) {
+            bookDb = tempDb;
+            wordTranslation = translation;
+            setDb(tempDb);
           }
-        } catch (error) {
-          console.error(`Error checking book ${book.name}:`, error);
         }
+      } catch (error) {
+        console.error(`Error checking book ${emittedWord.bookTitle}:`, error);
       }
 
       if (wordTranslation) {
@@ -160,21 +129,6 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
       }
     } catch (error) {
       console.error('Error handling emitted word:', error);
-    }
-  };
-
-  const setupDatabase = async (bookName: string) => {
-    if (!bookName || bookName === 'Unknown') return;
-    
-    try {
-      const bookDatabase = new BookDatabase(bookName);
-      const dbInitialized = await bookDatabase.initialize();
-      if (dbInitialized) {
-        setDb(bookDatabase);
-        await loadIndividualWords(bookDatabase);
-      }
-    } catch (error) {
-      console.error('Error setting up database:', error);
     }
   };
 
@@ -366,10 +320,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
          return;
       }
     if (!isAdded) {     
-      database.insertCard(
-        Transform.fromWordToCard(fullTranslation, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]), 
-        fullTranslation.TextView
-      );
+      database.insertCard(parsedContent);
       setIsAdded(true);
       setHistoryExists(true);
       
