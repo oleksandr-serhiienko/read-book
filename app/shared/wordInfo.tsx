@@ -1,7 +1,9 @@
+// Updated wordInfo.tsx - Handle EmittedWord type and fetch from database
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, ActivityIndicator } from 'react-native';
 import { ResponseTranslation } from '@/components/reverso/reverso';
-import { Database, Card, HistoryEntry } from '@/components/db/database';
+import { EmittedWord } from '@/app/(tabs)/(book)/components/events/slidePanelEvents';
+import { Database, Card, HistoryEntry, Word } from '@/components/db/database';
 import SupportedLanguages from '@/components/reverso/languages/entities/languages';
 import { Transform } from '@/components/transform';
 import { useLanguage } from '@/app/languageSelector';
@@ -18,19 +20,41 @@ interface WordInfoContentProps {
   content: string;
   initialIsAdded: boolean;
 }
+
 interface WordInfo {
   word: string;
   translation: string;
 }
 
+// Type guard to check if content is EmittedWord
+function isEmittedWord(content: any): content is EmittedWord {
+  return content && 
+         typeof content.word === 'string' && 
+         typeof content.translation === 'string' &&
+         !content.Translations && // Not ResponseTranslation
+         !content.Translation;    // Not SentenceTranslation
+}
+
+// Type guard to check if content is ResponseTranslation
+function isResponseTranslation(content: any): content is ResponseTranslation {
+  return content && 
+         content.Original && 
+         content.Translations && 
+         Array.isArray(content.Translations);
+}
+
 export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProps) {
-  const parsedContent: ResponseTranslation = JSON.parse(content);
+  const parsedContent = JSON.parse(content);
   const [isAdded, setIsAdded] = useState(initialIsAdded);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [comment, setComment] = useState('');
   const [individualWords, setIndividualWords] = useState<WordInfo[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [wordData, setWordData] = useState<Word | null>(null);
+  const [fullTranslation, setFullTranslation] = useState<ResponseTranslation | null>(null);
+  
   const { sourceLanguage, targetLanguage } = useLanguage();
   const languageKey = sourceLanguage.toLowerCase() as keyof typeof languages;
   const database = new Database();   
@@ -43,81 +67,155 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   const [historyExists, setHistoryExists] = useState(false);
   const [currentCard, setCurrentCard] = useState<Card | null>(null);
 
-  const formattedTranslations = parsedContent.Translations.slice(0, 5).map(t =>
-    `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
-  );
-  const context = parsedContent.Contexts.slice(0, 5);
-
   useEffect(() => {
-    if (initialIsAdded) {
-      loadExistingComment();
-      checkForHistory();
-    } else {
-      checkWordExists();
-    }
+    initializeData();
   }, []);
 
-  useEffect(() => {
-    const setupAndLoadData = async () => {
-      try {
-        // First validate that parsedContent exists and has necessary properties
-        if (!parsedContent || !parsedContent.Book) {
-          console.log("Invalid content format");
-          return;
-        }
-        
-        // Initialize the database
-        console.log("init");
-        const bookDatabase = new BookDatabase(parsedContent.Book);
-        const dbInitialized = await bookDatabase.initialize();
-        if (!dbInitialized) { 
-          throw new Error("Failed to initialize database");  
-        }
-        setDb(bookDatabase);
-    
-        // Only after database is initialized, load the translations
-        const originalText = parsedContent?.Original;
-        if (!originalText || typeof originalText !== 'string') {
-          setIndividualWords([]);
-          return;
-        }
-        
-        // Check if this is a phrase (contains spaces)
-        if (originalText.includes(' ')) {
-          const words = originalText.split(' ')
-            .filter(word => word.trim().length > 0);
-          
-          const wordsWithTranslations = await Promise.all(
-            words.map(async (word) => {
-              const translation = await bookDatabase.getWordTranslation(word.trim().toLowerCase());
-              return {
-                word: word.trim(),
-                translation: translation?.translations[0] || '',
-              };
-            })
-          );
-          
-          setIndividualWords(wordsWithTranslations);
-        } else {
-          // Single word - no need for individual word buttons
-          console.log("Single word detected - no word buttons needed");
-          setIndividualWords([]);
-        }
-      } catch (error) {
-        setIndividualWords([]);
+  const initializeData = async () => {
+    try {
+      setIsLoading(true);
+      
+      if (isEmittedWord(parsedContent)) {
+        // Handle EmittedWord - fetch from database
+        await handleEmittedWord(parsedContent);
+      } else if (isResponseTranslation(parsedContent)) {
+        // Handle ResponseTranslation - use existing data
+        setFullTranslation(parsedContent);
+        await setupDatabase(parsedContent.Book);
       }
-    };
-  
-    setupAndLoadData();
-  }, [content]);
+      
+      if (initialIsAdded) {
+        await loadExistingComment();
+        await checkForHistory();
+      } else {
+        await checkWordExists();
+      }
+    } catch (error) {
+      console.error('Error initializing data:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEmittedWord = async (emittedWord: EmittedWord) => {
+    try {
+      // First, try to determine which book this came from
+      // This is a simplified approach - you might need to pass book info differently
+      const books = await database.getAllBooks(sourceLanguage.toLowerCase());
+      let bookDb: BookDatabase | null = null;
+      let wordTranslation: Word | null = null;
+
+      // Try to find the word in any of the books
+      for (const book of books) {
+        try {
+          const tempDb = new BookDatabase(book.name);
+          const initialized = await tempDb.initialize();
+          if (initialized) {
+            const translation = await tempDb.getWordTranslation(emittedWord.word.toLowerCase());
+            if (translation && translation.translations && translation.translations.length > 0) {
+              bookDb = tempDb;
+              wordTranslation = translation;
+              setDb(tempDb);
+              break;
+            }
+          }
+        } catch (error) {
+          console.error(`Error checking book ${book.name}:`, error);
+        }
+      }
+
+      if (wordTranslation) {
+        setWordData(wordTranslation);
+        
+        // Extract all meanings from translations
+        const allMeanings = wordTranslation.translations?.map(t => t.meaning).filter(Boolean) || [];
+        
+        // Extract all examples from all translations
+        const allExamples = wordTranslation.translations?.flatMap(t => t.examples || []) || [];
+        
+        // Convert to ResponseTranslation format for compatibility
+        const responseTranslation: ResponseTranslation = {
+          Original: emittedWord.word,
+          Translations: allMeanings.map(meaning => ({ word: meaning || '', pos: '' })),
+          Contexts: allExamples.map(example => ({
+            original: example.sentence || '',
+            translation: example.translation || ''
+          })),
+          Book: bookDb?.getDbName() || 'Unknown',
+          TextView: emittedWord.translation
+        };
+        
+        setFullTranslation(responseTranslation);
+      } else {
+        // If not found in database, create a minimal response
+        const responseTranslation: ResponseTranslation = {
+          Original: emittedWord.word,
+          Translations: [{ word: emittedWord.translation, pos: '' }],
+          Contexts: [],
+          Book: emittedWord.bookTitle,
+          TextView: emittedWord.translation
+        };
+        
+        setFullTranslation(responseTranslation);
+      }
+    } catch (error) {
+      console.error('Error handling emitted word:', error);
+    }
+  };
+
+  const setupDatabase = async (bookName: string) => {
+    if (!bookName || bookName === 'Unknown') return;
+    
+    try {
+      const bookDatabase = new BookDatabase(bookName);
+      const dbInitialized = await bookDatabase.initialize();
+      if (dbInitialized) {
+        setDb(bookDatabase);
+        await loadIndividualWords(bookDatabase);
+      }
+    } catch (error) {
+      console.error('Error setting up database:', error);
+    }
+  };
+
+  const loadIndividualWords = async (bookDatabase: BookDatabase) => {
+    if (!fullTranslation?.Original || typeof fullTranslation.Original !== 'string') {
+      setIndividualWords([]);
+      return;
+    }
+    
+    // Check if this is a phrase (contains spaces)
+    if (fullTranslation.Original.includes(' ')) {
+      const words = fullTranslation.Original.split(' ')
+        .filter(word => word.trim().length > 0);
+      
+      const wordsWithTranslations = await Promise.all(
+        words.map(async (word) => {
+          const translation = await bookDatabase.getWordTranslation(word.trim().toLowerCase());
+          // Get first meaning from first translation
+          const firstMeaning = translation?.translations?.[0]?.meaning || '';
+          return {
+            word: word.trim(),
+            translation: firstMeaning,
+          };
+        })
+      );
+      
+      setIndividualWords(wordsWithTranslations);
+    } else {
+      setIndividualWords([]);
+    }
+  };
 
   // Check if the word exists in the database
   const checkWordExists = async () => {
+    if (!fullTranslation?.Original) return;
+    
     try {
-      const wordExists = !(await database.WordDoesNotExist(parsedContent.Original));
+      const wordExists = !(await database.WordDoesNotExist(fullTranslation.Original));
       setHistoryExists(wordExists);
       if (wordExists) {
-        const card = await database.getCardByWord(parsedContent.Original);
+        const card = await database.getCardByWord(fullTranslation.Original);
         if (card) {
           setCurrentCard(card);
         }
@@ -129,8 +227,10 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
 
   // Check for history and load it
   const checkForHistory = async () => {
+    if (!fullTranslation?.Original) return;
+    
     try {
-      const card = await database.getCardByWord(parsedContent.Original);
+      const card = await database.getCardByWord(fullTranslation.Original);
       if (card) {
         setCurrentCard(card);
         setHistoryExists(true);
@@ -170,8 +270,10 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   };
 
   const loadExistingComment = async () => {
+    if (!fullTranslation?.Original) return;
+    
     try {
-      const card = await database.getCardByWord(parsedContent.Original);
+      const card = await database.getCardByWord(fullTranslation.Original);
       if (card?.comment) {
         setComment(card.comment);
       }
@@ -181,9 +283,11 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   };
 
   const handleAddComment = async () => {
+    if (!fullTranslation?.Original) return;
+    
     setIsSaving(true);
     try {
-      const card = await database.getCardByWord(parsedContent.Original);
+      const card = await database.getCardByWord(fullTranslation.Original);
       if (card?.id) {
         card.comment = comment;
         await database.updateCardComment(card);
@@ -197,36 +301,25 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   };
 
   const handleWordPress = async (word: string) => {
+    if (!db) return;
+    
     try {
-      const wordTranslation = await db?.getWordTranslation(word.toLowerCase());
+      const wordTranslation = await db.getWordTranslation(word.toLowerCase());
       
-      if (wordTranslation) {
-        // Map the contexts from the database result to TranslationContext objects
-        const contexts: TranslationContext[] = wordTranslation.contexts.map(context => ({
-          original: context.original_text,
-          translation: context.translated_text
-        }));
+      if (wordTranslation && wordTranslation.translations && wordTranslation.translations.length > 0) {
+        // Get first meaning from first translation
+        const firstMeaning = wordTranslation.translations[0]?.meaning || '';
         
-        // Create the word content object with the translations and contexts
-        const wordContent = {
-          Original: word,
-          Translations: wordTranslation.translations.map(translation => ({
-            word: translation,
-            pos: ""
-          })),
-          // Properly format contexts with both original and translation properties
-          Contexts: contexts.map(context => ({
-            original: context.original,
-            translation: context.translation
-          })),
-          Book: db?.getDbName(),
-          TextView: ""
+        // Navigate with the EmittedWord format
+        const emittedWord = {
+          word: word,
+          translation: firstMeaning
         };
   
         router.push({
           pathname: "/wordInfo",
           params: {
-            content: JSON.stringify(wordContent),
+            content: JSON.stringify(emittedWord),
             added: "false"
           }
         });
@@ -237,6 +330,8 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   };
 
   const handleSpeak = async () => {
+    if (!fullTranslation?.Original) return;
+    
     setIsSpeaking(true);
     try {
       const options = {
@@ -244,7 +339,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
         pitch: 1.0,
         rate: 0.75
       };    
-      await Speech.speak(parsedContent.Original, options);
+      await Speech.speak(fullTranslation.Original, options);
     } catch (error) {
       console.error('Error speaking:', error);
     } finally {
@@ -263,13 +358,18 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   };
 
   const handleAddToDictionary = async () => {
-    let noWord = await database.WordDoesNotExist(parsedContent.Original)
+    if (!fullTranslation?.Original) return;
+    
+    let noWord = await database.WordDoesNotExist(fullTranslation.Original)
     if (!noWord){
-         console.log("Ooops");
+         console.log("Word already exists");
          return;
       }
     if (!isAdded) {     
-      database.insertCard(Transform.fromWordToCard(parsedContent, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]), parsedContent.TextView);
+      database.insertCard(
+        Transform.fromWordToCard(fullTranslation, SupportedLanguages[sourceLanguage], SupportedLanguages[targetLanguage]), 
+        fullTranslation.TextView
+      );
       setIsAdded(true);
       setHistoryExists(true);
       
@@ -277,6 +377,30 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
       await checkForHistory();
     }
   };
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#007AFF" />
+        <Text style={styles.loadingText}>Loading word information...</Text>
+      </View>
+    );
+  }
+
+  // If no translation data available
+  if (!fullTranslation) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.errorText}>Unable to load word information</Text>
+      </View>
+    );
+  }
+
+  const formattedTranslations = fullTranslation.Translations.slice(0, 5).map(t =>
+    `${t.word}${t.pos ? ` • ${t.pos}` : ''}`
+  );
+  const context = fullTranslation.Contexts.slice(0, 5);
 
   const renderComment = () => {
     if (!isAdded) return null;
@@ -358,7 +482,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
               key={index} 
               entry={entry} 
               index={index} 
-              card={currentCard} // Pass the card to access context information
+              card={currentCard}
             />
           ))
         )}
@@ -367,7 +491,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   };
 
   const renderWordButtons = () => {
-    if (!parsedContent.Original || !parsedContent.Original.includes(' ')) {
+    if (!fullTranslation?.Original || !fullTranslation.Original.includes(' ')) {
       return null;
     }
 
@@ -393,7 +517,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   return (
     <ScrollView style={styles.container}>
       <View style={styles.headerSection}>
-        <Text style={styles.originalWord}>{parsedContent.Original}</Text>
+        <Text style={styles.originalWord}>{fullTranslation.Original}</Text>
         <TouchableOpacity 
           style={[styles.speakButton, isSpeaking && styles.speakButtonActive]} 
           onPress={handleSpeak}
@@ -406,6 +530,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
           )}
         </TouchableOpacity>
       </View>
+      
       {renderWordButtons()}
 
       {!isAdded && (
@@ -419,7 +544,9 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
           </Text>
         </TouchableOpacity>
       )}
+      
       {renderComment()}
+      
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Translations</Text>
         {formattedTranslations.map((translation, index) => (
@@ -440,6 +567,7 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
           </View>
         ))}
       </View>
+      
       {renderHistoryButton()}
       {renderHistoryList()}
     </ScrollView>
@@ -447,7 +575,23 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
 }
 
 const styles = StyleSheet.create({
-  // Existing styles
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#ff0000',
+    textAlign: 'center',
+    padding: 20,
+  },
   wordButtonsContainer: {
     marginVertical: 16,
   },
@@ -516,29 +660,6 @@ const styles = StyleSheet.create({
   iconButton: {
     padding: 4,
   },
-  commentSection: {
-    marginVertical: 10,
-    padding: 15,
-    backgroundColor: 'white',
-    borderRadius: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },  
-  commentButton: {
-    backgroundColor: '#007AFF',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 10, 
-    alignItems: 'center',
-  },
-  commentButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
-  },
   container: {
     flex: 1,
     padding: 20,
@@ -572,11 +693,6 @@ const styles = StyleSheet.create({
   },
   speakButtonActive: {
     backgroundColor: '#e8e8e8',
-  },
-  speakButtonText: {
-    color: 'white',
-    fontSize: 16,
-    fontWeight: '500',
   },
   section: {
     marginBottom: 20,
@@ -633,8 +749,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: 'bold',
   },
-
-  // New styles for history feature
   historyButton: {
     backgroundColor: '#6366f1',
     flexDirection: 'row',

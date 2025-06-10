@@ -1,6 +1,6 @@
 import { Text } from 'react-native';
 import React from 'react';
-import { Card, cardHelpers, Example } from '@/components/db/database';
+import { Card, cardHelpers } from '@/components/db/database';
 
 interface TextStyles {
   boldText: {

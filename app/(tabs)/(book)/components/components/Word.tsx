@@ -3,7 +3,7 @@ import React, { memo, useEffect, useState } from 'react';
 import { Text, StyleSheet, View } from 'react-native';
 import { ParsedWord } from '../types/types';
 import { BookDatabase, DBSentence } from '@/components/db/bookDatabase';
-import { SlidePanelEvents } from '../events/slidePanelEvents';
+import { EmittedWord, SlidePanelEvents } from '../events/slidePanelEvents';
 import WordPopup from './WordPopup';
 
 interface WordProps {
@@ -140,7 +140,7 @@ const Word: React.FC<WordProps> = memo(({
    */
   const handleWordGroup = async (updatedWord: UpdatedWord, cleanedWord: string): Promise<void> => {
     // Show popup for individual word if available
-    await showIndividualWordPopup(cleanedWord);
+    //await showIndividualWordPopup(cleanedWord);
     
     // Get all words in the group and their translations
     const allGroupWords = extractGroupWords(updatedWord);
@@ -152,10 +152,10 @@ const Word: React.FC<WordProps> = memo(({
     
     if (updatedWord.isTranslation) {
       // We're looking at a translation, get original text details
-      await handleTranslatedWordGroup(currentPhrase, translationPhrase, allGroupWords, sortedTranslations, updatedWord);
+      await handleTranslatedWordGroup(currentPhrase, translationPhrase);
     } else {
       // We're looking at original text, get translation details
-      await handleOriginalWordGroup(currentPhrase, translationPhrase, updatedWord);
+      await handleOriginalWordGroup(currentPhrase, translationPhrase);
     }
   };
 
@@ -164,40 +164,17 @@ const Word: React.FC<WordProps> = memo(({
    */
   const handleTranslatedWordGroup = async (
     currentPhrase: string, 
-    translationPhrase: string, 
-    allGroupWords: string[], 
-    sortedTranslations: string[], 
-    updatedWord: UpdatedWord
+    translationPhrase: string
   ): Promise<void> => {
-    // Prepare translations array with the base translation
-    let translations: Translation[] = [{
-      word: currentPhrase,
-      pos: ""
-    }];
-    // Get additional translations for multi-word groups that translate to single words
-    let convertedContexts: TranslationContext[] = [];
-    if (allGroupWords.length > 1 && sortedTranslations.length === 1) {
-      const result = await fetchAdditionalTranslations(translationPhrase);
-      if (result) {
-        // Use a Set to remove duplicates
-        const mergedTranslations = [...translations, ...result.translations];
-        const uniqueTranslations = Array.from(
-            new Map(mergedTranslations.map(t => [t.word, t])).values()
-        );
-    
-        translations = uniqueTranslations;
-        convertedContexts = result.contexts;
-      }
+
+
+    const wordToEmmit: EmittedWord = {
+      word: translationPhrase,
+      translation: currentPhrase,
+      bookTitle: database.getDbName()
     }
     
-    // Prepare and emit the translation response
-    const responseTranslation = createTranslationResponse(
-      translationPhrase,
-      translations,
-      convertedContexts
-    );
-    
-    SlidePanelEvents.emit(responseTranslation, true);
+    SlidePanelEvents.emit(wordToEmmit, true);
   };
 
   /**
@@ -205,23 +182,15 @@ const Word: React.FC<WordProps> = memo(({
    */
   const handleOriginalWordGroup = async (
     currentPhrase: string, 
-    translationPhrase: string, 
-    updatedWord: UpdatedWord
+    translationPhrase: string
   ): Promise<void> => {
-    // For original text, we just use the translation
-    const translations: Translation[] = [{
+    const wordToEmmit: EmittedWord = {
       word: translationPhrase,
-      pos: ""
-    }];
+      translation: currentPhrase,
+      bookTitle: database.getDbName()
+    }
     
-    // Prepare and emit the translation response
-    const responseTranslation = createTranslationResponse(
-      currentPhrase,
-      translations,
-      []
-    );
-    
-    SlidePanelEvents.emit(responseTranslation, true);
+    SlidePanelEvents.emit(wordToEmmit, true);
   };
 
   /**
@@ -241,32 +210,14 @@ const Word: React.FC<WordProps> = memo(({
   const handleTranslatedSingleWord = async (updatedWord: UpdatedWord): Promise<void> => {
     // For translated words, we show the original
     const cleanedWord = cleanWord(updatedWord.wordLinkedWordMirror.join(' '));
-    
-    // Get database translation (might contain additional info)
-    const dbTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
-    const result = await fetchAdditionalTranslations(cleanedWord);
-    const translation = [{ word: cleanWord(updatedWord.word.toLowerCase()), pos: "" }];
-    let translations: Translation[] = [...translation];
-    let convertedContexts = convertContexts(dbTranslation);
-      if (result) {
-        // Use a Set to remove duplicates
-        const mergedTranslations = [...translations, ...result.translations];
-        const uniqueTranslations = Array.from(
-            new Map(mergedTranslations.map(t => [t.word, t])).values()
-        );
-    
-        translations = uniqueTranslations;
 
-      }
+    const wordToEmmit: EmittedWord = {
+      word: cleanedWord,
+      translation: updatedWord.word.toLowerCase() ||  await getMissedTranslation(cleanedWord),
+      bookTitle: database.getDbName()
+    }
     
-    // Create response with the original word as the translation
-    const responseTranslation = createTranslationResponse(
-      cleanedWord,
-      translations,
-      convertedContexts
-    );
-    
-    SlidePanelEvents.emit(responseTranslation, true);
+    SlidePanelEvents.emit(wordToEmmit, true);
   };
 
   /**
@@ -275,38 +226,33 @@ const Word: React.FC<WordProps> = memo(({
   const handleOriginalSingleWord = async (updatedWord: UpdatedWord): Promise<void> => {
     const cleanedWord = cleanWord(updatedWord.word.toLowerCase());
     
-    // Get translation from database
-    const dbTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
-    
     // Get coupled translation
     const coupledTranslation = extractCoupledTranslation(updatedWord);
     
-    // Combine translations from different sources
-    const translations = combineTranslations(dbTranslation, coupledTranslation);
+    const wordToEmmit: EmittedWord = {
+      word: cleanedWord,
+      translation: coupledTranslation || await getMissedTranslation(cleanedWord),
+      bookTitle: database.getDbName()
+    }
     
-    // Convert contexts to required format
-    const convertedContexts = convertContexts(dbTranslation);
-    
-    // Prepare and emit the translation response
-    const responseTranslation = createTranslationResponse(
-      cleanedWord,
-      translations.length > 0 ? translations : [{ word: "none", pos: "" }],
-      convertedContexts
-    );
-    
-    SlidePanelEvents.emit(responseTranslation, true);
+    SlidePanelEvents.emit(wordToEmmit, true);
   };
+
+  const getMissedTranslation = async (word: string): Promise<string> => {
+    const foundWord = await database.getWordTranslation(word);
+    return foundWord?.translations?.[0]?.meaning ?? "";
+  }
 
   /**
    * Show popup for individual word if translation exists
    */
-  const showIndividualWordPopup = async (cleanedWord: string): Promise<void> => {
-    const individualTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
-    if (individualTranslation) {
-      setPopupTranslation(individualTranslation.translations[0]);
-      setShowPopup(true);
-    }
-  };
+  // const showIndividualWordPopup = async (cleanedWord: string): Promise<void> => {
+  //   const individualTranslation = await database.getWordTranslation(cleanedWord.toLowerCase());
+  //   if (individualTranslation) {
+  //     setPopupTranslation(individualTranslation.translations[0]);
+  //     setShowPopup(true);
+  //   }
+  // };
 
   /**
    * Extract all words in a group, sorted by index
@@ -336,28 +282,6 @@ const Word: React.FC<WordProps> = memo(({
       .map(item => item.word);
   };
 
-  /**
-   * Fetch additional translations for a phrase
-   */
-  const fetchAdditionalTranslations = async (translationPhrase: string): Promise<{ 
-    translations: Translation[], 
-    contexts: TranslationContext[] 
-  } | null> => {
-    const dbTranslation = await database.getWordTranslation(translationPhrase.toLowerCase());
-    if (!dbTranslation) return null;
-  
-    const translations = dbTranslation.translations.map(translation => ({
-      word: translation,
-      pos: ""
-    }));
-    
-    const contexts = dbTranslation?.contexts?.map(context => ({
-      original: context.original_text || "",
-      translation: context.translated_text || ""
-    })) || [];
-    
-    return { translations, contexts };
-  };
 
   /**
    * Extract coupled translation from updatedWord
@@ -373,63 +297,6 @@ const Word: React.FC<WordProps> = memo(({
       .join(' ');
   };
 
-  /**
-   * Combine translations from different sources
-   */
-  const combineTranslations = (
-    dbTranslation: DbTranslation | null, 
-    coupledTranslation: string
-  ): Translation[] => {
-    const translations: Translation[] = [];
-    // Add coupled translation first if it exists and isn't in DB
-    if (coupledTranslation) {
-      translations.push({
-        word: coupledTranslation,
-        pos: ""
-      });
-    }
-    
-    // Add DB translations if they exist
-    if (dbTranslation) {
-      dbTranslation.translations.forEach(translation => {
-        if(translation !== coupledTranslation){
-          translations.push({
-            word: translation,
-            pos: ""
-          });
-        }        
-      });
-    }
-    
-    return translations;
-  };
-
-  /**
-   * Convert contexts to required format
-   */
-  const convertContexts = (dbTranslation: DbTranslation | null): TranslationContext[] => {    
-    return dbTranslation?.contexts?.map(context => ({
-      original: context.original_text || "",
-      translation: context.translated_text || ""
-    })) || [];
-  };
-
-  /**
-   * Create a standardized translation response object
-   */
-  const createTranslationResponse = (
-    original: string, 
-    translations: Translation[], 
-    contexts: TranslationContext[]
-  ): TranslationResponse => {
-    return {
-      Original: original,
-      Translations: translations,
-      Contexts: contexts,
-      Book: database.getDbName(),
-      TextView: ""
-    };
-  };
 
 return (
   <View style={dynamicStyles.container}>

@@ -1,7 +1,14 @@
-// events/SlidePanelEvents.ts
+// events/SlidePanelEvents.ts - Updated with EmittedWord type
 import { ResponseTranslation, SentenceTranslation } from '@/components/reverso/reverso';
 
-export type PanelContent = ResponseTranslation | SentenceTranslation | null;
+// New interface for the simplified word emission
+export interface EmittedWord {
+  word: string;
+  translation: string;
+  bookTitle: string;
+}
+
+export type PanelContent = ResponseTranslation | SentenceTranslation | EmittedWord | null;
 type PanelUpdateListener = (content: PanelContent, isVisible: boolean) => void;
 
 export class SlidePanelEvents {

@@ -1,6 +1,5 @@
 import * as SQLite from 'expo-sqlite';
 import * as Crypto from 'expo-crypto';
-import { createExampleHashSync } from '@/app/(tabs)/(card)/components/shared/helpers';
 
 export interface Word {
   id?: number;
@@ -195,6 +194,18 @@ export class Database {
       throw error;
     }
   }
+    // Synchronous version of hash creation for use in selection
+    createExampleHashSync(source: string, target: string): string {
+      // Simple hash function for synchronous use
+      const content = `${source}||${target}`;
+      let hash = 0;
+      for (let i = 0; i < content.length; i++) {
+        const char = content.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32-bit integer
+      }
+      return Math.abs(hash).toString(16);
+    }
 
   async migrateToSyncHash(): Promise<void> {
     if (!this.db) throw new Error('Database not initialized');
@@ -220,7 +231,7 @@ export class Database {
         
         if (cryptoHash === history.exampleHash) {
           // Found the matching example, now create sync hash
-          const syncHash = createExampleHashSync(example.sentence || '', example.translation || '');
+          const syncHash = this.createExampleHashSync(example.sentence || '', example.translation || '');
           
           // Update the history entry with new hash
           await this.db.runAsync(
@@ -240,6 +251,8 @@ export class Database {
     
     console.log("Hash migration completed");
   }
+
+
 
   async createExampleHash(source: string, target: string): Promise<string> {
     // Create a deterministic hash from source and target
@@ -408,24 +421,28 @@ export class Database {
     };
     const infoString = JSON.stringify(defaultInfo);
     const wordInfoString = JSON.stringify(card.wordInfo || {});
-
+    
+    // Just use an empty array string for translations to satisfy NOT NULL constraint
+    const emptyTranslations = '[]';
+  
     const result = await this.db.runAsync(
-      `INSERT INTO cards (word, wordInfo, lastRepeat, level, userId, source, sourceLanguage, targetLanguage, comment, info)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO cards (word, wordInfo, translations, lastRepeat, level, userId, source, sourceLanguage, targetLanguage, comment, info)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         card.word || '',
         wordInfoString,
+        emptyTranslations, // Just provide empty translations array
         card.lastRepeat.toISOString(),
         card.level,
         card.userId,
         card.source,
         card.sourceLanguage,
         card.targetLanguage,
-        card.comment,
+        card.comment || '',
         infoString
       ]
     );
-
+  
     console.log("Card added with ID:", result.lastInsertRowId);
     return result.lastInsertRowId;
   }

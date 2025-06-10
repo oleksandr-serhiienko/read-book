@@ -1,3 +1,4 @@
+// Updated panel.tsx - Navigation with EmittedWord format
 import React, { useState, useEffect } from 'react';
 import { Text, StyleSheet, TouchableOpacity, Animated, View, Pressable } from 'react-native';
 import { Link } from 'expo-router';
@@ -7,6 +8,7 @@ import voices from '@/components/reverso/languages/voicesTranslate';
 import { ArrowLeftRight, Volume1, Volume2 } from 'lucide-react-native';
 import languages from '@/components/reverso/languages/entities/languages';
 import * as Speech from 'expo-speech';
+import { BookDatabase } from '@/components/db/bookDatabase';
 
 // Base Panel Component remains the same...
 const BasePanel = ({ 
@@ -46,7 +48,7 @@ const BasePanel = ({
   );
 };
 
-// Updated WordTranslationPanel with onAnnotateSentence prop
+// Updated WordTranslationPanel with EmittedWord navigation
 const WordTranslationPanel = ({
     content,
     isVisible,
@@ -65,7 +67,9 @@ const WordTranslationPanel = ({
     const [isSpeaking, setIsSpeaking] = useState(false);
     const { sourceLanguage } = useLanguage();
     const languageKey = sourceLanguage.toLowerCase() as keyof typeof languages;
-    const mainTranslation = content.Translations[0]?.word || '';
+   
+    const mainTranslation = content.Translations[0]?.word;
+    
     const handleSpeak = async () => {
       setIsSpeaking(true);
       try {
@@ -87,6 +91,15 @@ const WordTranslationPanel = ({
       event.stopPropagation();
       callback();
     };
+
+    // Create EmittedWord format for navigation
+    const createEmittedWordContent = () => {
+      return {
+        word: content.Original,
+        translation: mainTranslation, 
+        bookTitle: content.Book
+      };
+    };
   
     return (
       <BasePanel isVisible={isVisible}>
@@ -94,7 +107,7 @@ const WordTranslationPanel = ({
           href={{
             pathname: "/wordInfo",
             params: { 
-              content: JSON.stringify(content),
+              content: JSON.stringify(createEmittedWordContent()),
               added: isAdded.toString()
             }
           }}
@@ -186,7 +199,7 @@ const styles = StyleSheet.create({
         borderRadius: 20,
         minWidth: 36,
         alignItems: 'center',
-        justifyContent: 'center', // Added for better icon centering
+        justifyContent: 'center',
       },
       disabledButton: {
         backgroundColor: 'rgba(255,255,255,0.1)',
@@ -197,14 +210,14 @@ const styles = StyleSheet.create({
     sentenceContent: {
         padding: 15,
         flexDirection: 'row',
-        alignItems: 'flex-start', // Changed from 'center' to 'flex-start'
+        alignItems: 'flex-start',
       },
       sentenceTranslation: {
         flex: 1,
         fontSize: 18,
         color: 'white',
         marginRight: 10,
-        lineHeight: 24, // Added for better readability of multiple lines
+        lineHeight: 24,
       },
   panel: {
     position: 'absolute',

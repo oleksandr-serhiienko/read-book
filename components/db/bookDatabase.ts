@@ -1,6 +1,7 @@
 // Enhanced BookDatabase.ts with improved connection handling
 import * as SQLite from 'expo-sqlite';
 import * as FileSystem from 'expo-file-system';
+import { Translation, Word } from './database';
 
 export interface DBSentence {
   id: number;
@@ -185,13 +186,12 @@ export class BookDatabase {
         throw new Error('Database is not initialized');
       }
       
-      // Find the chapter sentence and update it, including the created_at timestamp
+      // Find the chapter sentence and update it
       const chapterQuery = `
         UPDATE book_sentences 
         SET original_parsed_text = ?, 
-            translation_parsed_text = ?,
-            created_at = CURRENT_TIMESTAMP
-        WHERE id = ? 
+            translation_parsed_text = ?
+        WHERE sentence_id = ? 
       `;
       await this.db.runAsync(chapterQuery, [originalNew, translationNew, id]);
       return true;
@@ -207,7 +207,7 @@ export class BookDatabase {
       console.log("Getting sentences");
       
       return await this.db.getAllAsync<DBSentence>(
-        `SELECT id, sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
+        `SELECT sentence_id as id, sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
          FROM book_sentences 
          ORDER BY sentence_number`
       );
@@ -228,13 +228,12 @@ export class BookDatabase {
       
       return await this.db.getAllAsync<DBSentence>(
         `SELECT 
-          id,
+          sentence_id as id,
           sentence_number,
           chapter_id,
           original_text,
           original_parsed_text,
-          translation_parsed_text,
-          created_at
+          translation_parsed_text
         FROM book_sentences 
         WHERE chapter_id = ? 
         ORDER BY sentence_number`,
@@ -251,13 +250,12 @@ export class BookDatabase {
       
       return await this.db.getAllAsync<DBSentence>(
         `SELECT 
-          id,
+          sentence_id as id,
           sentence_number,
           chapter_id,
           original_text,
           original_parsed_text,
-          translation_parsed_text,
-          created_at
+          translation_parsed_text
         FROM book_sentences 
         WHERE sentence_number = ? 
         ORDER BY sentence_number`,
@@ -304,27 +302,42 @@ export class BookDatabase {
   }
 
 
-  async getWordTranslation(word: string): Promise<WordTranslationWithContext | null> {
+  async getWordTranslation(word: string): Promise<Word | null> {
     return this.withRetry(async () => {
       if (!this.db) {
         throw new Error('Database not initialized');
       }
+      if (this.dbName.toLowerCase().includes('gemini')) {
+        return await this.getWordTranslationFromGeminiDb(word);
+      }
+      return await this.getWordTranslationOriginal(word);
+    });
+  }
 
-      // First get the word ID and translations
+  // Original schema implementation
+  private async getWordTranslationOriginal(word: string): Promise<Word | null> {
+    try {
+      if (!this.db) {
+        await this.initialize();
+        if (!this.db) {
+          throw new Error('Database not initialized after retry');
+        }
+      }
+      // Get the word ID and translations
       const wordQuery = await this.db.getFirstAsync<{ id: number, translations: string }>(
         'SELECT id, translations FROM word_translations WHERE word = ?',
         [word]
       );
-
+      
       if (!wordQuery) {
         return null;
       }
-
+      
       // Split translations string into array
-      const translations = wordQuery.translations
+      const translationsArr = wordQuery.translations
         .split(',')
         .map(t => t.trim());
-
+      
       // Get contexts for the word
       const contexts = await this.db.getAllAsync<TranslationContext>(
         `SELECT original_text, translated_text 
@@ -332,19 +345,152 @@ export class BookDatabase {
          WHERE word_id = ?`,
         [wordQuery.id]
       );
-
+      
       // Get additional word info if available
       const wordInfo = await this.db.getFirstAsync<{ info: string }>(
         'SELECT info FROM word_info WHERE word_id = ?',
         [wordQuery.id]
       );
-
-      return {
-        translations,
-        contexts: contexts || [],
-        info: wordInfo?.info
+      
+      // Convert to Word model
+      const result: Word = {
+        id: wordQuery.id,
+        name: word,
+        translations: []
       };
-    });
+      
+      // Add each translation as a separate Translation object
+      result.translations = translationsArr.map(meaning => {
+        const translation: Translation = {
+          meaning: meaning,
+          examples: []
+        };
+        
+        // Add examples if available
+        if (contexts && contexts.length > 0) {
+          translation.examples = contexts.map(ctx => ({
+            sentence: ctx.original_text,
+            translation: ctx.translated_text
+          }));
+        }
+        
+        return translation;
+      });
+      
+      // Add additional info if available
+      if (wordInfo && wordInfo.info) {
+        result.additionalInfo = wordInfo.info;
+      }
+      
+      return result;
+    } catch (error) {
+      console.error('Error getting word translation from original schema:', error);
+      return null;
+    }
+  }
+
+  private async getWordTranslationFromGeminiDb(word: string): Promise<Word | null> {
+    try {
+      if (!this.db) {
+        await this.initialize();
+        if (!this.db) {
+          throw new Error('Database not initialized after retry');
+        }
+      }
+      // Get the word record
+      const wordRecord = await this.db.getFirstAsync<{ 
+        word_id: number, 
+        queried_word: string,
+        base_form_json: string,
+        primary_type: string,
+        info_json: string
+      }>(
+        'SELECT word_id, queried_word, base_form_json, primary_type, info_json FROM words WHERE queried_word = ?',
+        [word.toLowerCase()]
+      );
+      
+      if (!wordRecord) {
+        return null;
+      }
+      
+      // Get all translations for this word
+      const translations = await this.db.getAllAsync<{
+        translation_id: number,
+        meaning: string,
+        additional_info: string,
+        meta_type: string
+      }>(
+        'SELECT translation_id, meaning, additional_info, meta_type FROM word_translations WHERE word_id = ?',
+        [wordRecord.word_id]
+      );
+      
+      // Create base Word object
+      const result: Word = {
+        id: wordRecord.word_id,
+        name: wordRecord.queried_word,
+        baseForm: this.safeParseJson(wordRecord.base_form_json),
+        additionalInfo: this.safeParseJson(wordRecord.info_json),
+        translations: []
+      };
+      
+      // If no translations found, return word with empty translations
+      if (!translations || translations.length === 0) {
+        return result;
+      }
+      
+      // Process each translation
+      result.translations = await Promise.all(translations.map(async (tr) => {
+        // Create Translation object
+        const translation: Translation = {
+          type: tr.meta_type,
+          meaning: tr.meaning,
+          additionalInfo: tr.additional_info,
+          examples: []
+        };
+        
+        if (!this.db) {
+          await this.initialize();
+          if (!this.db) {
+            throw new Error('Database not initialized after retry');
+          }
+        }
+
+        // Get examples for this translation
+        const examples = await this.db.getAllAsync<{
+          source_text: string,
+          target_text: string
+        }>(
+          'SELECT source_text, target_text FROM translation_examples WHERE translation_id = ?',
+          [tr.translation_id]
+        );
+        
+        // Add examples if available
+        if (examples && examples.length > 0) {
+          translation.examples = examples.map(ex => ({
+            sentence: ex.source_text,
+            translation: ex.target_text
+          }));
+        }
+        
+        return translation;
+      }));
+      
+      return result;
+    } catch (error) {
+      console.error('Error getting word translation from Gemini DB:', error);
+      return null;
+    }
+  }
+
+  private safeParseJson(jsonStr: string | null | undefined): any {
+    if (!jsonStr) return {};
+    
+    try {
+      return JSON.parse(jsonStr);
+    } catch (error) {
+      console.error('Error parsing JSON:', error);
+      return {};
+    }
   }
 
   async close(): Promise<void> {
