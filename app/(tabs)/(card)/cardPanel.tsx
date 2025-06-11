@@ -337,7 +337,7 @@ export default function CardPanel() {
             href={{
               pathname: "/wordInfo",
               params: { 
-                content: JSON.stringify(emittedWord),
+                content: JSON.stringify(card.id),
                 added: 'true'
               }
             }}

@@ -4,8 +4,6 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Activi
 import { ResponseTranslation } from '@/components/reverso/reverso';
 import { EmittedWord } from '@/app/(tabs)/(book)/components/events/slidePanelEvents';
 import { Database, Card, HistoryEntry, Word } from '@/components/db/database';
-import SupportedLanguages from '@/components/reverso/languages/entities/languages';
-import { Transform } from '@/components/transform';
 import { useLanguage } from '@/app/languageSelector';
 import * as Speech from 'expo-speech';
 import { ChevronDown, ChevronUp, Clock, Check, Volume2, Volume1, Pencil, ArrowRight, BarChart2 } from 'lucide-react-native';
@@ -13,7 +11,6 @@ import languages from '@/components/reverso/languages/entities/languages';
 import voices from '@/components/reverso/languages/voicesTranslate';
 import { BookDatabase } from '@/components/db/bookDatabase';
 import { router } from 'expo-router';
-import TranslationContext from '@/components/reverso/languages/entities/translationContext';
 import HistoryItem from './historyItem';
 
 interface WordInfoContentProps {
@@ -51,14 +48,45 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   const [historyExists, setHistoryExists] = useState(false);
   const [currentCard, setCurrentCard] = useState<Card | null>(null);
 
+  const isEmittedWord = (obj: any): obj is EmittedWord => {
+    return obj && 
+           typeof obj === 'object' && 
+           typeof obj.word === 'string' && 
+           typeof obj.translation === 'string' && 
+           (obj.bookTitle === undefined || typeof obj.bookTitle === 'string');
+  };
+
   useEffect(() => {
     initializeData();
   }, []);
 
+  useEffect(() => {
+    const setupAndLoadData = async () => {
+      try {
+        // Only proceed if we have fullTranslation data and a database is set
+        if (!db) {
+          return;
+        }
+        // Load individual words using the database
+        await loadIndividualWords(db);
+      } catch (error) {
+        console.error('Error loading individual words:', error);
+        setIndividualWords([]);
+      }
+    }
+    setupAndLoadData();
+  }, [db]); 
+  
+
   const initializeData = async () => {
     try {
       setIsLoading(true);
-      await handleEmittedWord(parsedContent);
+      if (isEmittedWord(parsedContent)) {
+        await handleEmittedWord(parsedContent); // TypeScript knows this is EmittedWord
+      } else {
+        await handleCard(parsedContent);
+      }
+      
       if (initialIsAdded) {
         await loadExistingComment();
         await checkForHistory();
@@ -71,6 +99,34 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
       setIsLoading(false);
     }
   };
+  const handleCard = async (cardId: number) => {
+    let card = await database.getCardById(cardId);
+    console.log("Got card " + card?.word + " for id " + card?.id + " in book "  + card?.source);
+    if (card?.wordInfo) {
+      setWordData(card?.wordInfo);
+      let word = card?.wordInfo;
+      
+      // Extract all meanings from translations
+      const allMeanings = word.translations?.map(t => t.meaning).filter(Boolean) || [];
+      
+      // Extract all examples from all translations
+      const allExamples = word.translations?.flatMap(t => t.examples || []) || [];
+      
+      // Convert to ResponseTranslation format for compatibility
+      const responseTranslation: ResponseTranslation = {
+        Original: card.word,
+        Translations: allMeanings.map(meaning => ({ word: meaning || '', pos: '' })),
+        Contexts: allExamples.map(example => ({
+          original: example.sentence || '',
+          translation: example.translation || ''
+        })),
+        Book: card.source || 'Unknown',
+        TextView: "" 
+      };
+      
+      setFullTranslation(responseTranslation);
+    }
+  }
 
   const handleEmittedWord = async (emittedWord: EmittedWord) => {
     try {
@@ -83,11 +139,10 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
         const initialized = await tempDb.initialize();
         if (initialized) {
           const translation = await tempDb.getWordTranslation(emittedWord.word.toLowerCase());
-          if (translation && translation.translations && translation.translations.length > 0) {
-            bookDb = tempDb;
-            wordTranslation = translation;
-            setDb(tempDb);
-          }
+          bookDb = tempDb;
+          wordTranslation = translation;
+          setDb(tempDb);            
+          
         }
       } catch (error) {
         console.error(`Error checking book ${emittedWord.bookTitle}:`, error);
@@ -133,18 +188,17 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
   };
 
   const loadIndividualWords = async (bookDatabase: BookDatabase) => {
-    if (!fullTranslation?.Original || typeof fullTranslation.Original !== 'string') {
+    if (!parsedContent?.word || typeof parsedContent.word !== 'string') {
       setIndividualWords([]);
       return;
     }
     
     // Check if this is a phrase (contains spaces)
-    if (fullTranslation.Original.includes(' ')) {
-      const words = fullTranslation.Original.split(' ')
-        .filter(word => word.trim().length > 0);
-      
+    if (parsedContent.word.includes(' ')) {
+      const words = parsedContent.word.split(' ')
+        .filter((word: string) => word.trim().length > 0);
       const wordsWithTranslations = await Promise.all(
-        words.map(async (word) => {
+        words.map(async (word: string) => {
           const translation = await bookDatabase.getWordTranslation(word.trim().toLowerCase());
           // Get first meaning from first translation
           const firstMeaning = translation?.translations?.[0]?.meaning || '';
@@ -265,10 +319,8 @@ export function WordInfoContent({ content, initialIsAdded }: WordInfoContentProp
         const firstMeaning = wordTranslation.translations[0]?.meaning || '';
         
         // Navigate with the EmittedWord format
-        const emittedWord = {
-          word: word,
-          translation: firstMeaning
-        };
+        const emittedWord: EmittedWord = {bookTitle: db.getDbName(), word: word, translation: "", sentenceId: 0 }
+
   
         router.push({
           pathname: "/wordInfo",

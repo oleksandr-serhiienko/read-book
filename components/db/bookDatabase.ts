@@ -192,7 +192,7 @@ export class BookDatabase {
             translation_parsed_text = ?
         WHERE id = ? 
       `;
-      if (this.db.databaseName.includes("gemini"))
+      if (this.db.databaseName.toLowerCase().includes("gemini"))
         {
           chapterQuery = `
             UPDATE book_sentences 
@@ -219,7 +219,7 @@ export class BookDatabase {
       let query =  `SELECT id as id, sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
       FROM book_sentences 
       ORDER BY sentence_number`
-      if (this.db.databaseName.includes("gemini"))
+      if (this.db.databaseName.toLowerCase().includes("gemini"))
         {
           query =  `SELECT sentence_id as id, sentence_number, chapter_id, original_text, original_parsed_text, translation_parsed_text 
           FROM book_sentences 
@@ -254,7 +254,7 @@ export class BookDatabase {
                   WHERE chapter_id = ? 
                   ORDER BY sentence_number`;
 
-        if (this.db.databaseName.includes("gemini"))
+        if (this.db.databaseName.toLowerCase().includes("gemini"))
           {
             query =  `SELECT 
                       sentence_id as id,
@@ -293,7 +293,7 @@ export class BookDatabase {
                   FROM book_sentences 
                   WHERE sentence_number = ? 
                   ORDER BY sentence_number`
-      if (this.db.databaseName.includes("gemini"))
+      if (this.db.databaseName.toLowerCase().includes("gemini"))
         {
           query =  `SELECT 
                     sentence_id as id,

@@ -169,8 +169,8 @@ const Word: React.FC<WordProps> = memo(({
 
 
     const wordToEmmit: EmittedWord = {
-      word: translationPhrase,
-      translation: currentPhrase,
+      word: currentPhrase,
+      translation: translationPhrase,
       bookTitle: database.getDbName(),
       sentenceId: sentence.sentence_number 
     }
@@ -186,8 +186,8 @@ const Word: React.FC<WordProps> = memo(({
     translationPhrase: string
   ): Promise<void> => {
     const wordToEmmit: EmittedWord = {
-      word: translationPhrase,
-      translation: currentPhrase,
+      word: currentPhrase,
+      translation: translationPhrase,
       bookTitle: database.getDbName(),
       sentenceId: sentence.sentence_number 
     }
